@@ -1,0 +1,20 @@
+--- gdb/configure
++++ gdb/configure
+@@ -855,7 +855,7 @@
+ YACC
+ YFLAGS
+ XMKMF'
+-ac_subdirs_all='testsuite
++ac_subdirs_all='
+ gdbtk
+ multi-ice
+ gdbserver'
+@@ -5269,7 +5269,7 @@
+ 
+ 
+ 
+-subdirs="$subdirs testsuite"
++subdirs="$subdirs"
+ 
+ 
+ # Check whether to support alternative target configurations

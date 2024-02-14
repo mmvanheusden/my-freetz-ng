@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libdeflate
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libdeflate
+	bool "libdeflate"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libdeflate.so.0
+

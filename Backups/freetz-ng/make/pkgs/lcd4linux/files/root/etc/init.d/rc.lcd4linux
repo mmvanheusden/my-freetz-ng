@@ -1,0 +1,95 @@
+#!/bin/sh
+
+DAEMON=lcd4linux
+DAEMON_CHECK=lcd4linux
+DAEMON_LONG_NAME=LCD4linux
+. /etc/init.d/modlibrc
+
+HTTPD_PID_LCD=/var/run/httpd_lcd.pid
+
+config() {
+	local SUBDAEMON=lcd
+	modlib_config httpd-$SUBDAEMON /mod/etc/httpd-${SUBDAEMON}.conf
+}
+
+stop_status() {
+	kill -9 "$(cat $HTTPD_PID_LCD 2>/dev/null)" 2>/dev/null
+	[ -x /mod/etc/init.d/rc.inetd ] && /mod/etc/init.d/rc.inetd config lcd4linux >/dev/null
+	modunreg status $DAEMON stats
+}
+
+start() {
+	stop_status
+	if [ "$LCD4LINUX_OUTPUT" == "yes" -a "$LCD4LINUX_WEBENABLED" = "yes" -a "$LCD4LINUX_WEB_INETD" != "yes" ]; then
+		webcfg-lcd -P $HTTPD_PID_LCD
+	fi
+	if [ "$LCD4LINUX_OUTPUT" == "yes" ]; then
+		rm -f /tmp/lcd4linux.png
+		[ "$LCD4LINUX_OUTFILE" != "/tmp/lcd4linux.png" ] && ln -s "$LCD4LINUX_OUTFILE" "/tmp/lcd4linux.png"
+		OUTPUT="-o $LCD4LINUX_OUTFILE"
+	fi
+	modlib_startdaemon $(which nice) "$(which $DAEMON_BIN)" $OUTPUT $LCD4LINUX_CMDLINE
+	[ -x /mod/etc/init.d/rc.inetd ] && //mod/etc/init.d/rc.inetd config $DAEMON
+	[ "$LCD4LINUX_OUTPUT" == "yes" -a "$LCD4LINUX_STATUSPAGE" = "yes" ] && modreg status $DAEMON $DAEMON_LONG_NAME stats
+}
+
+stop() {
+	stop_status
+	killall $DAEMON_BIN 2>/dev/null
+	local c=0
+	while [ -n "$(pidof $DAEMON_BIN)" -a $c -lt 9 ]; do
+		let c++
+		sleep 1
+	done
+	[ -z "$(pidof $DAEMON_BIN)" ] || killall -9 $DAEMON_BIN 2>/dev/null
+}
+
+case $1 in
+	config)
+		config
+		;;
+	""|load)
+		modlib_add_httpd_symlink lcd
+		modlib_defaults
+		[ ! -e "/tmp/flash/$DAEMON/$DAEMON.conf" ] && sed "s/^Display *'.*/Display 'Image'/" /etc/default.$DAEMON/$DAEMON.conf > /etc/$DAEMON.conf
+		chmod 600 /etc/$DAEMON.conf
+
+		modreg file $DAEMON lcd4linux_conf 'lcd4linux.conf' 1 lcd4linux_conf
+		modreg file $DAEMON lcd4linux_list 'Displays' 2 lcd4linux_list
+		modreg cgi $DAEMON $DAEMON_LONG_NAME
+		modreg daemon $DAEMON
+
+		modlib_start $LCD4LINUX_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modunreg file $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	status_webcfg-lcd)
+		if [ "$LCD4LINUX_OUTPUT" != "yes" -o "$LCD4LINUX_WEBENABLED" == "no" ]; then
+			echo 'stopped'
+		else
+			[ "$LCD4LINUX_WEB_INETD" = "yes" -a "$(modlib_status)" == "running" ] && echo 'inetd' || modlib_status
+		fi
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status|config]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

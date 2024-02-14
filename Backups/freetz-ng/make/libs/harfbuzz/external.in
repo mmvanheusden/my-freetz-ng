@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libharfbuzz
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libharfbuzz
+	bool "libharfbuzz"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libharfbuzz.so.0.60830.0
+

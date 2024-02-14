@@ -1,0 +1,3 @@
+ifeq ($(or $(strip $(FREETZ_LIB_libglib_2)),$(strip $(FREETZ_LIB_libgio_2)),$(strip $(FREETZ_LIB_libgobject_2)),$(strip $(FREETZ_LIB_libgmodule_2)),$(strip $(FREETZ_LIB_libgthread_2))),y)
+LIBS+=glib2
+endif

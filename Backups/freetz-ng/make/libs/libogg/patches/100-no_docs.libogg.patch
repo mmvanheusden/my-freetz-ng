@@ -1,0 +1,22 @@
+--- Makefile.am
++++ Makefile.am
+@@ -4,7 +4,7 @@
+ #AUTOMAKE_OPTIONS = foreign 1.6 dist-zip
+ AUTOMAKE_OPTIONS = foreign 1.11 dist-zip dist-xz
+ 
+-SUBDIRS = src include doc
++SUBDIRS = src include
+ 
+ m4datadir = $(datadir)/aclocal
+ m4data_DATA = ogg.m4
+--- Makefile.in
++++ Makefile.in
+@@ -356,7 +356,7 @@
+ 
+ #AUTOMAKE_OPTIONS = foreign 1.6 dist-zip
+ AUTOMAKE_OPTIONS = foreign 1.11 dist-zip dist-xz
+-SUBDIRS = src include doc
++SUBDIRS = src include
+ m4datadir = $(datadir)/aclocal
+ m4data_DATA = ogg.m4
+ pkgconfigdir = $(libdir)/pkgconfig

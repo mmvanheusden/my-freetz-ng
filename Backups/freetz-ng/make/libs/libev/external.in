@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libev
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libev
+	bool "libev"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libev.so.4.0.0
+

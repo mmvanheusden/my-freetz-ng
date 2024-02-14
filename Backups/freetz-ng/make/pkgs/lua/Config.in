@@ -1,0 +1,44 @@
+config FREETZ_PACKAGE_LUA
+	bool "Lua 5.1.5/5.4.6 (binary only)"
+	default n
+	select FREETZ_LIB_liblua
+	select FREETZ_LIB_libdl  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libm   if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	help
+		Lua Scripting Language.
+
+		Lua is a powerful, efficient, lightweight, embeddable scripting language.
+		It supports procedural programming, object-oriented programming,
+		functional programming, data-driven programming, and data description.
+
+		Lua combines simple procedural syntax with powerful data description
+		constructs based on associative arrays and extensible semantics. Lua is
+		dynamically typed, runs by interpreting bytecode with a register-based
+		virtual machine, and has automatic memory management with incremental
+		garbage collection, making it ideal for configuration, scripting, and
+		rapid prototyping. 
+
+if FREETZ_PACKAGE_LUA
+
+	choice
+		prompt "Version"
+
+		config FREETZ_PACKAGE_LUA_VERSION_ABANDON
+			bool "5.1.5"
+			depends on FREETZ_LIB_liblua_WITH_VERSION_ABANDON
+
+		config FFREETZ_PACKAGE_LUA_VERSION_CURRENT
+			bool "5.4.6"
+			depends on FREETZ_LIB_liblua_WITH_VERSION_CURRENT
+
+	endchoice
+
+	config FREETZ_PACKAGE_LUA_READLINE
+		bool "Build with readline support"
+		default y
+		select FREETZ_LIB_libreadline
+		select FREETZ_LIB_libhistory   if FREETZ_LIB_liblua_WITH_VERSION_ABANDON
+		select FREETZ_LIB_libncurses   if FREETZ_LIB_liblua_WITH_VERSION_ABANDON
+
+endif # FREETZ_PACKAGE_LUA
+

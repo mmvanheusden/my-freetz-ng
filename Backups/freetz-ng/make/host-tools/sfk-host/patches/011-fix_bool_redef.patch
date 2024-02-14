@@ -1,0 +1,18 @@
+--- sfkbase.hpp
++++ sfkbase.hpp
+@@ -153,6 +153,7 @@
+ #define cchar const char
+ #define str(x) (char*)x
+ 
++#if 0
+ #ifdef __GNUC__
+    #if __GNUC__ < 8
+       #define bool unsigned char
+@@ -161,6 +162,7 @@
+ #else
+    #define bool unsigned char
+ #endif
++#endif
+ 
+ #define mclear(x) memset(&x, 0, sizeof(x))
+ 

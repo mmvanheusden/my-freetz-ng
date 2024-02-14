@@ -1,0 +1,9 @@
+CAPTION="Unbound: unbound.conf"
+DESCRIPTION="$(lang de:"Manpage" en:"Manpage"): <a target=blank href=https://nlnetlabs.nl/documentation/unbound/unbound.conf/>https://nlnetlabs.nl/documentation/unbound/unbound.conf/</a>"
+
+CONFIG_FILE='/tmp/flash/unbound/unbound.conf'
+CONFIG_SAVE='modsave flash; pidof unbound >/dev/null && /mod/etc/init.d/rc.unbound restart'
+CONFIG_TYPE='text'
+
+TEXT_ROWS=30
+

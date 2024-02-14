@@ -1,0 +1,6 @@
+config FREETZ_PACKAGE_HTTPTUNNEL
+	bool "httptunnel 3.3 (binary only)"
+	default n
+	help
+		httptunnel is a utility that provides a HTTP tunnel server.
+

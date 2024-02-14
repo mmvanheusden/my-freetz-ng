@@ -1,0 +1,256 @@
+
+TOOLS_CC:=gcc
+TOOLS_CXX:=g++
+TOOLS_CFLAGS:=-Wall -O2
+TOOLS_CXXFLAGS:=-Wall -O2
+TOOLS_LDFLAGS:=
+
+
+# architecture of the processor
+# contains: eg x86_64, armv7l, aarch64, ...
+HOST_ARCH:=$(shell uname -m)
+
+# bitness of the build system (also the host system)
+# heuristic: if "uname -m" contains 64 then it's a 64-bit system, 32-bit otherwise
+# contains: 32 or 64
+HOST_BITNESS:=$(if $(findstring 64,$(HOST_ARCH)),64,32)
+
+# for biarch a 64 bit cpu is required which can run 32 bit code - aarch64 does not
+# contains: y or nothing
+HOST_BIARCH:=$(if $(findstring aarch64,$(HOST_ARCH)),,$(if $(findstring 64,$(HOST_BITNESS)),y,))
+
+# if this cpu is able to run 32bit code, native or biarch
+# contains: y or nothing
+HOST_RUN32BIT:=$(if $(or $(findstring y,$(HOST_BIARCH)),$(findstring 32,$(HOST_BITNESS))),y,)
+
+# on 32-bit systems no special CFLAGS are required, on all other systems use -m32 [ and hope it's supported :-) aarch64 does not :{ ]
+# contains: -m32 or nothing
+HOST_CFLAGS_FORCE_32BIT_CODE:=$(if $(findstring y,$(HOST_BIARCH)),-m32)
+
+
+# Hardcoded directory of precompiled host-tools, used to fix absolute paths in precompiled tools
+TOOLS_HARDCODED_DIR:=/home/freetz/freetz-ng/tools/build
+
+TOOLS_SOURCE_DIR:=$(FREETZ_BASE_DIR)/source/host-tools
+HOST_TOOLS_DIR:=$(FREETZ_BASE_DIR)/$(TOOLS_BUILD_DIR)
+
+$(TOOLS_SOURCE_DIR) \
+$(HOST_TOOLS_DIR):
+	@mkdir -p $@
+
+TOOLS:=$(sort $(basename $(notdir $(wildcard $(FREETZ_BASE_DIR)/$(MAKE_DIR)/host-tools/*/*.mk))))
+
+TOOLS_TARXZBUNDLE:=tools-host
+
+# tools not built by default
+TOOLS_CONDITIONAL:=$(TOOLS_TARXZBUNDLE)
+TOOLS_CONDITIONAL+=avm-rle-host
+TOOLS_CONDITIONAL+=dos2unix-host
+TOOLS_CONDITIONAL+=fastjar-host
+TOOLS_CONDITIONAL+=libdtc-host
+TOOLS_CONDITIONAL+=gmp-host
+TOOLS_CONDITIONAL+=gperf-host
+TOOLS_CONDITIONAL+=meson-host
+TOOLS_CONDITIONAL+=mpc-host
+TOOLS_CONDITIONAL+=mpfr-host
+TOOLS_CONDITIONAL+=ncftp-host
+TOOLS_CONDITIONAL+=netkit-ftp-host
+TOOLS_CONDITIONAL+=ninja-host
+TOOLS_CONDITIONAL+=lzma1-host
+TOOLS_CONDITIONAL+=lzma2-host
+TOOLS_CONDITIONAL+=openssl-host
+TOOLS_CONDITIONAL+=python2-host
+TOOLS_CONDITIONAL+=python3-host
+TOOLS_CONDITIONAL+=scons-host
+TOOLS_CONDITIONAL+=xdelta-host
+TOOLS_CONDITIONAL+=$(if $(FREETZ_TOOLCHAIN_CCACHE),,cmake-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_STRIP_LIBRARIES),,mklibs-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_SHARE_terminfo),,ncurses-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_ROOTEMU_FAKEROOT),,fakeroot-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_ROOTEMU_PSEUDO),,pseudo-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_AVM_PROP_OUTER_FILESYSTEM_TYPE_EXT2),,e2fsprogs-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_AVM_PROP_OUTER_FILESYSTEM_TYPE_EXT2),,genext2fs-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_SEPARATE_AVM_UCLIBC),,patchelf-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_AVM_HAS_NMI_VECTOR),,sfk-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_AVM_HAS_FWLAYOUT_4),,uimg-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_AVM_HAS_FWLAYOUT_5),,dtc-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_AVM_HAS_FWLAYOUT_5),,uboot-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_AVM_HAS_FWLAYOUT_5),,yf-fit_tools-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_AVM_KERNEL_CONFIG_AREA_KNOWN),,yf-akcarea-host)
+TOOLS_CONDITIONAL+=$(if $(FREETZ_PATCH_MODFS_BOOT_MANAGER),,yf-bootmanager-host)
+
+# tools not in dl-archive
+TOOLS_BUILD_LOCAL:=$(TOOLS_TARXZBUNDLE)
+TOOLS_BUILD_LOCAL+=gmp-host
+TOOLS_BUILD_LOCAL+=kconfig-host
+TOOLS_BUILD_LOCAL+=mpc-host
+TOOLS_BUILD_LOCAL+=mpfr-host
+TOOLS_BUILD_LOCAL+=openssl-host
+
+# until next host-tools update
+#TOOLS_BUILD_LOCAL+=...
+
+
+TOOLS_SUBPYTHON3=cmd() { $(PYTHON3) "$$@" $(SILENT) || { $(call ERROR,1,$(BUILD_FAIL_MSG)) } }; $(call _ECHO,building) cmd
+TOOLS_SUBCMAKE=cmd() { $(CMAKE) "$$@" $(SILENT) || { $(call ERROR,1,$(BUILD_FAIL_MSG)) } }; $(call _ECHO,building) cmd
+TOOLS_SUBNINJA=cmd() { $(NINJA) "$$@" $(SILENT) || { $(call ERROR,1,$(BUILD_FAIL_MSG)) } }; $(call _ECHO,building) cmd
+TOOLS_SUBMAKE=cmd() { $(MAKE) $(QUIET) "$$@" $(SILENT) || { $(call ERROR,1,$(BUILD_FAIL_MSG)) } }; $(call _ECHO,building) cmd
+CONFIGURE=conf_cmd() { ./configure "$$$$@" $(SILENT) || { $(call ERROR,1,$(BUILD_FAIL_MSG)) } };
+AUTORECONF=autoreconf -f -i $(SILENT) || { $(call ERROR,1,autoreconf failed) };
+
+# If CONFIG_SITE is exported, it is used from the build host for tools
+unexport CONFIG_SITE
+TOOLS_SITE:="$(CONFIG_SITE)"
+
+TOOLS_PATH="$(PATH)"
+
+# commands to run before calling configure
+# each command has to be terminated by ';'
+TOOLS_CONFIGURE_PRE_CMDS:=
+TOOLS_CONFIGURE_PRE_CMDS += $(RM) config.{cache,status};
+
+# setup environment for configure
+TOOLS_CONFIGURE_ENV:=
+TOOLS_CONFIGURE_ENV += PATH=$(TOOLS_PATH)
+
+# Set compiler/linker flags here, not in TOOLS_CONFIGURE_OPTIONS,
+# because this way they do not disturb old configure scripts
+TOOLS_CONFIGURE_ENV += CC="$(TOOLS_CC)"
+TOOLS_CONFIGURE_ENV += CXX="$(TOOLS_CXX)"
+TOOLS_CONFIGURE_ENV += CFLAGS="$(TOOLS_CFLAGS)"
+TOOLS_CONFIGURE_ENV += CXXFLAGS="$(TOOLS_CXXFLAGS)"
+TOOLS_CONFIGURE_ENV += LDFLAGS="$(TOOLS_LDFLAGS)"
+
+# Common options for configure
+TOOLS_CONFIGURE_OPTIONS:=
+TOOLS_CONFIGURE_OPTIONS += $(DISABLE_NLS)
+
+
+### PKG-macros
+
+
+### PKG_INIT - initialise package. See also _FINISH.
+### Stage 0: everything
+#   $(1) = version (mandatory)
+#   $(2) = lower-case tool name (optional)
+#   $(3) = upper-case tool name (optional)
+define TOOLS_INIT__INT
+#
+PKG_TYPE:=HTL
+PKG_MAKEFILE:=$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
+PKG_BASENAME:=$(basename $(notdir $(PKG_MAKEFILE)))
+#
+$(if $(strip $1),,$(error Undefined version for TOOLS_INIT in $(PKG_MAKEFILE)))
+pkg:=$(if $(strip $2),$(strip $2),$(PKG_BASENAME))
+PKG:=$(if $(strip $3),$(strip $3),$(call TOUPPER_NAME,$(pkg)))
+pkg_short:=$(patsubst %-host,%,$(pkg))
+#
+$(PKG)_VERSION:=$(strip $1)
+#
+$(PKG)_BUILD_PREREQ:=
+$(PKG)_BUILD_PREREQ_HINT:=
+$(PKG)_DEPENDS_ON:=$(UNPACK_TARBALL_PREREQUISITES)
+#
+$(PKG)_REBUILD_SUBOPTS=
+#
+$(PKG)_MAKE_DIR:=$(FREETZ_BASE_DIR)/$(MAKE_DIR)/host-tools/$(pkg)
+$(PKG)_SRC:=$($(PKG)_MAKE_DIR)/src
+$(PKG)_SOURCE_DIR:=$(TOOLS_SOURCE_DIR)
+$(PKG)_DIR:=$($(PKG)_SOURCE_DIR)/$(pkg_short)-$($(PKG)_VERSION)
+#
+$(PKG)_TARBALL_STRIP_COMPONENTS:=1
+$(PKG)_TARBALL_INCLUDE_FILTER:=
+#
+#
+#
+$(PKG)_CONFIGURE_DEFOPTS:=y
+$(PKG)_CONFIGURE_DEST:=TOOLS
+#
+# $(pkg)-precompiled--int must be the first target, it will depend on DEPENDS_ON
+$(pkg)-precompiled: $(pkg)-precompiled--int clear-echo-temporary
+.PHONY: $(pkg)-precompiled $(pkg)-precompiled--int $(pkg)
+endef
+define TOOLS_INIT__INTV
+$(value TOOLS_INIT__INT)
+endef
+define TOOLS_INIT
+$(eval $(call TOOLS_INIT__INTV,$1,$2,$3))
+endef
+
+# check for changed suboptions, should only be called if $(PKG)_REBUILD_SUBOPTS is defined
+define PKG_FINISH_CHECK_REBUILD_SUBOPTS__INT1
+$(PKG)_FREETZ_CONFIG_FILE:=$(TOOLS_SOURCE_DIR)/.$(pkg)_config
+endef
+define PKG_FINISH_CHECK_REBUILD_SUBOPTS__INT2
+.PHONY: $($(PKG)_FREETZ_CONFIG_FILE)
+$($(PKG)_FREETZ_CONFIG_FILE): | $(TOOLS_SOURCE_DIR)
+	@($(foreach OPT,$($(PKG)_REBUILD_SUBOPTS),echo "$(if $($(OPT)),$(OPT)=$($(OPT)),$(_hash) $(OPT) is not set)";):) > $($(PKG)_FREETZ_CONFIG_FILE).temp
+	@if ! diff -q $($(PKG)_FREETZ_CONFIG_FILE).temp $($(PKG)_FREETZ_CONFIG_FILE) 2>/dev/null $(SILENT); then \
+		$(RM) -r $($(PKG)_DIR); \
+		mv $($(PKG)_FREETZ_CONFIG_FILE).temp $($(PKG)_FREETZ_CONFIG_FILE); \
+	else \
+		$(RM) $($(PKG)_FREETZ_CONFIG_FILE).temp; \
+	fi
+$(pkg)-build-prereq: $($(PKG)_FREETZ_CONFIG_FILE)
+endef
+
+
+### PKG_FINISH - package finalisation
+# Finalise tool package
+define TOOLS_FINISH__INT
+
+$(pkg)-precompiled--int: $(pkg)-build-prereq $(patsubst %,%-precompiled,$($(PKG)_DEPENDS_ON))
+.PHONY: $(pkg)-precompiled--int
+
+$(pkg)-precompiled:
+	@$(call _ECHO_DONE)
+
+$(eval $(PKG_BUILD_PREREQ__INT))
+
+PKG_TYPE:=
+PKG_MAKEFILE:=
+PKG_BASENAME:=
+
+pkg_short:=
+pkg:=
+PKG:=
+
+endef
+#
+TOOLS_FINISH=
+TOOLS_FINISH+=$(if $($(PKG)_REBUILD_SUBOPTS),$(eval $(PKG_FINISH_CHECK_REBUILD_SUBOPTS__INT1))$(eval $(PKG_FINISH_CHECK_REBUILD_SUBOPTS__INT2)))
+TOOLS_FINISH+=$(eval $(TOOLS_FINISH__INT))
+
+
+### PKG_SOURCE_DOWNLOAD - download source packages
+TOOLS_SOURCE_DOWNLOAD=$(eval $(PKG_SOURCE_DOWNLOAD__INT))
+
+
+## PKG_UNPACKED: Unpack and patch package
+define TOOLS_UNPACKED__INT
+$($(PKG)_DIR)/.unpacked: | $($(PKG)_DEPENDS_ON)
+endef
+
+## check for changed suboptions, should only be called if $(PKG)_REBUILD_SUBOPTS is defined
+define TOOLS_UNPACKED_CHECK_REBUILD_SUBOPTS
+$($(PKG)_DIR)/.unpacked: $($(PKG)_FREETZ_CONFIG_FILE)
+endef
+
+TOOLS_UNPACKED           =
+TOOLS_LOCALSOURCE_PACKAGE=
+#
+TOOLS_UNPACKED           +=$(eval $(TOOLS_UNPACKED__INT))
+TOOLS_UNPACKED           +=$(eval $(PKG_UNPACKED__ALL_INT))
+TOOLS_LOCALSOURCE_PACKAGE+=$(eval $(PKG_UNPACKED_LOCALSOURCE_PACKAGE__INT))
+#
+TOOLS_UNPACKED           +=$(if $($(PKG)_REBUILD_SUBOPTS),$(eval $(TOOLS_UNPACKED_CHECK_REBUILD_SUBOPTS)))
+TOOLS_LOCALSOURCE_PACKAGE+=$(if $($(PKG)_REBUILD_SUBOPTS),$(eval $(TOOLS_UNPACKED_CHECK_REBUILD_SUBOPTS)))
+
+
+### PKG_CONFIGURED: Configure package
+TOOLS_CONFIGURED_CONFIGURE=$(eval $(PKG_CONFIGURED_CONFIGURE__INT))
+
+## Package needs no configuration
+TOOLS_CONFIGURED_NOP=$(eval $(PKG_CONFIGURED_NOP__INT))
+
+

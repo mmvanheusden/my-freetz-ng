@@ -1,0 +1,18 @@
+--- scripts/kconfig/confdata.c
++++ scripts/kconfig/confdata.c
+@@ -1195,6 +1195,7 @@
+ 
+ int conf_write_autoconf(int overwrite)
+ {
++#if 0
+ 	struct symbol *sym;
+ 	const char *autoconf_name = conf_get_autoconfig_name();
+ 	int ret, i;
+@@ -1234,6 +1235,7 @@
+ 				    &comment_style_pound);
+ 	if (ret)
+ 		return ret;
++#endif
+ 
+ 	return 0;
+ }

@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libyaml
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libyaml
+	bool "libyaml"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libyaml-0.so.2.0.2
+

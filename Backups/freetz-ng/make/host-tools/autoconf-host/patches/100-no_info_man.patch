@@ -1,0 +1,11 @@
+--- Makefile.in
++++ Makefile.in
+@@ -1853,7 +1853,7 @@
+ install-data-am: install-dist_autoconflibDATA \
+ 	install-dist_autotestlibDATA install-dist_buildauxDATA \
+ 	install-dist_lispLISP install-dist_m4sugarlibDATA \
+-	install-dist_perllibDATA install-info-am install-man \
++	install-dist_perllibDATA                             \
+ 	install-nodist_autoconflibDATA install-nodist_autoscanlibDATA \
+ 	install-nodist_autotestlibDATA install-nodist_m4sugarlibDATA \
+ 	install-nodist_pkgdataDATA install-pkgdataDATA

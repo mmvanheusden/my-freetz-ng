@@ -1,0 +1,57 @@
+#!/bin/sh
+
+DAEMON=pcsc-lite
+DAEMON_BIN=pcscd
+DAEMON_LONG_NAME="PCSC-Lite"
+PID_FILE=/var/run/$DAEMON_BIN/$DAEMON_BIN.pid
+DAEMON_CFGFILE=/tmp/flash/$DAEMON/reader.conf
+. /etc/init.d/modlibrc
+
+
+start() {
+	modlib_startdaemon $DAEMON_BIN -c $DAEMON_CFGFILE $PCSC_LITE_OPTIONS
+}
+
+reload() {
+	$DAEMON_BIN -c $DAEMON_CFGFILE -H
+}
+
+case $1 in
+	""|load)
+		modlib_defaults $DAEMON_CFGFILE
+
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+		modreg file $DAEMON conf "${DAEMON_CFGFILE##*/}" 0 "pcsc-lite_conf"
+
+		modlib_start $PCSC_LITE_ENABLED
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|reload|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

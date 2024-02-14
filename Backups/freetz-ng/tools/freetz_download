@@ -1,0 +1,494 @@
+#! /usr/bin/env bash
+
+# Download Freetz packages from a randomly chosen mirror server. There is
+# an empty input field for a user-defined server in 'menuconfig'. Additionally,
+# another download source maybe specified on the command line as $3. $2 is the name
+# of the file to be downloaded.
+#
+# This script is designed to be called by makefile includes (*.mk), but can
+# also be called directly. It expects to find a file with necessary variables
+# at a relative location '../.config' to this script. The variables are:
+#   - FREETZ_DL_SITE_USER     (URL, e.g. http://my.server.org)
+#   - FREETZ_DL_SITE_CUSTOM   (URL, set by config/custom.in)
+
+# supported checksum algorithms
+CHECKSUM_ALGOS[32]="md5"
+CHECKSUM_ALGOS[40]="sha1"
+CHECKSUM_ALGOS[64]="sha256"
+CHECKSUM_ALGOS[128]="sha512"
+
+FREETZ_BASE_DIR_FOUND="${FREETZ_BASE_DIR:-.}"
+DOT_CONFIG="$FREETZ_BASE_DIR_FOUND/.config"
+#SVN_INSECURE_CERT="--trust-server-cert"
+#WGET_INSECURE_HTTPS="--no-check-certificate"
+FREETZ_DL_SITE_0="https://freetz-ng.hackquest.com"
+FREETZ_DL_SITE_1="https://freetz.magenbrot.net"
+#FREETZ_DL_SITE_x="http://freetz.3dfxatwork.de"
+FREETZ_DL_SITE_2="https://freetz.wirsind.info"
+FREETZ_DL_SITE_3="https://raw.githubusercontent.com/Freetz-NG/dl-mirror/master"
+FREETZ_DL_SITES_COUNT=4
+FREETZ_DL_SITES_NORND_FIRST=1
+FREETZ_DL_SITES_NORND_LAST=1
+
+helpmsg() {
+cat << 'EOF'
+freetz_download - download Freetz packages
+
+Usage: freetz_download (-?|--help) | [--delete-on-trap] [--no-append-servers] [--checksum-optional] ( (<download-dir> | check) <filename> [<main-url>,<mirror1>,<mirror2>,...] [<checksum>] )
+    check         - check download
+    download-dir  - target directory for download file
+    filename      - download file name
+    main-url      - url without filename for primary download
+    checksum      - file checksum (supported algorithms: md5, sha1, sha256, sha512)
+    -?, --help    - print this help text
+
+Examples:
+    freetz_download dl package.tar.bz2
+    freetz_download dl package.tar.bz2 http://myserver.com/freetz
+    freetz_download dl package.tar.bz2 http://myserver.com/freetz,ftp://myserver-mirror.com/pub/freetz
+
+Debugging: just set DEBUG=1, like this:
+    DEBUG=1 freetz_download dl package.tar.bz2
+EOF
+}
+
+do_download() {
+	# $1 = target directory, $2 = download URL without file, $3 = (remote) file name
+	local outFile="${1%%/}/${opt_out_file:-$3}"
+	local fullURL="${2%%/}/$3"
+	[ "$opt_trap_delete" == y ] && trap 'echo "Deleting file: \"$outFile\""; rm "$outFile" 2>/dev/null; exit 1' TERM INT
+	echo 1>&11
+	[ "$DEBUG" == "1" ] && echo \
+	"wget $WGET_INSECURE_HTTPS -nd -t3 --timeout=20 --progress=bar:force:noscroll --passive-ftp '${fullURL}' -O '${outFile}' 1>&11 2>&12"
+	 wget $WGET_INSECURE_HTTPS -nd -t3 --timeout=20 --progress=bar:force:noscroll --passive-ftp "${fullURL}" -O "${outFile}" 1>&11 2>&12
+	wget_result=$?
+	[ "$opt_trap_delete" == y ] && trap - TERM INT
+	if [ "$wget_result" != "0" ]; then
+		if [ -e "/usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt" ]; then
+			# https://letsencrypt.org/docs/dst-root-ca-x3-expiration-september-2021/
+			local CAX3="/usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt"
+			for x in $(find /etc/ssl/certs/ ! -type d); do [ "$(realpath $x)" == "/usr/share/ca-certificates/mozilla/DST_Root_CA_X3.crt" ] && CAX3="$CAX3 $x"; done
+			echo -e "\nWARNING: Expired 'DST Root CA X3' certificate found. To remove file DST_Root_CA_X3.crt and links to it run:\nsudo rm -f $CAX3\n"
+		fi
+		echo "Download failed - \"${fullURL}\"  ->  error code $wget_result" 1>&11
+		rm -f "$outFile"
+		return $wget_result
+	fi
+	echo "Download succeeded - \"${fullURL}\"  ->  saved to folder \"$1\"" 1>&11
+}
+
+do_check() {
+	local mode wget_output wget_result
+	for mode in --spider --output-document=/dev/null; do
+		[ "$DEBUG" == "1" ] && \
+		echo         "LC_ALL=C wget -t3 --timeout=20 --passive-ftp -S $mode '$1' 2>&1"
+		wget_output=$(LC_ALL=C wget -t3 --timeout=20 --passive-ftp -S $mode "$1" 2>&1)
+		wget_result=$?
+		if [ "$wget_result" != "0" ]; then
+			# workaround wget spider-mode bug (false negative): known to happen with all sites
+			# with forbidden directory listing. wget in spider-mode first checks the directory
+			# containing the downloaded file. After getting "403 Forbidden" it stops and doesn't
+			# make any further checks.
+			if echo "$wget_output" | grep -qEi "403 Forbidden"; then
+				continue
+			fi
+
+			# real negative
+			return $wget_result
+		fi
+
+		# workaround wget-bug: while checking availability of a file on an ftp-site
+		# it prints "no such file" but doesn't set return code appropriately
+		if echo "$wget_output" | grep -qEi "(no such file|file does not exist)"; then
+			return 1
+		fi
+
+		# workaround yet another hassle: web-servers redirecting to some "file does not exist"-page, e.g. 404.html.
+		# heuristic - we never download html-pages, so the content type of the downloaded file should be something other than 'text/html'.
+		# note: disabling redirection with "--max-redirect=0" does not work as it's a legitimate behavior
+		# for the mirror sites to redirect to some geographically nearby location.
+		if echo "$wget_output" | grep -i "Content-Type" | tail -1 | grep -qi "text/html"; then
+			return 1
+		fi
+
+		break
+	done
+
+	return 0
+}
+
+# $1 - url
+# $2 - subdir
+# $3 - version
+do_checkout_cvs() {
+	local module_name
+	module_name="${2/-$3/}"
+	(cvs -d:"$1" export -D "$3" "$module_name" 1>&11 2>&12 || cvs -d:"$1" export -r "$3" "$module_name" 1>&11 2>&12) && mv "$module_name" "$2"
+}
+do_checkout_svn() {
+	svn export --non-interactive $SVN_INSECURE_CERT -r$3 "$1" "$2" 1>&11 2>&12
+}
+do_checkout_git() {
+	git clone "$1" "$2" 1>&11 2>&12 \
+	&& pushd "$2" >/dev/null \
+	&& git checkout "$3" 1>&11 2>&12 \
+	&& LAST_COMMIT_TIMESTAMP=$(git log -1 --pretty=format:%cD) \
+	&& if [ -f ".gitmodules" -a -z "$NO_SUBMODULES" ]; then git submodule init 1>&11 2>&12 && git submodule update 1>&11 2>&12; fi \
+	&& rm -rf .git \
+	&& popd >/dev/null
+}
+do_checkout_git_no_submodules() {
+	NO_SUBMODULES=1 do_checkout_git "$@"
+}
+# Note: remote repository must support "git archive" command
+# $1 is expected to have the following format:
+#    repository_url,path1,path2,...,pathN
+# where
+#    repository_url - a repository url supporting archive command, e.g. git://repo.or.cz/git.git
+#    pathX - a path to any file or directory within the repository
+# Only path1,...,pathN will be transmitted saving both bandwidth and processing power.
+do_checkout_git_archive() {
+	local repository paths
+	repository=$(echo "$1" | cut -d , -f 1)
+	paths=$(echo "$1" | cut -d , -f 2- | tr , " ")
+	git archive --format=tar --remote="$repository" --prefix="$2/" "$3" $paths 2>&12 | tar -x 1>&11 2>&12
+}
+# $1 is expected to have the following format:
+#    repository_url,path
+# where
+#    repository_url - a repository url , e.g. https://github.com/user/repo
+#    path - a path to any file or directory within the repository
+# Not much more than path will be transmitted saving both bandwidth and processing power.
+do_checkout_git_sparse() {
+	git clone 2>&1 | grep -q '\-\-filter ' || exit 1
+	local repo="${1%%,*}"
+	local sdir="${1##*,}"
+	git clone --no-checkout --depth 1 --filter=blob:none --sparse "$repo" "$2" 1>&11 2>&12 \
+	&& pushd "$2" >/dev/null \
+	&& git sparse-checkout init --cone 1>&11 2>&12 \
+	&& git sparse-checkout set $sdir 1>&11 2>&12 \
+	&& git checkout "$3" 1>&11 2>&12 \
+	&& LAST_COMMIT_TIMESTAMP=$(git log -1 --pretty=format:%cD) \
+	&& find . -maxdepth 1 ! -name "$sdir" -exec rm -rf {} ';' 2>/dev/null \
+	&& popd >/dev/null
+}
+do_checkout_bzr() {
+	bzr export -r"$3" "$2" "$1" 1>&11 2>&12
+}
+do_checkout_hg() {
+	hg clone -r "$3" "$1" "$2" 1>&11 2>&12 && (cd "$2" && rm -rf .hg .hgignore .hgtags)
+}
+do_checkout_darcs() {
+	darcs get -t "$3" "$1" "$2" 1>&11 2>&12 && (cd "$2" && rm -rf _darcs)
+}
+
+
+# Regular use: help parameter -> exit without error
+if [ "$1" == "-?" -o "$1" == "--help" ]; then
+	helpmsg
+	exit 0
+fi
+
+opt_out_file=
+opt_trap_delete=n
+opt_append_servers=y
+opt_needs_checksum=y
+while [ $# -gt 1 ]; do
+	case "$1" in
+		--out-file)
+			shift
+			opt_out_file="$1"
+			shift
+			;;
+		--delete-on-trap)
+			opt_trap_delete=y
+			shift
+			;;
+		--no-append-servers)
+			opt_append_servers=n
+			shift
+			;;
+		--checksum-optional)
+			opt_needs_checksum=n
+			shift
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+# Wrong number of parameters -> exit with error
+if [ $# -lt 2 -o $# -gt 4 ]; then
+	helpmsg >&2
+	exit 1
+fi
+
+DL_DIR="$1"
+DL_FILE="$2"
+URLs="$3"
+CHECKSUM="$(echo ${4,,})" # convert to lower-case and trim whitespaces (checksum length is used to determine the checksum algorithm)
+
+# Import Freetz config variables
+[ -e $DOT_CONFIG ] && . $DOT_CONFIG
+
+if [ "$DEBUG" == "1" ]; then
+	echo "freetz_download parameters:"
+	echo "    FREETZ_BASE_DIR_FOUND=$FREETZ_BASE_DIR_FOUND"
+	echo "    DOT_CONFIG=$DOT_CONFIG"
+	echo "    DL_DIR=$DL_DIR"
+	echo "    DL_FILE=$DL_FILE"
+	echo "    OUT-FILE=$opt_out_file"
+	echo "    URLs=$URLs"
+	echo "    CHECKSUM=$CHECKSUM"
+fi
+
+# Mute on verbose 0
+if [ "$FREETZ_VERBOSITY_LEVEL" == "0" ]; then
+	exec 11>/dev/null
+	exec 12>/dev/null
+else
+	exec 11>&1
+	exec 12>&2
+fi
+
+# Array 'sites' will be filled with all download server URLs
+num_sites=0
+
+# User defined mirror(s) always and at very first (if any)
+if [ -n "$FREETZ_DL_SITE_USER" -o -n "$FREETZ_DL_SITE_CUSTOM" ]; then
+	for user_site in $FREETZ_DL_SITE_USER $FREETZ_DL_SITE_CUSTOM; do
+		sites[(( num_sites++ ))]="$user_site"
+	done
+fi
+
+# Primary site and package specific mirrors (if specified)
+if [ -n "$URLs" ]; then
+	# check if URLs contains magic sequence corresponding to one of the supported VCSs
+	supportedVCSs="cvs|svn|git|git_no_submodules|git_archive|git_sparse|bzr|hg|darcs"
+	VCS="$(echo "${URLs}" | sed -nr -e "s,^(${supportedVCSs})(@|://).*,\1,p")"
+	if [ -n "${VCS}" ]; then
+		URLs="$(echo "${URLs}" | sed -r -e "s,^(${supportedVCSs})@(.*),\2,")"
+	else
+		URLs="${URLs//@1&1/@1u1}" # replace our 1&1 alias with a one containing no special shell characters
+
+		# replace special shell characters with their percent-encoding counterparts (in order to be able to apply shell brace-expansion)
+		URLs="${URLs//\ /%20}"
+		URLs="${URLs//\!/%21}"
+		URLs="${URLs//\$/%24}"
+		URLs="${URLs//\&/%26}"
+
+		for url in $(eval echo "{${URLs},}"); do # wrap URLs with curly-braces to apply brace-expansion
+			if [ ${url:0:7} == "@MIRROR" ]; then
+				: # file is only on mirrors available
+			elif [ ${url:0:3} == "@SF" ]; then
+				# give sourceforge a few more tries, because it redirects to different mirrors
+				subpath=${url/@SF\//}
+				for (( n=0; n < 5; n++ )); do
+					sites[(( num_sites++ ))]=https://downloads.sourceforge.net/$subpath
+				done
+			elif [ ${url:0:4} == "@AVM" ]; then
+				subpath=${url/@AVM\//}
+				sites[(( num_sites++ ))]=https://download.avm.de/fritzbox/$subpath
+				sites[(( num_sites++ ))]=https://download.avm.de/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/fritzwlan/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/fritzpowerline/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/fritzsmart/$subpath
+				sites[(( num_sites++ ))]=https://avm.de/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/labor/GoFiber23/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/labor/MOVE21NL1/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/labor/MOVE21/$subpath
+				sites[(( num_sites++ ))]=https://download.avm.de/inhaus/GoFiber23/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/inhaus/MOVE21NL1/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/inhaus/MOVE21/$subpath
+#				sites[(( num_sites++ ))]=https://download.avm.de/inhaus/WU22PSQ19/$subpath
+				sites[(( num_sites++ ))]=https://download.avm.de/archive/fritz.box/$subpath
+				sites[(( num_sites++ ))]=https://service.avm.de/downloads/downgrade/$subpath
+				sites[(( num_sites++ ))]=https://service.avm.de/downloads/zwischenupdate/$subpath
+				sites[(( num_sites++ ))]=https://service.avm.de/downloads/$subpath
+				sites[(( num_sites++ ))]=https://www.avm.de/de/Service/Service-Portale/$subpath
+#				sites[(( num_sites++ ))]=ftp://ftp.avm.de/fritzbox/$subpath
+#				sites[(( num_sites++ ))]=ftp://ftp.avm.de/$subpath
+#				sites[(( num_sites++ ))]=ftp://ftp.avm.de/archive/fritz.box/$subpath
+			elif [ ${url:0:4} == "@GNU" ]; then
+				subpath=${url/@GNU\//}
+				sites[(( num_sites++ ))]=https://ftpmirror.gnu.org/$subpath # automatically chooses a nearby and up-to-date mirror
+				sites[(( num_sites++ ))]=https://ftp.gnu.org/gnu/$subpath
+			elif [ ${url:0:7} == "@KERNEL" ]; then
+				subpath=${url/@KERNEL\//}
+				sites[(( num_sites++ ))]=https://cdn.kernel.org/pub/$subpath
+				sites[(( num_sites++ ))]=https://mirrors.kernel.org/pub/$subpath
+				sites[(( num_sites++ ))]=https://www.kernel.org/pub/$subpath
+			elif [ ${url:0:8} == "@TELEKOM" ]; then
+				subpath=${url/@TELEKOM\//}
+				sites[(( num_sites++ ))]=https://www.telekom.de/hilfe/downloads/$subpath
+				sites[(( num_sites++ ))]=http://www.telekom.de/dlp/eki/downloads/$subpath
+				sites[(( num_sites++ ))]=http://www.t-home.de/dlp/eki/downloads/$subpath
+				sites[(( num_sites++ ))]=http://hilfe.telekom.de/dlp/eki/downloads/$subpath
+			elif [ ${url:0:4} == "@1u1" ]; then
+				subpath=${url/@1u1\//}
+				sites[(( num_sites++ ))]=http://acsfwdl.1und1.de/avm/$subpath
+			elif [ ${url:0:4} == "@EWE" ]; then
+				subpath=${url/@EWE\//}
+				sites[(( num_sites++ ))]=http://download.ewe.de/avm/$subpath
+			elif [ ${url:0:6} == "@M-NET" ]; then
+				subpath=${url/@M-NET\//}
+				sites[(( num_sites++ ))]=http://www.m-net.de/fileadmin/downloads/Links/$subpath
+			elif [ ${url:0:7} == "@APACHE" ]; then
+				subpath=${url/@APACHE\//}
+				sites[(( num_sites++ ))]=https://www.apache.org/dist/$subpath
+				sites[(( num_sites++ ))]=https://archive.apache.org/dist/$subpath
+			elif [ ${url:0:6} == "@SAMBA" ]; then
+				subpath=${url/@SAMBA\//}
+				sites[(( num_sites++ ))]=https://download.samba.org/pub/$subpath
+				sites[(( num_sites++ ))]=https://www.samba.org/ftp/$subpath
+				sites[(( num_sites++ ))]=https://ftp.samba.org/pub/$subpath
+			else
+				sites[(( num_sites++ ))]=$url
+			fi
+		done
+	fi
+fi
+
+# Add all mirrors to 'sites' array (if not invalid checksum (=repo only) and not an image)
+if [ "$CHECKSUM" != "X" -a "$opt_append_servers" != "n" ]; then
+	# Get Freetz mirror sites in an array
+	FREETZ_SITES=( $(
+		for (( i=0; i < $FREETZ_DL_SITES_COUNT ; i++ )); do
+			eval "echo \$FREETZ_DL_SITE_$i"
+		done
+		) )
+	# The FREETZ_DL_SITES_NORND_FIRST count of mirrors always as first
+	for (( n=0; n < ${FREETZ_DL_SITES_NORND_FIRST}; n++ )); do
+		sites[(( num_sites++ ))]="${FREETZ_SITES[$n]}"
+	done
+	# Add mirrors in random order
+	for (( n=$(( ${FREETZ_DL_SITES_COUNT} - ${FREETZ_DL_SITES_NORND_LAST} - ${FREETZ_DL_SITES_NORND_FIRST} )); n > 0; n-- )); do
+		p=$(( ${FREETZ_DL_SITES_NORND_FIRST} + RANDOM % $n ))
+		sites[(( num_sites++ ))]="${FREETZ_SITES[$p]}"
+		FREETZ_SITES[$p]="${FREETZ_SITES[$(( ${FREETZ_DL_SITES_NORND_FIRST} + ${n} - 1 ))]}"
+	done
+	# The FREETZ_DL_SITES_NORND_LAST count of mirrors always as last
+	for (( n=$(( ${FREETZ_DL_SITES_COUNT} - ${FREETZ_DL_SITES_NORND_LAST} )); n < ${FREETZ_DL_SITES_COUNT}; n++ )); do
+		sites[(( num_sites++ ))]="${FREETZ_SITES[$n]}"
+	done
+fi
+
+calculate_full_checksum() {
+	local CHECKSUM_ALGO="${CHECKSUM_ALGOS[64]}"
+	local CHECKSUM_PROG="$(dirname $0)/${CHECKSUM_ALGO}sum"
+	[ ! -x "$CHECKSUM_PROG" ] && CHECKSUM_PROG="$(command -v ${CHECKSUM_ALGO}sum)"
+	[ -x "$CHECKSUM_PROG" ] && FILE_CHECKSUM=$($CHECKSUM_PROG "$DL_DIR/${opt_out_file:-$DL_FILE}" | sed 's/ .*//') || FILE_CHECKSUM=""
+	[ -n "$FILE_CHECKSUM" ] && FULL_CHECKSUM=": ${CHECKSUM_ALGO^^}:=$FILE_CHECKSUM" || FULL_CHECKSUM=""
+}
+
+# Loop over servers until a download succeeds or all requests have failed.
+download_by_url() {
+IFS=$'\n'
+for i in ${sites[@]}; do
+	if [ ${DL_DIR:0:5} == "check" ]; then
+		do_check "$i/$DL_FILE"
+		if [ "$?" != "0" ]; then
+			continue
+		fi
+	else
+		do_download "$DL_DIR" "$i" "$DL_FILE"
+		if [ "$?" != "0" ]; then
+			continue
+		fi
+
+		local DL_DNF="$DL_DIR/${opt_out_file:-$DL_FILE}"
+		if [ -n "$CHECKSUM" ]; then
+			CHECKSUM_ALGO="${CHECKSUM_ALGOS[${#CHECKSUM}]}"
+			if [ -n "${CHECKSUM_ALGO}" ]; then
+				CHECKSUM_PROG="$(dirname $0)/${CHECKSUM_ALGO}sum"
+				[ ! -x "$CHECKSUM_PROG" ] && CHECKSUM_PROG="$(command -v ${CHECKSUM_ALGO}sum)"
+			else
+				calculate_full_checksum
+				[ "${CHECKSUM^^}" == "X" ] \
+				  && echo -e "\033[1;35mERROR: No valid checksum to verify found, downloaded file has$FULL_CHECKSUM\033[0m" \
+				  || echo -e "\033[1;35mERROR: Unknown checksum algorithm for a hash length of ${#CHECKSUM}$FULL_CHECKSUM\033[0m"
+				rm -f "$DL_DNF"
+				break
+			fi
+
+			if [ -x "$CHECKSUM_PROG" ]; then
+				FILE_CHECKSUM=$($CHECKSUM_PROG "$DL_DNF" | sed 's/ .*//')
+				if [ "$CHECKSUM" != "$FILE_CHECKSUM" ]; then
+					echo -e "\033[0;31mChecksum mismatch for $DL_DNF: ${CHECKSUM_ALGO^^}:=$FILE_CHECKSUM (expected: $CHECKSUM)\033[0m" 1>&11
+					rm -f "$DL_DNF"
+					continue;
+				else
+					echo -e "\033[0;32mChecksum verified for $DL_DNF: ${CHECKSUM_ALGO^^}:=$FILE_CHECKSUM\033[0m" 1>&11
+				fi
+			else
+				echo -e "\033[1;33mERROR: Can not find '${CHECKSUM_ALGO}sum' to check $CHECKSUM_ALGO\033[0m"
+				rm -f "$DL_DNF"
+				exit 1
+			fi
+		else
+			if [ "$opt_needs_checksum" != n ]; then
+				calculate_full_checksum
+				echo -e "\033[1;33mChecksum unavailable for $DL_DNF$FULL_CHECKSUM\033[0m"
+			else
+				echo -e "\033[1;34mChecksum disabled for $DL_DNF\033[0m" 1>&11
+			fi
+		fi
+	fi
+	exit 0
+done
+unset IFS
+}
+
+# Download by vcs in case of a repository, maybe try mirrors later
+download_by_vcs() {
+	[ -z "$VCS" ] && return
+
+	echo 1>&11
+	case "$DL_FILE" in
+		*.tar.gz) COMPRESSION_FLAG=z ;;
+		*.tar.bz2) COMPRESSION_FLAG=j ;;
+		*.tar.xz) COMPRESSION_FLAG=J ;;
+		*) { echo "Failed to detect compression method from $DL_FILE"; exit 1; } ;;
+	esac
+
+	SUBDIR=$(echo "$DL_FILE" | sed -r -e 's,(.*)[.]tar[.](gz|bz2|xz)$,\1,')
+	FILEPART="${URLs##*/}"
+	VERSION=$(echo "${SUBDIR/${FILEPART%.git}/}" | sed -e 's,.*-,,')
+	[ -n "$VERSION" ] || { echo "Failed to detect version from $DL_FILE"; exit 1; }
+
+	TMP_DIR=$(mktemp -d -t freetzXXX) || { echo "Error creating temporary dir."; exit 1; }
+	echo "Checking out from $VCS repository: $URLs @$VERSION" 1>&11 \
+	&& ( \
+		cd "$TMP_DIR" \
+		&& rm -rf "$SUBDIR" \
+		&& [ ! -d "$SUBDIR" ] \
+		&& do_checkout_"$VCS" "$URLs" "$SUBDIR" "$VERSION" \
+		&& echo -e "\033[1;33mPacking checkout to $DL_DIR/$DL_FILE\033[0m" 1>&11 \
+		&& { \
+			find "$SUBDIR" -not -type d | LC_ALL=C sort > "$SUBDIR.list.sorted"; \
+			tar \
+			  --format=gnu \
+			  --numeric-owner --owner=0 --group=0 \
+			  ${LAST_COMMIT_TIMESTAMP:+--mtime="${LAST_COMMIT_TIMESTAMP}"} \
+			  -T "$SUBDIR.list.sorted" \
+			  -c${COMPRESSION_FLAG}f "$DL_FILE"; \
+		} \
+	) \
+	&& mv "$TMP_DIR/$DL_FILE" "$DL_DIR/" \
+	&& rm -rf "$TMP_DIR" \
+	&& calculate_full_checksum \
+	&& echo -e "\033[1;33mChecksum of created file is$FULL_CHECKSUM\033[0m" 1>&11 \
+	&& exit 0
+
+	rm -f "$DL_DIR/$DL_FILE"
+	rm -rf "$TMP_DIR"
+
+	[ "$FREETZ_DL_VCS_FROM_MIRRORS" != "y" ] && exit 1
+}
+
+[ "$FREETZ_DL_VCS_REPO_FIRST" == "y" ] && download_by_vcs
+download_by_url
+[ "$FREETZ_DL_VCS_REPO_FIRST" != "y" ] && download_by_vcs
+
+exit 1

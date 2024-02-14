@@ -1,0 +1,85 @@
+#!/bin/sh
+
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+#allow caching of local files
+echo "local-ttl=25200"
+
+#use fqdn for queries
+echo "domain-needed"
+
+#set asynchronous logging
+[ "$DNSMASQ_LOG_ASYNC" -ge 0 ] 2>/dev/null && echo "log-async=$DNSMASQ_LOG_ASYNC" || echo "log-async"
+
+#don't read /etc/resolv.conf, it's pointing local. but allow user-defined files
+grep -i "^resolv-file=" /tmp/flash/dnsmasq/dnsmasq.extra -q 2>/dev/null || echo "no-resolv"
+
+#add avm upstream-servers
+if [ "$DNSMASQ_AVM_DNS" = yes ]; then
+	echo "server=$(echo 'servercfg.dns1' | ar7cfgctl -s)"
+	echo "server=$(echo 'servercfg.dns2' | ar7cfgctl -s)"
+fi
+
+#add own upstream-servers
+if [ -n "$DNSMASQ_UPSTREAM" ]; then
+	for dnsserver in $DNSMASQ_UPSTREAM; do
+		echo "server=$dnsserver"
+	done
+fi
+
+if [ "$DNSMASQ_WPADFIX" = "yes" ]; then
+	echo "dhcp-name-match=set:wpad-ignore,wpad"
+	echo "dhcp-ignore-names=tag:wpad-ignore"
+fi
+
+[ "$DNSMASQ_BOGUSPRIV" = "yes" ] && echo "bogus-priv"
+
+if [ "$DNSMASQ_DHCP" = "yes" ]; then
+	echo "$DNSMASQ_DHCP_RANGE" | grep -v "^#" | while read -r range; do
+		[ -n "$range" ] && echo "dhcp-range=$range"
+	done
+fi
+
+if [ "$DNSMASQ_DOMAIN" ]; then
+	echo "domain=$DNSMASQ_DOMAIN"
+	echo "expand-hosts"
+fi
+
+if [ "$DNSMASQ_TFTP" = 'yes' -a -n "$DNSMASQ_TFTP_TFTPROOT" ]; then
+	echo "enable-tftp"
+	echo "tftp-root=$DNSMASQ_TFTP_TFTPROOT"
+	echo "tftp-no-fail"
+fi
+
+if [ "$DNSMASQ_DHCP" = "yes" -a "$DNSMASQ_DHCP_BOOT" = "yes" -a "$DNSMASQ_DHCP_BOOTFILE" ]; then
+	echo "dhcp-boot=$DNSMASQ_DHCP_BOOTFILE"
+fi
+
+[ "$DNSMASQ_ETHERS" = "yes" ] && echo "read-ethers"
+
+[ "$DNSMASQ_STOP_DNS_REBIND" = "yes" ] && echo "stop-dns-rebind"
+
+[ "$DNSMASQ_LOG_QUERIES" = "yes" ] && echo "log-queries"
+
+if [ "$FREETZ_PACKAGE_DNSMASQ_WITH_DNSSEC" = "y" -a "$DNSMASQ_DNSSEC" = "yes" ]; then
+	[ -r /mod/etc/default.dnsmasq/trust-anchors.conf ] && echo "conf-file=/mod/etc/default.dnsmasq/trust-anchors.conf"
+	echo "dnssec"
+	if [ "$(date +'%Y')" -lt 2019 ]; then
+		[ ! -e /tmp/.dnsmasq.timestamp ] && cp -p /etc/version /tmp/.dnsmasq.timestamp && chown nobody.nobody /tmp/.dnsmasq.timestamp
+		echo "dnssec-timestamp=/tmp/.dnsmasq.timestamp"
+	fi
+fi
+
+if [ "$FREETZ_PACKAGE_ADDHOLE" == "y" -o -e "/tmp/.dnsmasq.addhole" ]; then
+	[ ! -e "/tmp/.dnsmasq.addhole" ] && touch "/tmp/.dnsmasq.addhole"
+	echo "addn-hosts=/tmp/.dnsmasq.addhole"
+fi
+
+egrep -v '^(#|[[:space:]]*$)' /tmp/flash/mod/hosts 2>/dev/null | \
+  while read -r ip mac interface host desc; do
+	[ "${mac}" == "dhcp-host" ] && echo "dhcp-host=${host}"
+done
+
+if [ "$DNSMASQ_DHCPHOSTFILE" == "yes" ]; then
+	echo "dhcp-hostsfile=/var/tmp/flash/dnsmasq/dnsmasq.dhcphosts"
+fi

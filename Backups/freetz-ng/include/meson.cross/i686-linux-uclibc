@@ -1,0 +1,10 @@
+
+[constants]
+arch              = 'i686-linux-uclibc'
+
+[target_machine]
+system            = 'linux'
+cpu_family        = 'x86'
+cpu               = 'i686'
+endian            = 'little'
+

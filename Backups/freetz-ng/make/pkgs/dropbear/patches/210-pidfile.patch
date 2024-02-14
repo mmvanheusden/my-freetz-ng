@@ -1,0 +1,10 @@
+--- svr-main.c
++++ svr-main.c
+@@ -159,6 +159,7 @@
+ 	listensockcount = listensockets(listensocks, MAX_LISTEN_ADDR, &maxsock);
+ 	if (listensockcount == 0)
+ 	{
++		unlink(svr_opts.pidfile);
+ 		dropbear_exit("No listening ports available.");
+ 	}
+ 

@@ -1,0 +1,73 @@
+#!/bin/sh
+
+DAEMON=siproxd
+VARRUN_DIR=/var/run/$DAEMON
+PID_FILE=$VARRUN_DIR/$DAEMON.pid
+. /etc/init.d/modlibrc
+
+PERSISTENT_CONF_DIR=/tmp/flash/$DAEMON
+HOME_DIR=/mod/home/$DAEMON
+
+
+create_conffile() {
+	[ -e "$PERSISTENT_CONF_DIR/$1" ] || /mod/etc/default.siproxd/$2 > "$PERSISTENT_CONF_DIR/$1"
+	ln -sf "$PERSISTENT_CONF_DIR/$1" /mod/etc/$1 >/dev/null 2>&1
+}
+
+_chown() {
+	chown -R $DAEMON:$DAEMON "$@"
+}
+
+config() {
+	mkdir -p "$VARRUN_DIR"
+	_chown "$VARRUN_DIR" "$PERSISTENT_CONF_DIR"
+}
+
+start() {
+	modlib_startdaemon siproxd -c /mod/etc/siproxd.conf -p $PID_FILE
+}
+
+case "$1" in
+	""|load)
+		modlib_add_user_and_group $DAEMON
+		mkdir -p "$PERSISTENT_CONF_DIR" "$HOME_DIR"
+		chmod -R 0700 "$PERSISTENT_CONF_DIR" "$HOME_DIR"
+		create_conffile siproxd.conf siproxd_conf
+		create_conffile siproxd.reg siproxdreg_conf
+		create_conffile siproxd.pwd siproxdpwd_conf
+
+		_chown "$PERSISTENT_CONF_DIR" "$HOME_DIR"
+
+		modreg cgi 'siproxd' 'Siproxd'
+		modreg file siproxd conf 'conf' 0 "siproxd_conf"
+		modreg file siproxd reg 'reg' 0 "siproxdreg_conf"
+		modreg file siproxd pwd 'pwd' 0 "siproxdpwd_conf"
+		modreg daemon $DAEMON
+
+		modlib_start $SIPROXD_ENABLED
+		;;
+	unload)
+		modunreg file siproxd
+		modunreg cgi siproxd
+		modunreg daemon $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

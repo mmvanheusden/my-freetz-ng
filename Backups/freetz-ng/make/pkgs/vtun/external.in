@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_PACKAGE_VTUN
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_VTUN
+	bool "vtund"
+	default n
+	help
+		externals the following file(s):
+			/usr/bin/vtund
+

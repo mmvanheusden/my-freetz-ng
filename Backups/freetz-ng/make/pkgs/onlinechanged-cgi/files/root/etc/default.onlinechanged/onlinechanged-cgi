@@ -1,0 +1,24 @@
+# Mögliche Parameter: start | online | onlineipv6 | online* | offline | offlineipv6 | offline*
+
+case $1 in
+ start)
+   # Kommandos beim Start des Routers
+   # ggf. sollten hier die Einträge von online) stehen
+   ;;
+ online*)
+   # Kommandos wenn der Router online geht (z.B. nach der Zwangstrennung)
+   #
+   # Beispiel für DynDNS bei Strato (nützlich bei mehreren DynDNS-Einträgen)
+   # wget -q -O /dev/null \
+   # http://<hostname>:<;passwort>@dyndns.strato.com\
+   # /nic/update?hostname=&lt;hostname2&gt;
+   #
+   # mit SSL
+   # wget -q --no-check-certificate -O /dev/null \
+   # https://<hostname>:<passwort>@dyndns.strato.com\
+   # /nic/update?hostname=&lt;hostname2&gt;
+   ;;
+ offline*)
+   # Kommandos wenn der Router offline geht (z.B. während der Zwangstrennung)
+   ;;
+esac

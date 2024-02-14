@@ -1,0 +1,126 @@
+#!/bin/sh
+
+. /etc/init.d/modlibrc
+DAEMON=dsld
+DAEMON_BIN=dsld
+DAEMON_LONG_NAME="AVM-$DAEMON"
+PID_FILE=/var/run/${DAEMON}.pid
+
+TMPFILE="/tmp/.dsld."
+
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+# include environment required for dsld restart
+. /bin/env.mod.rcconf avm
+
+start() {
+	echo -n "Starting ${DAEMON_LONG_NAME} ... "
+
+	if [ -e ${TMPFILE}CMD ]; then
+		DAEMON_CMD="$(cat ${TMPFILE}CMD)"
+	else
+		if [ "$FREETZ_AVMDAEMON_DISABLE_IGD" == "y" ]; then
+			DAEMON_CMD=" $(dsld -? 2>&1 | sed -nr 's/^[ \t]*([^ ]*).*igd.*/\1/p')"
+		fi
+		DAEMON_CMD=" -i$DAEMON_CMD"
+		echo "$DAEMON_CMD" > ${TMPFILE}CMD
+	fi
+
+	if [ -e ${TMPFILE}OPT ]; then
+		DAEMON_OPT="$(cat ${TMPFILE}OPT)"
+	else
+		DAEMON_OPT=" -n"
+		[ "$CONFIG_RAMSIZE" == "8" ] && DAEMON_OPT="$DAEMON_OPT -N -r 600"
+		echo "$DAEMON_OPT" > ${TMPFILE}OPT
+	fi
+
+	# dsld could not start without eth0
+	local countdown=20
+	while [ $((countdown--)) -gt 0 ] && ! ifconfig eth0 > /dev/null 2>&1; do
+		sleep 1
+	done
+
+	#remove duplicate arguments
+	DAEMON_ARGS="$(for arg in $DAEMON_CMD $DAEMON_OPT; do [ "$arg" != "dsld" ] && echo " $arg"; done |sort -u)"
+	if modlib_check_supervisor; then
+		nohup $DAEMON_BIN $DAEMON_ARGS 0</dev/null 1>/dev/null 2>&1 &
+		exitval=0
+	else
+		$DAEMON_BIN $DAEMON_ARGS 2>/dev/null
+		exitval=$?
+	fi
+	if [ "$exitval" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		exit $exitval
+	fi
+}
+
+stop() {
+	[ -e ${TMPFILE}OPT ] || echo " -n" > ${TMPFILE}OPT
+	#save current arguments
+	local DAEMON_PID=$(cat $PID_FILE 2>/dev/null)
+	if [ -n "$DAEMON_PID" ]; then
+		for arg in $(xargs -0 < /proc/${DAEMON_PID}/cmdline); do grep -q " $arg" ${TMPFILE}OPT 2>/dev/null || echo " $arg"; done > ${TMPFILE}CMD
+	fi
+	$DAEMON_BIN -s
+}
+
+reload() {
+	local ret
+	if [ "$FREETZ_AVM_HAS_SVCTL" == "y" ]; then
+		msgsend -a $DAEMON reload
+		ret=$?
+	else
+		$DAEMON_BIN -I
+		ret=$?
+	fi
+	return $ret
+}
+
+set_options() {
+	DAEMON_OPT_NEW=" $*"
+	if [ " $(cat ${TMPFILE}OPT 2>/dev/null)" != "$DAEMON_OPT_NEW" ]; then
+		DAEMON_STATUS="$(modlib_status)"
+		[ "$DAEMON_STATUS" != "stopped" ] && modlib_stop
+		echo "$DAEMON_OPT_NEW" > ${TMPFILE}OPT
+		[ "$DAEMON_STATUS" != "stopped" ] && modlib_start
+	else
+		modlib_reload
+	fi
+}
+
+case $1 in
+	""|load)
+		modreg pkg $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon -p avm $DAEMON
+		;;
+	unload)
+		modunreg daemon avm $DAEMON
+		modunreg pkg $DAEMON
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	set_options)
+		$*
+		;;
+	*)
+		echo "Usage: $0 [start|stop|restart|reload|status|set_options [dsld-options]]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,11 @@
+--- build.info
++++ build.info
+@@ -1,7 +1,7 @@
+ # Note that some of these directories are filtered in Configure.  Look for
+ # %skipdir there for further explanations.
+ 
+-SUBDIRS=crypto ssl apps util tools      providers doc
++SUBDIRS=crypto ssl      util            providers doc
+ IF[{- !$disabled{'deprecated-3.0'} -}]
+   SUBDIRS=engines
+ ENDIF

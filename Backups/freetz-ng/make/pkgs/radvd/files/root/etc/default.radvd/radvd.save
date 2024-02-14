@@ -1,0 +1,18 @@
+
+pkg_pre_save() {
+	[ -f /mod/etc/conf/radvd.cfg ] && . /mod/etc/conf/radvd.cfg
+
+	old_address=$RADVD_ADDRESS
+	old_interface=$RADVD_INTERFACE
+	new_address=$(echo "$settings" | sed -ne "/RADVD_ADDRESS/s/RADVD_ADDRESS='\(.*\)'/\1/p")
+	new_interface=$(echo "$settings" | sed -ne "/RADVD_INTERFACE/s/RADVD_INTERFACE='\(.*\)'/\1/p")
+
+	if [ "$old_address" != "$new_address" -o "$old_interface" != "$new_interface" ]; then
+		/mod/etc/init.d/rc.radvd remove
+	fi
+}
+
+pkg_pre_def() {
+	/mod/etc/init.d/rc.radvd remove
+}
+

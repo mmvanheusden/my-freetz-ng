@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libstdc__
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libstdc__
+	bool "libstdc++"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libstdc++.so.6.0.x
+

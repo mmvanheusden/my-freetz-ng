@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libdb
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libdb
+	bool "libdb"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libdb-4.8.so
+

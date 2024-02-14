@@ -1,0 +1,27 @@
+config FREETZ_PACKAGE_TREE
+	bool "Tree 1.8.0/2.1.1 (binary only)"
+	default n
+	help
+		Tree is a recursive directory listing program
+		that produces a depth indented listing of files,
+		which is colorized ala dircolors if the LS_COLORS
+		environment variable is set and output is to tty.
+
+if FREETZ_PACKAGE_TREE
+
+	choice
+		prompt "Version"
+			default FREETZ_PACKAGE_TREE_VERSION_CURRENT
+
+		config FREETZ_PACKAGE_TREE_VERSION_ABANDON
+			bool "1.8.0"
+			depends on  (FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29)
+
+		config FREETZ_PACKAGE_TREE_VERSION_CURRENT
+			bool "2.1.1"
+			depends on !(FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29)
+
+	endchoice
+
+endif # FREETZ_PACKAGE_TREE
+

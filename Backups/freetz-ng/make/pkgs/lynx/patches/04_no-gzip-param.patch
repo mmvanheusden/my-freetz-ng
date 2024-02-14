@@ -1,0 +1,17 @@
+see Ticket #1608
+
+Lynx supports gzip-compressed web pages, but causes an error message because
+it assumes GNU gzip while we usually have Busybox gzip. Thus, the parameter
+"--no-name" is not supported. As we do not need it, we can patch it away.
+
+--- src/HTFWriter.c
++++ src/HTFWriter.c
+@@ -1135,7 +1135,7 @@
+ 		     * It's compressed with the modern gzip.  - FM
+ 		     */
+ 		    StrAllocCopy(uncompress_mask, program);
+-		    StrAllocCat(uncompress_mask, " -d --no-name %s");
++		    StrAllocCat(uncompress_mask, " -d %s");
+ 		    compress_suffix = "gz";
+ 		}
+ 		break;

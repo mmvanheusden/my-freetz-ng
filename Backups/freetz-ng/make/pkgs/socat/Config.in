@@ -1,0 +1,19 @@
+config FREETZ_PACKAGE_SOCAT
+	bool "socat 1.7.4.4 (binary only)"
+	select FREETZ_REMOVE_SOCAT if FREETZ_AVM_HAS_SOCAT
+	select FREETZ_LIB_libcrypto_WITH_EC
+	select FREETZ_LIB_libcrypto
+	select FREETZ_LIB_libssl
+	select FREETZ_LIB_libutil if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libz
+	default n
+	help
+		socat is an extended netcat-like utility
+
+config FREETZ_PACKAGE_SOCAT_WITHTERMIOS
+	bool "enable termios in socat"
+	depends on FREETZ_PACKAGE_SOCAT
+	default n
+	help
+		Enable socat to use tty devices with termios
+

@@ -1,0 +1,49 @@
+#!/bin/sh
+
+DAEMON=vtund
+CONF_NAME=vtun
+. /etc/init.d/modlibrc
+
+config() {
+	echo "$VTUN_CONFIG" > $DAEMON_CONFIG
+}
+
+start() {
+	modlib_startdaemon $DAEMON -f $DAEMON_CONFIG $VTUN_STARTPARAMS
+}
+
+stop() {
+	killall $DAEMON > /dev/null 2>&1
+}
+
+case $1 in
+	""|load)
+		modreg cgi 'vtun' 'vtun'
+		modreg daemon vtun
+
+		modlib_start $VTUN_ENABLED
+		;;
+	unload)
+		modunreg daemon vtun
+		modunreg cgi 'vtun'
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

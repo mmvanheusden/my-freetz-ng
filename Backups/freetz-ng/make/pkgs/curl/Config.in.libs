@@ -1,0 +1,43 @@
+config FREETZ_LIB_libcurl
+	bool "libcurl (libcurl.so)"
+	default n
+	help
+		A client-side URL transfer library.
+
+config FREETZ_LIB_libcurl_WITH_SSL
+	bool "build with SSL support" if FREETZ_LIB_libcurl || FREETZ_PACKAGE_CURL
+	default y                     if FREETZ_LIB_libcurl || FREETZ_PACKAGE_CURL
+	help
+		This option enables SSL support in curl.
+
+choice
+	depends on FREETZ_LIB_libcurl_WITH_SSL
+	prompt "SSL library"
+	default FREETZ_LIB_libcurl_WITH_OPENSSL
+
+	config FREETZ_LIB_libcurl_WITH_OPENSSL
+		bool "OpenSSL"
+		select FREETZ_LIB_libcrypto
+		select FREETZ_LIB_libssl
+
+	config FREETZ_LIB_libcurl_WITH_MBEDTLS
+		bool "mbed TLS"
+		select FREETZ_LIB_libmbedcrypto
+		select FREETZ_LIB_libmbedtls
+		select FREETZ_LIB_libmbedx509
+endchoice
+
+config FREETZ_LIB_libcurl_WITH_SFTP
+	bool "build with sftp support" if FREETZ_LIB_libcurl || FREETZ_PACKAGE_CURL
+	select FREETZ_LIB_libssh2
+	default n
+	help
+		This option enables sftp support in curl.
+
+config FREETZ_LIB_libcurl_WITH_ZLIB
+	bool "build with zlib support" if FREETZ_LIB_libcurl || FREETZ_PACKAGE_CURL
+	select FREETZ_LIB_libz
+	default n
+	help
+		This option enables zlib support in curl.
+

@@ -1,0 +1,9 @@
+config EXTERNAL_FREETZ_PACKAGE_SUDO
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_SUDO
+	bool "Sudo"
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/sudo
+		 ${FREETZ_LIBRARY_DIR}/libsudo_util.so.0.0.0
+

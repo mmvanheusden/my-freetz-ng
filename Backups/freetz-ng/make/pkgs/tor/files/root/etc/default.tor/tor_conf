@@ -1,0 +1,50 @@
+#!/bin/sh
+
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+# $1:       separator (use $'\n' for newline)
+# $2..$end: strings to join
+_join() {
+	local separator="$1"
+	shift
+	(IFS="$separator"; echo -n "$*")
+}
+
+echo "PidFile /var/run/tor/tor.pid"
+echo "Log warn syslog"
+echo "User tor"
+
+[ -n "$TOR_DATADIRECTORY" ] && echo "DataDirectory $TOR_DATADIRECTORY" || echo "DataDirectory /var/tmp/tor"
+
+[ "$TOR_SOCKS_PORT" ] && echo "SocksPort ${TOR_SOCKS_ADDRESS}${TOR_SOCKS_ADDRESS:+:}${TOR_SOCKS_PORT}"
+
+[ "$TOR_CONTROL_PORT" ] && echo "ControlPort ${TOR_CONTROL_ADDRESS}${TOR_CONTROL_ADDRESS:+:}${TOR_CONTROL_PORT}"
+
+[ "$TOR_CONTROL_HASHED_PASS" ] && echo "HashedControlPassword $TOR_CONTROL_HASHED_PASS"
+
+[ "$TOR_CIRCUITS_AVAILABLE_TIMEOUT" ] && echo "CircuitsAvailableTimeout $TOR_CIRCUITS_AVAILABLE_TIMEOUT"
+
+if [ "$TOR_SOCKS_POLICY_REJECT" != "no" ]; then
+	_join $'\n' $(echo "$TOR_SOCKS_POLICY_ACCEPT" | grep -v "^#") | sed -e 's/^/SocksPolicy accept /'; echo
+	echo "SocksPolicy reject *"
+fi
+
+[ -n "$TOR_ENTRY_NODES" ] && echo "EntryNodes $(_join ',' $(echo "$TOR_ENTRY_NODES" | grep -v "^#"))"
+[ -n "$TOR_EXIT_NODES" ] && echo "ExitNodes $(_join ',' $(echo "$TOR_EXIT_NODES" | grep -v "^#"))"
+[ -n "$TOR_EXCLUDE_NODES" ] && echo "ExcludeNodes $(_join ',' $(echo "$TOR_EXCLUDE_NODES" | grep -v "^#"))"
+[ "$TOR_STRICT_NODES" == "yes" ] && echo "StrictNodes 1"
+
+if [ "$TOR_RELAY_ENABLED" == "yes" ]; then
+	[ "$TOR_NICKNAME" ] && echo "Nickname $TOR_NICKNAME"
+	[ "$TOR_ADDRESS" ] && echo "Address $TOR_ADDRESS"
+	[ "$TOR_BANDWIDTHRATE" ] && echo "BandwidthRate $TOR_BANDWIDTHRATE"
+	[ "$TOR_BANDWIDTHBURST" ] && echo "BandwidthBurst $TOR_BANDWIDTHBURST"
+	[ "$TOR_ORPORT" ] && echo "ORPort $TOR_ORPORT"
+	[ "$TOR_DIRPORT" ] && echo "DirPort $TOR_DIRPORT"
+	[ "$TOR_EXITPOLICY" ] && echo "ExitPolicy $TOR_EXITPOLICY"
+	[ "$TOR_BRIDGERELAY" == "yes" ] && echo "BridgeRelay 1"
+fi
+
+[ "$FREETZ_PACKAGE_TOR_GEOIP_V4" == "y" ] && echo "GeoIPFile /usr/share/tor/geoip"
+[ "$FREETZ_PACKAGE_TOR_GEOIP_V6" == "y" ] && echo "GeoIPv6File /usr/share/tor/geoip6"
+

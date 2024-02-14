@@ -1,0 +1,73 @@
+#!/bin/sh
+
+DAEMON=htpdate
+. /etc/init.d/modlibrc
+
+run() {
+	echo -n "Running $DAEMON_LONG_NAME ... "
+	if modlib_check_running; then
+		echo 'already running.'
+		exit 0
+	fi
+	if [ "$HTPDATE_ENABLED" != "yes" ]; then
+		echo 'is disabled.'
+		exit 0
+	fi
+
+	htpdate $HTPDATE_PARAMETERS $HTPDATE_SERVERS
+	local retval=$?
+	if [ $retval -ne 0 ]; then
+		echo 'failed.'
+		exit $retval
+	else
+		echo 'done.'
+	fi
+}
+
+set_cron() {
+	local HTPDATE_CRON_OLD="$(cat /tmp/cron.d/htpdate 2>/dev/null)"
+	if [ "$HTPDATE_ENABLED" == "yes" ]; then
+		local HTPDATE_CRON_NEW="$HTPDATE_CRON_INT  /mod/etc/init.d/rc.htpdate cron"
+	fi
+	if [ "$HTPDATE_CRON_OLD" != "$HTPDATE_CRON_NEW" ] ; then
+		mkdir -p /tmp/cron.d/
+		echo "$HTPDATE_CRON_NEW" > /tmp/cron.d/htpdate
+		/mod/etc/init.d/rc.crond reload
+	fi
+
+	run
+}
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon --hide $DAEMON
+
+		if [ "$HTPDATE_ENABLED" != "yes" ]; then
+			echo "$DAEMON is disabled." 1>&2
+			exit 1
+		fi
+		set_cron 1>&2
+		;;
+	unload)
+		modunreg cgi $DAEMON
+		modunreg daemon $DAEMON
+		;;
+	run)
+		run
+		;;
+	config)
+		set_cron
+		;;
+	cron)
+		[ "$HTPDATE_ENABLED" != "yes" ] && return
+		loglib_logger "$DAEMON" "Run $DAEMON_LONG_NAME by cron."
+		run
+		;;
+	*)
+		echo "Usage: $0 [load|unload|run|config|cron]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

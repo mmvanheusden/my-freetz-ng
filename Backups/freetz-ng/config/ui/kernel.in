@@ -1,0 +1,36 @@
+if FREETZ_SHOW_EXPERT
+
+comment " Replace kernel (not available, ask fritzbox_info@avm.de)"
+	depends on !FREETZ_REPLACE_KERNEL_AVAILABLE && FREETZ_KERNEL_VERSION_3_MAX
+
+config FREETZ_REPLACE_KERNEL
+	bool "Replace kernel"
+	depends on FREETZ_REPLACE_KERNEL_AVAILABLE
+
+	# until Ticket #1716 is fixed:
+	select FREETZ_REMOVE_KIDS if \
+		( FREETZ_TYPE_2170 || FREETZ_TYPE_3170 )
+
+	select FREETZ_MODULE_usbcore if \
+		( FREETZ_SYSTEM_TYPE_UR8 && FREETZ_AVM_SOURCE_7270_04_86 )
+
+	select FREETZ_MODULE_msdos if ! FREETZ_REMOVE_FAT && \
+		( FREETZ_AVM_SOURCE_7270_05_21 || FREETZ_AVM_SOURCE_7270_05_51 || FREETZ_AVM_SOURCE_7270_06_05 )
+	select FREETZ_MODULE_fat if ! FREETZ_REMOVE_FAT && \
+		( FREETZ_AVM_SOURCE_7270_05_21 || FREETZ_AVM_SOURCE_7270_05_51 || FREETZ_AVM_SOURCE_7270_06_05 )
+	select FREETZ_MODULE_vfat if ! FREETZ_REMOVE_FAT && \
+		( FREETZ_AVM_SOURCE_7270_05_21 || FREETZ_AVM_SOURCE_7270_05_51 || FREETZ_AVM_SOURCE_7270_06_05 )
+
+	#  do we really need to do so? could Freetz kernel be used with AVM's jffs2.ko module?
+	#  it looks like the only reason for doing so is jffs2.ko size, Freetz one is smaller.
+	select FREETZ_MODULE_jffs2 if !FREETZ_REMOVE_JFFS2 && FREETZ_AVM_HAS_JFFS2_MODULE && \
+		FREETZ_AVM_VERSION_05_2X_MIN
+
+	default n
+	help
+		Replace AVM kernel with self-built kernel.
+		This option is always experimental as the
+		kernel is never exactly like by avm!
+
+endif # FREETZ_SHOW_EXPERT #
+

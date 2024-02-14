@@ -1,0 +1,196 @@
+#!/bin/sh
+
+DAEMON=transmission
+DAEMON_BIN="$DAEMON-daemon"
+PID_FILE=/var/run/$DAEMON.pid
+. /etc/init.d/modlibrc
+
+USERNAME=bittorrent
+GROUPNAME=users
+
+echoFailedAndExit() {
+	echo 'failed.'
+	[ -n "$1" ] && exit $1 || exit 1
+}
+
+checkNotEmpty() {
+	if [ -z "$1" ]; then
+		[ -n "$2" ] && echo -e "\n$2 must not be empty."
+		echoFailedAndExit 255
+	fi
+}
+
+checkDirectoryExists() {
+	if [ ! -d "$1" ]; then
+		echo -e "\n'$1' doesn't exist. Creating directory."
+		mkdir -p "$1" || echoFailedAndExit 255
+	fi
+}
+
+trim() {
+	echo "$1" | sed 's|^[ ]*||;s|[ ]*$||'
+}
+
+stripAllSpaces() {
+	echo "${1// /}"
+}
+
+start() {
+	echo -n 'Starting transmission daemon ... '
+	[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+	TRANSMISSION_BASEDIR=$(trim "$TRANSMISSION_BASEDIR")
+	TRANSMISSION_CONFIGDIR=$(trim "$TRANSMISSION_CONFIGDIR")
+	TRANSMISSION_DOWNLOADDIR=$(trim "$TRANSMISSION_DOWNLOADDIR")
+	TRANSMISSION_INCOMPLETEDIR=$(trim "$TRANSMISSION_INCOMPLETEDIR")
+	TRANSMISSION_FINISHDIR=$(trim "$TRANSMISSION_FINISHDIR")
+	TRANSMISSION_WEBDIR=$(trim "$TRANSMISSION_WEBDIR")
+	TRANSMISSION_WATCHDIR=$(trim "$TRANSMISSION_WATCHDIR")
+
+	checkNotEmpty "$TRANSMISSION_CONFIGDIR" 'TRANSMISSION_CONFIGDIR'
+	checkNotEmpty "$TRANSMISSION_DOWNLOADDIR" 'TRANSMISSION_DOWNLOADDIR'
+	if [ "${TRANSMISSION_CONFIGDIR:0:1}" != "/" -o "${TRANSMISSION_DOWNLOADDIR:0:1}" != "/" ]; then
+		checkNotEmpty "$TRANSMISSION_BASEDIR" 'TRANSMISSION_BASEDIR'
+		if [ ${TRANSMISSION_BASEDIR:0:1} != "/" ]; then
+			echo -e "\nTRANSMISSION_BASEDIR must be an absolute path."
+			echoFailedAndExit 255
+		fi
+
+		checkDirectoryExists "$TRANSMISSION_BASEDIR"
+
+		if [ "${TRANSMISSION_BASEDIR:$((${#TRANSMISSION_BASEDIR}-1)):1}" != "/" ]; then
+			# add trailing slash in case it is missing
+			TRANSMISSION_BASEDIR="$TRANSMISSION_BASEDIR/"
+		fi
+	fi
+
+	[ ${TRANSMISSION_CONFIGDIR:0:1} = "/" ] && CONFIGDIR="$TRANSMISSION_CONFIGDIR" || CONFIGDIR="$TRANSMISSION_BASEDIR$TRANSMISSION_CONFIGDIR"
+	checkDirectoryExists "$CONFIGDIR"
+
+	[ ${TRANSMISSION_DOWNLOADDIR:0:1} = "/" ] && DOWNLOADDIR="$TRANSMISSION_DOWNLOADDIR" || DOWNLOADDIR="$TRANSMISSION_BASEDIR$TRANSMISSION_DOWNLOADDIR"
+	checkDirectoryExists "$DOWNLOADDIR"
+
+	local OPTIONS="--no-portmap"
+
+	if [ -n "$TRANSMISSION_INCOMPLETEDIR" ]; then
+		[ ${TRANSMISSION_INCOMPLETEDIR:0:1} = "/" ] && INCOMPLETEDIR="$TRANSMISSION_INCOMPLETEDIR" || INCOMPLETEDIR="$TRANSMISSION_BASEDIR$TRANSMISSION_INCOMPLETEDIR"
+		checkDirectoryExists "$INCOMPLETEDIR"
+		chown -R $USERNAME:$GROUPNAME "$INCOMPLETEDIR"
+		OPTIONS="$OPTIONS --incomplete-dir $INCOMPLETEDIR"
+	else
+		OPTIONS="$OPTIONS --no-incomplete-dir"
+	fi
+
+	if [ "$FREETZ_PACKAGE_TRANSMISSION_WITH_FINISHDIR" == "y" ]; then
+		if [ -n "$TRANSMISSION_FINISHDIR" ]; then
+			[ ${TRANSMISSION_FINISHDIR:0:1} = "/" ] && FINISHDIR="$TRANSMISSION_FINISHDIR" || FINISHDIR="$TRANSMISSION_BASEDIR$TRANSMISSION_FINISHDIR"
+			checkDirectoryExists "$FINISHDIR"
+			chown -R $USERNAME:$GROUPNAME "$FINISHDIR"
+			OPTIONS="$OPTIONS --finish-dir $FINISHDIR"
+		else
+			OPTIONS="$OPTIONS --no-finish-dir"
+		fi
+	fi
+
+	chown -R $USERNAME:$GROUPNAME "$CONFIGDIR" "$DOWNLOADDIR"
+
+	if [ -n "$TRANSMISSION_WATCHDIR" ]; then
+		[ ${TRANSMISSION_WATCHDIR:0:1} = "/" ] && WATCHDIR="$TRANSMISSION_WATCHDIR" || WATCHDIR="$TRANSMISSION_BASEDIR$TRANSMISSION_WATCHDIR"
+		checkDirectoryExists "$WATCHDIR"
+		chown -R $USERNAME:$GROUPNAME "$WATCHDIR"
+		OPTIONS="$OPTIONS --watch-dir $WATCHDIR"
+	fi
+
+	[ -n "$TRANSMISSION_PEERPORT" ] && OPTIONS="$OPTIONS -P $TRANSMISSION_PEERPORT"
+	[ -n "$TRANSMISSION_GLOBALPEERLIMIT" ] && OPTIONS="$OPTIONS -L $TRANSMISSION_GLOBALPEERLIMIT"
+	[ -n "$TRANSMISSION_TORRENTPEERLIMIT" ] && OPTIONS="$OPTIONS -l $TRANSMISSION_TORRENTPEERLIMIT"
+	if [ "$TRANSMISSION_PEERENCRYPTIONMODE" = "ENCRYPTION_REQUIRED" ]; then
+		OPTIONS="$OPTIONS -er"
+	elif [ "$TRANSMISSION_PEERENCRYPTIONMODE" = "ENCRYPTION_PREFERRED" ]; then
+		OPTIONS="$OPTIONS -ep"
+	else
+		OPTIONS="$OPTIONS -et"
+	fi
+	[ "$TRANSMISSION_USEBLOCKLIST" = "yes" ] && OPTIONS="$OPTIONS -b" || OPTIONS="$OPTIONS -B"
+	[ "$TRANSMISSION_USEDHT" = "yes" ] && OPTIONS="$OPTIONS --dht" || OPTIONS="$OPTIONS --no-dht"
+	[ "$TRANSMISSION_USEUTP" = "yes" ] && OPTIONS="$OPTIONS --utp" || OPTIONS="$OPTIONS --no-utp"
+
+	# Set utp-receive & -send buffer sizes. Do it always as the utp-option could be changed via transmission's web-interface.
+	# NB: the values here must correspond to those from libtransmission/tr-udp.c
+	local RECV_BUFFER_SIZE=$((2 * 1024 * 1024))
+	local SEND_BUFFER_SIZE=$((     512 * 1024))
+	echo $RECV_BUFFER_SIZE > /proc/sys/net/core/rmem_max
+	echo $RECV_BUFFER_SIZE > /proc/sys/net/core/rmem_default
+	echo $SEND_BUFFER_SIZE > /proc/sys/net/core/wmem_max
+	echo $SEND_BUFFER_SIZE > /proc/sys/net/core/wmem_default
+
+	if [ -n "$TRANSMISSION_RPCUSERNAME" -a -n "$TRANSMISSION_RPCPASSWORD" ]; then
+		OPTIONS="$OPTIONS --auth --username $TRANSMISSION_RPCUSERNAME --password $TRANSMISSION_RPCPASSWORD"
+	else
+		OPTIONS="$OPTIONS --no-auth"
+		echo -n "without password protection ... "
+	fi
+
+	[ -n "$TRANSMISSION_RPCPORT" ] && OPTIONS="$OPTIONS -p $TRANSMISSION_RPCPORT"
+	TRANSMISSION_RPCWHITELIST=$(stripAllSpaces "$TRANSMISSION_RPCWHITELIST")
+	[ -n "$TRANSMISSION_RPCWHITELIST" ] && OPTIONS="$OPTIONS -a $TRANSMISSION_RPCWHITELIST"
+	[ -n "$TRANSMISSION_RATIO" ] && OPTIONS="$OPTIONS --global-seedratio $TRANSMISSION_RATIO" || OPTIONS="$OPTIONS --no-global-seedratio"
+	[ -n "$TRANSMISSION_LOGLEVEL" ] && OPTIONS="$OPTIONS --log-$TRANSMISSION_LOGLEVEL"
+
+	if [ -n "$TRANSMISSION_WEBDIR" -a -d "$TRANSMISSION_WEBDIR" -a -r "$TRANSMISSION_WEBDIR/index.html" ]; then
+		export TRANSMISSION_WEB_HOME="$TRANSMISSION_WEBDIR"
+	else
+		echo -n "without web interface ... "
+		unset TRANSMISSION_WEB_HOME
+	fi
+
+	[ ! -e $PID_FILE ] && echo -n > $PID_FILE
+	chown $USERNAME:$GROUPNAME $PID_FILE
+	start-stop-daemon \
+		-S \
+		-N "$TRANSMISSION_NICE" \
+		-x "$DAEMON_BIN" \
+		-c "$USERNAME:$GROUPNAME" \
+		-- \
+		$OPTIONS --config-dir "$CONFIGDIR" --download-dir "$DOWNLOADDIR" --pid-file "$PID_FILE" \
+		>/dev/null
+
+	exitval=$?
+	[ "$exitval" -eq 0 ] && echo 'done.' || echoFailedAndExit "$exitval"
+}
+
+case $1 in
+	""|load)
+		modlib_add_user_and_group $USERNAME $GROUPNAME
+		modreg cgi 'transmission' 'Transmission'
+		modreg daemon $DAEMON
+
+		modlib_start $TRANSMISSION_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi 'transmission'
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|reload|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,34 @@
+--- modules/Makefile.in
++++ modules/Makefile.in
+@@ -166,6 +166,7 @@
+ 		echo $(INSTALL_MODULE) $(OBJDIR)/$$i $(DEST_MODULEDIR); \
+ 		$(INSTALL_MODULE) $(OBJDIR)/$$i $(DEST_MODULEDIR); \
+ 	done
++ifdef INSTALL_MODULES_SHELL_RELATED_FILES
+ 	-$(MKINSDIR) $(DEST_SLSH_DIR)
+ 	@for i in $(SLFILES); \
+ 	do \
+@@ -181,18 +182,23 @@
+ 		$(INSTALL_DATA) $$i $(DEST_SLSH_DIR)/$$d/; \
+ 	   done; \
+ 	done
++endif
++ifdef INSTALL_MODULES_MAP_FILES
+ 	-$(MKINSDIR) $(DEST_CMAPSDIR)
+ 	@for i in cmaps/*.map; \
+ 	do \
+ 		echo $(INSTALL_DATA) $$i $(DEST_CMAPSDIR); \
+ 		$(INSTALL_DATA) $$i $(DEST_CMAPSDIR); \
+ 	done
++endif
++ifdef INSTALL_MODULES_HELP_FILES
+ 	-$(MKINSDIR) $(DEST_HELPDIR)
+ 	@for i in help/*.hlp; \
+ 	do \
+ 		echo $(INSTALL_DATA) $$i $(DEST_HELPDIR); \
+ 		$(INSTALL_DATA) $$i $(DEST_HELPDIR); \
+ 	done
++endif
+ runtests: all
+ 	@test_scripts="$(TEST_SCRIPTS)"; \
+ 	test -z "@PNG_MODULE@" || test_scripts="$$test_scripts test_png.sl"; \

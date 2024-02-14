@@ -1,0 +1,85 @@
+#!/bin/sh
+
+DAEMON=dropbear
+DAEMON_LONG_NAME="Dropbear"
+. /etc/init.d/modlibrc
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+pre_config() {
+	mkdir -p /tmp/flash/dropbear
+
+	local alg do_save=false
+	for alg in rsa dss ecdsa ed25519; do
+		local key_file=/tmp/flash/dropbear/${alg}_host_key
+		if [ ! -e "${key_file}" ]; then
+			do_save=true
+			echo "Creating $(echo ${alg} | tr [a-z] [A-Z]) host key"
+			dropbearkey -t ${alg} -f "${key_file}"
+		fi
+	done
+	$do_save && /usr/bin/modsave flash
+
+	if [ ! -d "/mod/etc/ssh" ]; then
+		mkdir -p /mod/etc/ssh
+		for alg in rsa dss ecdsa ed25519; do
+			ln -sf /tmp/flash/dropbear/${alg}_host_key /mod/etc/ssh/${alg}_host_key.dropbear
+		done
+	fi
+
+	if [ "$FREETZ_PACKAGE_AUTHORIZED_KEYS" != "y" ]; then
+		[ -e "/mod/root/.ssh" ] || ln -s /tmp/flash/dropbear /mod/root/.ssh
+	fi
+}
+
+start() {
+	if [ "$DROPBEAR_PWDAUTH" = "yes" ]; then
+		if cat /etc/shadow | grep -q '^root:[*!]:'; then
+			echo "Error[$DAEMON]: no root password set - run 'passwd root'" 1>&2
+			exit 1
+		fi
+	else
+		DROPBEAR_OPTIONS="-s $DROPBEAR_OPTIONS"
+	fi
+	[ "$DROPBEAR_ROOTONLY" = "yes" ] && DROPBEAR_OPTIONS="-0 $DROPBEAR_OPTIONS"
+
+	set -o noglob
+	modlib_startdaemon $DAEMON -p "$DROPBEAR_PORT" $DROPBEAR_OPTIONS
+}
+
+stop() {
+	killall dropbear 2>/dev/null
+}
+
+case $1 in
+	""|load)
+		pre_config
+
+		modreg cgi 'dropbear' 'Dropbear'
+		modreg daemon $DAEMON
+
+		modlib_start $DROPBEAR_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi 'dropbear'
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

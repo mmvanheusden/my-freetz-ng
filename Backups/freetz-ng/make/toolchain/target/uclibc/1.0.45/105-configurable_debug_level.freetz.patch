@@ -1,0 +1,11 @@
+--- Rules.mak
++++ Rules.mak
+@@ -645,7 +645,7 @@
+ endif
+ 
+ ifeq ($(DODEBUG),y)
+-CFLAGS += -O0 -g3 -DDEBUG
++CFLAGS += -O0 -g$(DEBUG_LEVEL) -DDEBUG
+ else
+ CFLAGS += $(OPTIMIZATION)
+ CFLAGS += $(OPTIMIZATION-$(GCC_MAJOR_VER))

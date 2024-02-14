@@ -1,0 +1,13 @@
+config FREETZ_LIB_libftdi1
+	bool "libftdi1 (libftdi1.so)"
+	depends on ! (FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29)
+	select FREETZ_LIB_libusb_1
+	default n
+	help
+		libFTDI is an open source library to talk to FTDI chips:
+		FT230X, FT4232H/FT2232H, FT232R/FT245R, FT2232L/FT2232D/FT2232C,
+		FT232BM/FT245BM (and the BL/BQ variants), FT8U232AM/FT8U245AM.
+		The library is linked with your program in userspace, no kernel
+		driver required. libFTDI works perfectly with Linux, Windows,
+		MacOS X and BSD variants thanks to libusb.
+

@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libftdi1
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libftdi1
+	bool "libftdi1"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libftdi1.so.2.5.0
+

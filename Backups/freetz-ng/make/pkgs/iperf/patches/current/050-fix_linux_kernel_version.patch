@@ -1,0 +1,14 @@
+
+  Fixes a part of https://github.com/esnet/iperf/commit/f9d2e97b1fe1441fe912ade5e0b46819b9d9a5df
+
+--- src/flowlabel.h
++++ src/flowlabel.h
+@@ -31,7 +31,7 @@
+ #include <linux/types.h>
+ #include <linux/version.h>
+ 
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,7,0)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,11,0)
+ #include <linux/in6.h>
+ #else
+ #ifndef __ANDROID__

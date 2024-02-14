@@ -1,0 +1,93 @@
+if FREETZ_AVM_SOURCE_7390_05_21
+
+config FREETZ_AVM_HAS_CRC_CCITT_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_AEAD_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_AES_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_ALGAPI_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_BLKCIPHER_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_CBC_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_DES_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_HASH_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_HMAC_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_MANAGER_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_MD5_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_CRYPTO_SHA1_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_EXPORTFS_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_EXT2_FS_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_EXT3_FS_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_FS_MBCACHE_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_FUSE_FS_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_JBD_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_LOCKD_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_MTD_NAND_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_NFSD_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_NFS_FS_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_NFS_V3_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_PPP_ASYNC_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_PPP_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_PPPOE_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_SLHC_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_SUNRPC_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_SWAP_BUILTIN
+	def_bool y
+
+config FREETZ_AVM_HAS_TUN_BUILTIN
+	def_bool y
+
+endif

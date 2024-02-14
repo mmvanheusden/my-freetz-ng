@@ -1,0 +1,22 @@
+--- agent/mibgroup/mibII/interfaces.c
++++ agent/mibgroup/mibII/interfaces.c
+@@ -1586,6 +1586,10 @@
+         char           *stats, *ifstart = line;
+         size_t          len;
+ 
++	/* Ignore interfaces with no statistics. */
++	if (strstr(line, "No statistics available."))
++	    continue;
++
+         len = strlen(line);
+         if (len && line[len - 1] == '\n')
+             line[len - 1] = '\0';
+@@ -1619,7 +1623,7 @@
+                                                &coll) != 5)) {
+             if ((scan_line_to_use == scan_line_2_2)
+                 && !strstr(line, "No statistics available"))
+-                snmp_log(LOG_ERR,
++                snmp_log(LOG_DEBUG,
+                          "/proc/net/dev data format error, line ==|%s|",
+                          line);
+             continue;

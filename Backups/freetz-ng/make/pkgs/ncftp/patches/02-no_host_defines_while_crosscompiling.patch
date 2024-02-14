@@ -1,0 +1,21 @@
+--- configure
++++ configure
+@@ -1091,6 +1091,7 @@
+ 		NDEFS="$NDEFS -DDYNIX=$os_int"
+ 		;;
+ 	linux)
++if false; then
+ 		case "$arch" in
+ 			*86)
+ 				arch=x86
+@@ -1193,6 +1194,10 @@
+ 				echo "$libc" 1>&6
+ 				;;
+ 		esac
++fi
++		libc="uClibc"
++		arch="${TARGET_ARCH:-mipsel}"
++		OS="linux-$arch"
+ 		SYS=linux
+ 		;;
+ 	bsd/os)

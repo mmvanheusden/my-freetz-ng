@@ -1,0 +1,20 @@
+# Don't check for host ncurses headers
+
+--- configure
++++ configure
+@@ -4762,6 +4762,7 @@
+ _ACEOF
+ 
+ 
++if false; then
+ for cursespath in /usr/include/ncurses.h /usr/local/include/ncurses.h /usr/local/include/ncurses/ncurses.h /opt/include/ncurses.h /opt/include/curses.h /usr/include/curses.h /usr/local/include/curses.h /dev/null
+ do
+   test -f "${cursespath}" && break
+@@ -4787,6 +4788,7 @@
+ 	SOLLDFLAGS="-R/opt/lib"
+ 	;;
+ esac
++fi
+ # add Slowlaris -R and libraries to LDFLAGS
+ if test ${OSTYPE} = "solaris" ; then
+ 	LDFLAGS="${LDFLAGS} ${SOLLDFLAGS} -lnsl -lsocket -lkstat"

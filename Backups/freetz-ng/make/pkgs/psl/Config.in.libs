@@ -1,0 +1,6 @@
+config FREETZ_LIB_libpsl
+	bool "libpsl (libpsl.so)"
+	default n
+	help
+		Public Suffix List library functions
+

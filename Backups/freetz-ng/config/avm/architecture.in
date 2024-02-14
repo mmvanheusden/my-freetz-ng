@@ -1,0 +1,86 @@
+###
+### processor architecture
+###
+
+config FREETZ_TARGET_ARCH_LE
+	bool
+	default y
+	depends on FREETZ_AVM_PROP_ARCH_LE
+
+config FREETZ_TARGET_ARCH_BE
+	bool
+	default y
+	depends on FREETZ_AVM_PROP_ARCH_BE
+
+config FREETZ_TARGET_ARCH_ARM
+	bool
+	default y
+	depends on FREETZ_AVM_PROP_ARCH_ARM
+
+config FREETZ_TARGET_ARCH_MIPS
+	bool
+	default y
+	depends on FREETZ_AVM_PROP_ARCH_MIPS
+
+config FREETZ_TARGET_ARCH_X86
+	bool
+	depends on FREETZ_AVM_PROP_ARCH_X86
+	default y
+
+config FREETZ_KERNEL_ARCH
+	string
+	default "arm"    if FREETZ_TARGET_ARCH_ARM
+	default "mips"   if FREETZ_TARGET_ARCH_MIPS
+	default "x86"    if FREETZ_TARGET_ARCH_X86
+
+config FREETZ_TARGET_ARCH
+	string
+	default "arm"    if FREETZ_TARGET_ARCH_ARM
+	default "mips"   if FREETZ_TARGET_ARCH_MIPS
+	default "i686"   if FREETZ_TARGET_ARCH_X86
+
+config FREETZ_TARGET_ARCH_ENDIANNESS_DEPENDENT
+	string
+	default "arm"    if FREETZ_TARGET_ARCH_ARM
+	default "mips"   if FREETZ_TARGET_ARCH_MIPS && FREETZ_TARGET_ARCH_BE
+	default "mipsel" if FREETZ_TARGET_ARCH_MIPS && FREETZ_TARGET_ARCH_LE
+	default "i686"   if FREETZ_TARGET_ARCH_X86
+
+config FREETZ_TARGET_TRIPLET_VENDOR
+	string
+	default "unknown" if FREETZ_TARGET_ARCH_ARM  # ARM-TODO
+	default "unknown" if FREETZ_TARGET_ARCH_MIPS
+	default "pc"      if FREETZ_TARGET_ARCH_X86
+
+config FREETZ_TARGET_TRIPLET_GNU_ABI
+	string
+	default "eabi"    if FREETZ_TARGET_ARCH_ARM  # ARM-TODO
+
+config FREETZ_TARGET_TRIPLET_UCLIBC_ABI
+	string
+	default "gnueabi" if FREETZ_TARGET_ARCH_ARM  # ARM-TODO
+
+config FREETZ_TARGET_GNU_TRIPLET
+	string
+	default "${FREETZ_TARGET_ARCH_ENDIANNESS_DEPENDENT}-${FREETZ_TARGET_TRIPLET_VENDOR}-linux-gnu${FREETZ_TARGET_TRIPLET_GNU_ABI}"
+
+config FREETZ_TARGET_UCLIBC_TRIPLET
+	string
+	default "${FREETZ_TARGET_ARCH_ENDIANNESS_DEPENDENT}-linux-uclibc${FREETZ_TARGET_TRIPLET_UCLIBC_ABI}"
+
+config FREETZ_TARGET_CROSS
+	string
+	default "${FREETZ_TARGET_UCLIBC_TRIPLET}-"
+
+config FREETZ_TARGET_MAKE_PATH
+	string
+	default "toolchain/target/bin"
+
+config FREETZ_KERNEL_CROSS
+	string
+	default "${FREETZ_TARGET_GNU_TRIPLET}-"
+
+config FREETZ_KERNEL_MAKE_PATH
+	string
+	default "toolchain/kernel/bin"
+

@@ -1,0 +1,14 @@
+--- src/tool_operate.c
++++ src/tool_operate.c
+@@ -2749,9 +2749,11 @@
+       /* Check if we were asked for the help */
+       if(res == PARAM_HELP_REQUESTED)
+         tool_help(global->help_category);
++#ifdef USE_MANUAL
+       /* Check if we were asked for the manual */
+       else if(res == PARAM_MANUAL_REQUESTED)
+         hugehelp();
++#endif
+       /* Check if we were asked for the version information */
+       else if(res == PARAM_VERSION_INFO_REQUESTED)
+         tool_version_info();

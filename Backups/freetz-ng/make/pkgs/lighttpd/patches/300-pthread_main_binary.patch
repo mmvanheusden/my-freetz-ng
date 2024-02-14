@@ -1,0 +1,18 @@
+--- src/Makefile.in
++++ src/Makefile.in
+@@ -1256,6 +1256,7 @@
+ CFLAGS_FOR_BUILD = @CFLAGS_FOR_BUILD@
+ CPP = @CPP@
+ CPPFLAGS = @CPPFLAGS@
++CPPFLAGS += $(if $(strip $(filter -lpthread,@FAM_LIBS@ @LIBEV_LIBS@ @LIBUNWIND_LIBS@ @LUA_LIBS@ @MYSQL_LIBS@ @SQLITE_LIBS@ @UUID_LIBS@ @XML_LIBS@)),-D_REENTRANT)
+ CPPFLAGS_FOR_BUILD = @CPPFLAGS_FOR_BUILD@
+ CPP_FOR_BUILD = @CPP_FOR_BUILD@
+ CRYPTO_LIB = @CRYPTO_LIB@
+@@ -1671,6 +1672,7 @@
+ @LIGHTTPD_STATIC_TRUE@	$(am__append_50) $(am__append_52) \
+ @LIGHTTPD_STATIC_TRUE@	$(am__append_55) $(am__append_58) \
+ @LIGHTTPD_STATIC_TRUE@	$(am__append_61)
++lighttpd_LDADD += $(strip $(filter -lpthread,$(FAM_LIBS) $(LIBEV_LIBS) $(LIBUNWIND_LIBS) $(LUA_LIBS) $(MYSQL_LIBS) $(SQLITE_LIBS) $(UUID_LIBS) $(XML_LIBS)))
+ @LIGHTTPD_STATIC_FALSE@lighttpd_LDFLAGS = -export-dynamic
+ @LIGHTTPD_STATIC_TRUE@lighttpd_LDFLAGS = -export-dynamic
+ t_test_common_SOURCES = t/test_common.c \

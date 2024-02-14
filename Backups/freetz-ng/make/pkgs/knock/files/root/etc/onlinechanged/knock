@@ -1,0 +1,9 @@
+#!/bin/sh
+
+[ "$(/mod/etc/init.d/rc.knock status)" != "running" ] && exit 0
+
+case "$1" in
+	online*)
+		[ "$(/mod/etc/init.d/rc.knock status)" != "stopped" ] && /mod/etc/init.d/rc.knock restart
+		;;
+esac

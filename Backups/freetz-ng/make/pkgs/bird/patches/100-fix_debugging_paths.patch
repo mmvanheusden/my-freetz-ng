@@ -1,0 +1,16 @@
+--- configure
++++ configure
+@@ -2225,13 +2225,8 @@
+ fi
+ 
+ 
+-if test "$enable_debug" = yes ; then
+-  CONFIG_FILE="bird$SUFFIX.conf"
+-  CONTROL_SOCKET="bird$SUFFIX.ctl"
+-else
+   CONFIG_FILE="\$(sysconfdir)/bird$SUFFIX.conf"
+   CONTROL_SOCKET="\$(runstatedir)/bird$SUFFIX.ctl"
+-fi
+ 
+ 
+ 

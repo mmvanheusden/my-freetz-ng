@@ -1,0 +1,14 @@
+--- sysdep/unix/main.c
++++ sysdep/unix/main.c
+@@ -43,11 +43,7 @@
+  *	Debugging
+  */
+ 
+-#ifdef DEBUGGING
+-static int debug_flag = 1;
+-#else
+ static int debug_flag = 0;
+-#endif
+ 
+ void
+ async_dump(void)

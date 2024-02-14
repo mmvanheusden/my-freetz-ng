@@ -1,0 +1,29 @@
+config FREETZ_PACKAGE_STUNNEL
+	bool "Stunnel 5.72"
+	select FREETZ_LIB_libcrypto  if !FREETZ_PACKAGE_STUNNEL_STATIC
+	select FREETZ_LIB_libssl     if !FREETZ_PACKAGE_STUNNEL_STATIC
+	select FREETZ_LIB_libpthread if !FREETZ_PACKAGE_STUNNEL_STATIC && FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libutil    if !FREETZ_PACKAGE_STUNNEL_STATIC && FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	default n
+	help
+		Stunnel universal SSL proxy
+
+if FREETZ_PACKAGE_STUNNEL
+
+	config FREETZ_PACKAGE_STUNNEL_BOXCERT
+		bool "build with support for FRITZ!OS certificate"
+		depends on FREETZ_BOX_CERTIFICATE_SUPPORT_AVAILABLE
+		select FREETZ_PACKAGE_PRIVATEKEYPASSWORD
+		default n
+		help
+			Building stunnel with FRITZ!OS support enables reuse
+			of existing key and certificate from /var/flash
+
+	config FREETZ_PACKAGE_STUNNEL_STATIC
+		bool "Link statically"
+		default n
+		help
+			Build stunnel binary with statically linked libraries.
+
+endif # FREETZ_PACKAGE_STUNNEL
+

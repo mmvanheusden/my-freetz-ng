@@ -1,0 +1,379 @@
+#! /usr/bin/env bash
+
+# firmware downloader & unpacker script
+#
+# download:
+#    Downloads all files mathing pattern '*.image' from ftp.avm.de
+#    The filename based on the whole directory (s!/!--!).
+# unpack:
+#    Removes unpacked/ folder, unpacks all downloaded firmware
+#    files to corresponding folder.
+#    Output: Either the count of files or something else on error.
+# unpack <file1 .. fileN>:
+#    Unpacks given files to subdir of current folder (${file%.image}).
+#
+# don't run as root ;-)
+#
+#
+# cuma, 19.11.2012
+
+
+DL_DIR=~/fw-avm
+
+download() {
+	mkdir -p $DL_DIR
+	cd $DL_DIR
+	rm -rf ftp.avm.de 2>/dev/null
+
+	# labor
+	if [ -n "$1" -a "$1" != "s" ]; then  # labor / all
+		for url in ftp://ftp.avm.de/fritzbox/beta/{frisch-aus-der-entwicklung,wartung}; do
+			wget -nv -m -A '*.zip' $url
+			(
+				cd ${url#ftp://}
+				for i in $(find . -type f -iname '*.zip'); do
+					unzip -q -o -j $i
+				done
+				# remove all files with no beta|labor|labrc in name
+				find . -type f -regextype posix-egrep ! -iregex '.*(beta|labor|labrc).*[.]image' -exec rm -f {} '+' 2>/dev/null
+			)
+		done
+	fi
+
+	# stable
+	if [ "$1" != "l" ]; then  # default / stable / all
+		for url in ftp://ftp.avm.de/archive/fritz.box/ ftp://ftp.avm.de/fritzbox/ ftp://ftp.avm.de/fritzpowerline/ ftp://ftp.avm.de/fritzwlan/; do
+			wget -nv -m -A '*.image' -R '*voip-gateway*,*VoIP-Gateway*' $url
+			find ${url#ftp://} -type f ! -name '*.image' -exec rm -f {} '+' 2>/dev/null
+		done
+	fi
+
+	find ftp.avm.de -type f | while read file; do
+		mv -f "$file" "$(echo "$file" | sed -r -e 's, ,-,g;s,(ftp[.]avm[.]de/(fritzbox|fritzpowerline|fritzwlan)/|ftp[.]avm[.]de/archive/fritz[.]box/|service[.]avm[.]de/|firmware/),,g;s,/,--,g')"
+	done
+	rm -rf ftp.avm.de 2>/dev/null
+}
+
+unpack() {
+	[ ! -d $DL_DIR ] && echo "no $DL_DIR dir with images"
+	cd $DL_DIR
+	rm -rf unpacked 2>/dev/null
+	mkdir -p unpacked
+	[ -f _failed.log ] && rm _failed.log
+
+	for file in *.image; do
+		image "$file" unpacked/
+	done
+
+	if [ -e _failed.log ]; then
+		echo FAILED:
+		cat _failed.log
+	fi
+}
+
+# $1 is expected to be NMI-vector-removed and kernel-filesystem-splitted
+unfs_probe_() {
+	{
+		$FTOOLS/blkid -O 256 "$1" 2>/dev/null | grep -q 'TYPE="ext2"' \
+		  && dd if="$1" of="$1.ext2" bs=256 skip=1 conv=sync >/dev/null 2>&1 \
+		  && mkdir -p "squashfs-root" \
+		  && echo "rdump / squashfs-root" | $FTOOLS/debugfs "$1.ext2" \
+		  && echo -e "\nFilesystem on $1 is ext2 formated"
+	} \
+	|| $FTOOLS/unsquashfs4-avm-be "$1" \
+	|| $FTOOLS/unsquashfs4-avm-le "$1" \
+	|| ( file "$1" | grep -q 'ASCII cpio archive' && echo -e "\nFilesystem on $1 is cpio archived" && cpio -idv -F "$1" -D squashfs-root/)
+}
+unfs_probe() {
+	unfs_probe_ "$1" 2>/dev/null | sed -rn "s/^Filesystem on .* is .*/${2:+$2-}&/p" >> "$nfo"
+}
+
+image() {
+	local img=$1
+	local dst=$2
+	[ -n "${dst}" ] && dst="${dst%/}/"
+	local data=999999999
+
+	local imgID=$(basename "${img}")
+	imgID=${imgID%.*}
+
+	declare -A probeDirs=(
+		[default]=var/tmp
+		 [arm]=var/remote/var/tmp
+		[atom]=var/remote/var/tmp/x86
+	)
+
+	if [ ! -e $img ]; then
+		echo -e "~~~~\t$img" | tee -a _failed.log
+		return 1
+	fi
+
+	rm -rf var
+
+	if [ "$img" != "${img%.cvc}" ]; then
+		local size="0x$(printf "%08X\n" $(stat -L -c %s $img))"
+		local grbg="$($FTOOLS/sfk hexfind $img _./var/_ | sed -n 's/.*hit at offset //p' |head -n1)"
+		[ -n "$grbg" ] && echo -e "\tSkipping $(($grbg)) Bytes garbage" && data="$(( $size - ${grbg:-0x0} ))"
+	fi
+	if [ "$img" != "${img%.exe}" ]; then
+		$FTOOLS/extract-images $img >/dev/null
+		mkdir -p var/tmp
+		mv ${img##*/}.unp/*.image var/tmp/
+		rm -rf ${img##*/}.unp
+	else
+		tail -c $data $img | tar -xi \
+		  $(printf " --wildcards ./var/content"                              ) \
+		  $(printf " --wildcards ./var/tmp/fit-image"                        ) \
+		  $(printf " --wildcards ./var/firmware-update.uimg"                 ) \
+		  $(printf " --wildcards ./%s/*.image"        "${probeDirs[@]}"      ) \
+		  $(printf " --wildcards ./%s/plugins.update" "${probeDirs[default]}") \
+		  >/dev/null 2>&1
+	fi
+	if [ ! -d var ]; then
+		echo -e "NULL\t$img"
+		return 1
+	fi
+
+	# FWL3
+	if [ -d var/remote/var/tmp/x86/ ]; then
+		FLV_DUAL='1'
+	fi
+
+	# FWL4
+	if [ -e var/firmware-update.uimg ]; then
+		FLV_UIMG='1'
+		$FTOOLS/uimg -u var/firmware-update.uimg >/dev/null
+		rm -f var/firmware-update.uimg var/*_GWFS.bin
+		chmod +w var/*.bin
+		mkdir -p var/remote/var/tmp/x86
+		mv var/*_ARM_KERNEL.bin var/remote/var/tmp/kernel.image
+		mv var/*_ARM_ROOTFS.bin var/remote/var/tmp/filesystem.image
+		mv var/*_ATOM_KERNEL.bin var/remote/var/tmp/x86/kernel.image
+		mv var/*_ATOM_ROOTFS.bin var/remote/var/tmp/x86/filesystem.image
+	fi
+
+	# FWL5
+	if [ -e var/tmp/fit-image ]; then
+		FLV_FIT='1'
+		$FTOOLS/fit.sh unpack var/tmp/fit-image var/tmp
+	fi
+
+	for d in "${probeDirs[@]}" no_kernel_image_found; do
+		if [ -s ${d}/kernel.image ]; then
+			break;
+		fi
+
+		if [ "${d}" == "no_kernel_image_found" ]; then
+			echo -e "----\t$img" | tee -a _failed.log
+			rm -rf var
+			return 1
+		fi
+	done
+
+	# The following cases for kernel/filesystem layout are known/supported:
+	#
+	#  1. kernel.image contains the kernel followed by the (complete) root-filesystem
+	#     filesystem.image is empty
+	#     Examples: 7170, 7270, 7390
+	#
+	#  2. kernel.image contains the kernel followed by the initial part of the root-filesystem
+	#     filesystem.image contains the remaining part of the root-filesystem
+	#     Examples: very old boxes like Fritz!Box SL, 7050en, 2030
+	#
+	#  3. kernel.image contains just the kernel (and nothing else)
+	#     filesystem.image contains just the root-filesystem (and nothing else)
+	#     Examples: 7490
+
+	for arch in "${!probeDirs[@]}"; do
+		d="${probeDirs[$arch]}"
+		[ "$arch" != 'default' ] && arch="-$arch" || arch=
+		[ -z "$do_verbose" -a -z "$do_nfo" ] && nfo="/dev/null" || nfo="${dst}${imgID}${arch}.nfo"
+
+		[ ! -s ${d}/kernel.image ] && continue;
+
+		echo -n > "$nfo"
+		SIZE_K1="$(stat -c %s ${d}/kernel.image 2>/dev/null || echo -n '-1')"
+		SIZE_F1="$(stat -c %s ${d}/filesystem.image 2>/dev/null || echo -n '-1')"
+
+		# get additional details
+		[ -e ./var/content ] && grep '^Releasecycle=' ./var/content >> "$nfo"
+
+		# remove TI checksum and concatenate kernel & filesystem images
+		for f in ${d}/kernel.image ${d}/filesystem.image; do
+			if [ -s "$f" ]; then
+				$FTOOLS/tichksum -r "$f" >/dev/null
+				dd if="$f" bs=256 conv=sync 2>/dev/null
+			fi
+		done > kf.image
+		[ -s ${d}/filesystem.image ] && file ${d}/filesystem.image | grep -iqv 'Squashfs filesystem' && cat ${d}/filesystem.image | gunzip > kernelsquashfs.raw
+		mv ${d}/kernel.image kernel.raw
+		rm -f ${d}/filesystem.image
+
+		# strip NMI vector if any
+		($FTOOLS/remove-nmi-vector kf.image kf.image.no-nmi 2>&1 && mv kf.image.no-nmi kf.image 2>/dev/null) | grep "NMI vector v" >> "$nfo"
+
+		# and split them again... now at the right bounds (s. case 2 above)
+		$FTOOLS/find-squashfs kf.image 2>&1 | grep 'signature found' >> "$nfo"
+		SIZE_K2="$(stat -c %s kernel.raw)"
+		SIZE_F2="$(stat -c %s kernelsquashfs.raw)"
+		rm -f kf.image
+
+		# get avm_kernel_config size
+		if [ "$nfo" != "/dev/null" ]; then
+			declare -a load_addrs
+			load_addrs=($($FTOOLS/unpack-kernel kernel.raw kernel.raw.unpacked 2>/dev/null | sed -nre 's,.*LoadAddress=(.+),\1,p'))
+			for file in kernel.raw.unpacked kernel.raw.unpacked.2ND; do
+				[ -e "$file" ] || continue
+				[ "$file" != "${file/2ND/}" ] && load_addr="${load_addrs[1]}" || load_addr="${load_addrs[0]}"
+				akc_size="$($FTOOLS/avm_kernel_config.extract -l $load_addr "$file" 2>/dev/null | wc -c)"
+				[ "$akc_size" != "0" ] && echo "avm_kernel_config${file#kernel.raw.unpacked} size is $(( $akc_size / 1024 )) KB" >> "$nfo"
+			done
+			rm -f kernel.raw.unpacked kernel.raw.unpacked.2ND
+		fi
+		rm -f kernel.raw
+
+		# detect firmware layout
+		SIZEKD="$(($SIZE_K1 - $SIZE_K2))"
+		SIZEFD="$(($SIZE_F1 - $SIZE_F2))"
+		if [ "$FLV_FIT" == "1" ]; then
+			FLV=5 # fit
+		elif [ "$FLV_UIMG" == "1" ]; then
+			FLV=4 # umig
+		elif [ "$FLV_DUAL" == "1" ]; then
+			FLV=3 # dual
+		elif [ "$SIZE_F1" == "0" ]; then
+			FLV=1 # single (+alice)
+		elif [ "$SIZEKD" == "8" -a "$SIZEFD" == "8" ]; then
+			FLV=2 # ram
+#		elif [ "${SIZEKD#-}" -lt 192 -a "${SIZEFD#-}" -lt 446 ]; then
+#			FLV=3 # dual
+		else
+			FLV=0 # unknown
+		fi
+		echo "firmware layout v$FLV" >> "$nfo"
+
+		# unpack it
+		unfs_probe kernelsquashfs.raw || echo FALSE ${img}${arch}
+		rm -f kernelsquashfs.raw kernelsquashfs.raw.ext2
+
+		# unpack the inner / the outer root-filesystem if found
+		if [ -e squashfs-root/filesystem_core.squashfs ]; then
+			mv squashfs-root filesystem.outer
+			unfs_probe filesystem.outer/filesystem_core.squashfs 'INNER'
+			rm -f filesystem.outer/filesystem_core.squashfs
+			[ -d squashfs-root ] && mv filesystem.outer squashfs-root/ || rm -rf filesystem.outer
+		fi
+
+		if [ -d squashfs-root ]; then
+			local numberOfFiles=$(find squashfs-root -type f \! -path '*filesystem.outer*' | wc -l)
+			echo -e "${numberOfFiles}\t${imgID}${arch}"
+			mv squashfs-root "${dst}${imgID}${arch}"
+		fi
+
+		if [ -e ${d}/plugins.update ]; then
+			pluginsTmpDir="${imgID}.plugins${arch}.tmp"
+			mkdir -p "${pluginsTmpDir}"
+			tar -xif "${d}/plugins.update" \
+			  -C "${pluginsTmpDir}" \
+			  --wildcards "./var/*.image" \
+			  >/dev/null 2>&1
+
+			numberOfPlugins=0
+			for pluginImage in $(find "${pluginsTmpDir}/var" -type f -name "*.image"); do
+				pluginID=$(basename "${pluginImage}"); pluginID=${pluginID%.*}
+
+				unfs_probe "$pluginImage" 'PLUGIN'
+				if [ -d squashfs-root ]; then
+					((numberOfPlugins++))
+					mv squashfs-root "${pluginsTmpDir}/${pluginID}"
+				fi
+			done
+
+			rm -rf "${pluginsTmpDir}/var"
+			if [ "$numberOfPlugins" -eq 0 ]; then
+				rm -rf "${pluginsTmpDir}"
+			else
+				if [ -d "${dst}${imgID}${arch}" ]; then
+					mv "${pluginsTmpDir}" "${dst}${imgID}${arch}/plugins"
+				else
+					mv "${pluginsTmpDir}" "${dst}${imgID}.plugins${arch}"
+				fi
+			fi
+		fi
+
+		if [ ! -e "${dst}${imgID}${arch}" -a ! -e "${dst}${imgID}.plugins${arch}" ]; then
+			echo -e "====\t${img}${arch}" | tee -a _failed.log
+		fi
+
+		[ -n "$do_verbose" ] && sed 's/^/\t/g' "$nfo" && echo
+		[ -z "$do_nfo" -a "$nfo" != "/dev/null" ] && rm "$nfo"
+	done
+
+	rm -rf var
+}
+
+# check args
+while [ $# -gt 0 ]; do
+	case $1 in
+		n|nfo)
+			do_nfo=y
+			;;
+		v|verbose)
+			do_verbose=y
+			;;
+		d|download)
+			download=y
+			case $2 in
+				s|stable|l|labor|a|all)
+					dl_arg="${2:0:1}"
+					shift
+					;;
+				u|unpack|"")
+					;;
+				*)
+					echo "Unknown argument: $2"
+					exit 1
+					;;
+			esac
+			;;
+		u|unpack)
+			unpack=y
+			;;
+		*)
+			image="$image $1"
+			;;
+	esac
+	shift
+done
+
+if [ "$download" != "y" -a "$unpack" != "y" ]; then
+	echo "usage: ${0##*/} [nfo] [verbose] <download [stable|labor|all] AND/OR unpack [image1 .. imageN]>"
+	exit 1
+fi
+
+# check tools
+if [ "$unpack" == "y" ]; then
+	FTOOLS="$(dirname $(readlink -f ${0}))"
+	if [ ! -e $FTOOLS/find-squashfs ]; then
+		for fdir in ~/*freetz*; do
+			[ -d "$fdir" ] || continue
+			FTMP="$(dirname $(readlink -f ${fdir}/tools/busybox))"
+			[ -e "$FTMP/busybox" ] && FTOOLS="$FTMP"
+		done
+		[ -n "$do_verbose" ] && echo -e "Using 'tools' of ${FTOOLS%/*}\n"
+	fi
+	if [ ! -e $FTOOLS/find-squashfs -o ! -e $FTOOLS/uimg -o ! -e $FTOOLS/fit/fitdump ]; then
+		echo "You have to run 'make tools-all' first."
+		exit 1
+	fi
+fi
+
+# main
+[ "$download" == "y" ] && download $dl_arg
+if [ "$unpack" == "y" ]; then
+	[ -z "$image" ] && unpack
+	for imgfile in $image; do
+		image $imgfile
+	done
+fi
+

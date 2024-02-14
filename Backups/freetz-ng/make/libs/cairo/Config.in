@@ -1,0 +1,13 @@
+config FREETZ_LIB_libcairo
+	bool "Cairo (libcairo.so)"
+	select FREETZ_LIB_libpixman_1
+	select FREETZ_LIB_libfontconfig
+	select FREETZ_LIB_libfreetype
+	select FREETZ_LIB_libpng16
+	select FREETZ_LIB_libz
+	default n
+	help
+		Cairo is a 2D graphics library with support for multiple output devices.
+		Cairo is designed to produce consistent output on all output media while
+		taking advantage of display hardware acceleration when available.
+

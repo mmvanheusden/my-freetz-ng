@@ -1,0 +1,28 @@
+if FREETZ_TYPE_0300 && FREETZ_TYPE_LANG_EN
+
+config FREETZ_AVM_HAS_BRANDING_avme
+	def_bool y
+
+config FREETZ_AVM_HAS_MULTIPLE_LANGUAGES
+	def_bool y
+
+config FREETZ_AVM_HAS_LANGUAGE_de
+	def_bool y
+
+config FREETZ_AVM_HAS_LANGUAGE_en
+	def_bool y
+
+config FREETZ_AVM_HAS_LANGUAGE_es
+	def_bool y
+
+config FREETZ_AVM_HAS_LANGUAGE_fr
+	def_bool y
+
+config FREETZ_AVM_HAS_LANGUAGE_it
+	def_bool y
+
+config FREETZ_AVM_HAS_LANGUAGE_pl
+	def_bool y
+
+endif
+

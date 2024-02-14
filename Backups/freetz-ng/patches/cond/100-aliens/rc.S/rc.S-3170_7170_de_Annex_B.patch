@@ -1,0 +1,65 @@
+--- etc/init.d/rc.S
++++ etc/init.d/rc.S
+@@ -1133,26 +1133,6 @@
+ echo 0 > /proc/sys/net/ipv6/conf/default/autoconf
+ fi
+ ##########################################################################################
+-## Defaults fuellen
+-##########################################################################################
+-##########################################################################################
+-## telephony
+-##########################################################################################
+-copy_telefonie_defaults telefon_misc ${OEM} ${Country} ${OEM_DEFAULT_INDEX}
+-copy_telefonie_defaults fx_lcr ${OEM} ${Country} ${OEM_DEFAULT_INDEX}
+-copy_telefonie_defaults fx_conf ${OEM} ${Country} ${OEM_DEFAULT_INDEX}
+-copy_telefonie_defaults fx_moh ${OEM} ${Country} ${OEM_DEFAULT_INDEX}
+-link_telefonie_defaults fx_moh ${OEM} ${Country} ${OEM_DEFAULT_INDEX}
+-if [ -f /usr/bin/calllog ] ; then
+-if [ ! -f /var/calllog ] ; then
+-ln -s /usr/bin/calllog /var/calllog
+-fi
+-fi
+-##########################################################################################
+-## Foncontrol
+-##########################################################################################
+-copy_telefonie_defaults fonctrl ${OEM} ${Country} ${OEM_DEFAULT_INDEX}
+-##########################################################################################
+ ## Module init (phase 1)
+ ##########################################################################################
+ ##########################################################################################
+@@ -1413,35 +1393,6 @@
+ modprobe ubik2 takeover_printk=1 $ubik2_params
+ cat /dev/debug &
+ fi
+-#! /bin/sh
+-#delete_shell_comment
+-## modprobe capifs # module sind im kernel einkompiliert
+-## modprobe capiutil # module sind im kernel einkompiliert
+-## modprobe kernelcapi # module sind im kernel einkompiliert
+-## modprobe capi # module sind im kernel einkompiliert
+-isdn_fbox=`ls -R /lib/modules/ | grep 'isdn_fbox.*ko'`
+-isdn_fbox=${isdn_fbox%.ko}
+-echo AVM_PRINTK >/dev/debug
+-if ! `ps | grep -v grep | grep -q "cat /dev/debug"` ; then
+-cat /dev/debug &
+-fi
+-## VAG2 + VAG3
+-isdn_params=""
+-## ########### Annex A DTMF/EC settings ###########
+-## ########### done ###########
+-## ########### optional pcmlink settings ###########
+-## Default: ggfs. notweniger pcmlink-Treiber wird von modprobe automatisch
+-## über kernel-dependencys ermittelt und vor dem isdn-treiber gestartet
+-modprobe $isdn_fbox $isdn_params
+-## ########### done ###########
+-sleep 2
+-## wegen mehrfacher abhangigkeiten zu den isdn_fonx-treibern per insmod
+-capi_codec=`ls -R /lib/modules/ | grep 'lib.*capi_codec'`
+-capi_codec=${capi_codec%:}/capi_codec.ko
+-if [ -f ${capi_codec} ]; then
+-insmod ${capi_codec}
+-fi
+-sleep 2
+ ##########################################################################################
+ ## USB-Target-Funktion und Host Controller wg DECT nach CAPI starten
+ ##########################################################################################

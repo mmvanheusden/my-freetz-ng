@@ -1,0 +1,16 @@
+config EXTERNAL_FREETZ_PACKAGE_GDB_GDB
+	bool "gdb"
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_GDB_GDB
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/gdb
+
+config EXTERNAL_FREETZ_PACKAGE_GDB_GDBSERVER
+	bool "gdbserver"
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_GDB_GDBSERVER
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/gdbserver
+

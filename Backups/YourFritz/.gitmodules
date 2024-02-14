@@ -1,0 +1,9 @@
+[submodule "first_aid"]
+	path = first_aid
+	url = https://github.com/PeterPawn/first_aid.git
+[submodule "bin"]
+	path = bin
+	url = https://github.com/PeterPawn/yf_bin.git
+[submodule "dtc"]
+	path = dtc
+	url = https://github.com/PeterPawn/dtc.git

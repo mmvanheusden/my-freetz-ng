@@ -1,0 +1,21 @@
+config FREETZ_PACKAGE_PPP_CGI
+	bool "ppp dial-up-network"
+	depends on FREETZ_AVM_HAS_USB_HOST
+	depends on (FREETZ_REPLACE_KERNEL_AVAILABLE && !FREETZ_KERNEL_VERSION_2_6_28) || FREETZ_REPLACE_KERNEL
+	select FREETZ_PACKAGE_PPP
+	select FREETZ_PACKAGE_PPPD_CHAT
+	select FREETZ_MODULE_option if !FREETZ_AVM_HAS_USB_SERIAL_OPTION_BUILTIN
+	select FREETZ_BUSYBOX_START_STOP_DAEMON
+	select FREETZ_PACKAGE_DNSMASQ
+	default n
+	help
+		Use this package to establish a dun connection
+
+config FREETZ_PACKAGE_PPP_COMGT
+	bool "select comgt package"
+	depends on FREETZ_PACKAGE_PPP_CGI
+	select FREETZ_PACKAGE_COMGT
+	default n
+	help
+		This option adds comgt, a GPRS/EDGE/3G/HSDPA datacard control tool, to the image.
+

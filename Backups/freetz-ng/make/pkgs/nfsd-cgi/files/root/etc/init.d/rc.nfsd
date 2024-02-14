@@ -1,0 +1,123 @@
+#!/bin/sh
+
+[ -x "$(which rpcbind 2>/dev/null)" ] && RPCPROG='rpcbind' || RPCPROG='portmap'
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+[ "$FREETZ_AVM_HAS_RPCBIND" == "y" ] && RPCPROG=''
+
+DAEMON=nfsd
+DAEMON_CHECK="$RPCPROG nfsd mountd"
+. /etc/init.d/modlibrc
+
+PROCNFSD_DIR=/proc/fs/nfsd
+
+start() {
+	set -o noglob
+	echo -n 'Starting nfsd ... '
+
+	if [ ! -e /etc/exports ]; then
+		echo "can't open /etc/exports ... failed."
+		exit 1
+	fi
+
+	modprobe nfsd > /dev/null 2>&1
+
+	# Fill /proc/fs/nfsd
+	mount -t nfsd nfsd $PROCNFSD_DIR > /dev/null 2>&1
+
+	# set max rsize/wsize supported by server to 64kb
+	[ -e $PROCNFSD_DIR/max_block_size ] && echo 65536 > $PROCNFSD_DIR/max_block_size
+
+	local NFS_DIR=/var/lib/nfs
+	mkdir -p $NFS_DIR
+	for file in etab rmtab xtab; do
+		touch $NFS_DIR/$file
+	done
+
+	# rpcbind needs this for xdr
+	if [ "$RPCPROG" == 'rpcbind' ]; then
+		mkdir -p /var/run/rpcbind
+		chown -R nobody.nobody /var/run/rpcbind
+	fi
+
+	[ -z "$RPCPROG" ] && true || "$RPCPROG"
+	exitval1=$?
+	exportfs -r > /dev/null 2>&1
+	exitval2=$?
+	[ "$NFSD_NO_NFS_V4" == "yes" ] && NO_NFS_VERSION_4="-N 4"
+	nfsd $NO_NFS_VERSION_4
+	exitval3=$?
+	[ -n "$NFSD_MOUNTD_PORT" ] && PORTARG="-p $NFSD_MOUNTD_PORT"
+	mountd $PORTARG
+	exitval4=$?
+
+	if [ "$exitval1" -eq 0 ] && [ "$exitval2" -eq 0 ] \
+		&& [ "$exitval3" -eq 0 ] && [ "$exitval4" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		return 1
+	fi
+}
+
+stop() {
+	killall mountd >/dev/null 2>&1
+	exitval1=$?
+	killall -9 nfsd > /dev/null 2>&1
+	exitval2=$?
+	/usr/sbin/exportfs -au
+	exitval3=$?
+	[ -z "$RPCPROG" ] && true || killall "$RPCPROG" > /dev/null 2>&1
+	exitval4=$?
+	umount $PROCNFSD_DIR > /dev/null 2>&1
+	[ "$exitval1" -eq 0 -a "$exitval2" -eq 0 -a "$exitval3" -eq 0 -a "$exitval4" -eq 0 ] && return 0
+}
+
+reload() {
+	/usr/sbin/exportfs -r > /dev/null 2>&1
+}
+
+case $1 in
+	""|load)
+		[ -d "/tmp/flash/nfsd" ] || mkdir -p /tmp/flash/nfsd
+		ln -fs /tmp/flash/nfsd/exports /var/tmp/exports
+
+		# portmap/rpcbind needs this
+		modlib_add_user_and_group nobody
+
+		modreg cgi 'nfsd' 'NFS-Server'
+		modreg daemon $DAEMON
+		modreg file nfsd hosts_allow 'hosts.allow' 1 "hosts_allow"
+		modreg file nfsd hosts_deny 'hosts.deny' 1 "hosts_deny"
+		modreg file nfsd exports 'exports' 1 "exports"
+
+		modlib_start $NFSD_ENABLED
+		;;
+	unload)
+		modunreg file nfsd
+		modunreg daemon $DAEMON
+		modunreg cgi nfsd
+		modlib_stop
+		rmmod nfsd lock lockd grace sunrpc exportfs > /dev/null 2>&1
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	reload)
+		modlib_reload
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|reload|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

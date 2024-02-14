@@ -1,0 +1,10 @@
+--- src/mount_davfs.c
++++ src/mount_davfs.c
+@@ -75,7 +75,6 @@
+ #include <sys/sysctl.h>
+ #endif
+ 
+-#include <fstab.h>
+ 
+ #include <ne_string.h>
+ #include <ne_uri.h>

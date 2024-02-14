@@ -1,0 +1,11 @@
+--- src/Makefile.in
++++ src/Makefile.in
+@@ -398,7 +398,7 @@
+ # Red Hat "by design" bug #82369
+ 
+ # Additional preprocessor definitions
+-stunnel_CPPFLAGS = -I$(SYSROOT)/usr/kerberos/include \
++stunnel_CPPFLAGS =                                   \
+ 	-I$(SSLDIR)/include -DLIBDIR='"$(pkglibdir)"' \
+ 	-DCONFDIR='"$(sysconfdir)/stunnel"'
+ 

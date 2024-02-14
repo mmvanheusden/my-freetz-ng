@@ -1,0 +1,7 @@
+This is an upward compatible rewrite of the tichksum program.
+
+It works on big endian, lillte endian, 32 bit and 64 bit machines.
+
+It has options to add, verify and remove a checksum. When called with
+no arguments, the default is compatible with the original program: If
+a checksum is present, then verify it, else add it.

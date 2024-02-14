@@ -1,0 +1,14 @@
+--- makefile
++++ makefile
+@@ -1,7 +1,10 @@
+ PRG            = smusbutil
+ SRC            = $(PRG).c
++CC             = gcc
++LIBS           = -lftdi
++CFLAGS         = -O2
+
+ #=================================================================================
+
+ all:
+-	gcc -lftdi -o $(PRG) $(SRC)
++	$(CC) $(CFLAGS) -o $(PRG) $(SRC) $(LIBS)

@@ -1,0 +1,11 @@
+--- squashfs-tools/mksquashfs.c
++++ squashfs-tools/mksquashfs.c
+@@ -1789,7 +1789,7 @@
+ 
+ 
+ 	for(i = 0; i < source; i++)
+-		if(stat(source_path[i], &buf) == -1) {
++		if(lstat(source_path[i], &buf) == -1) {
+ 			fprintf(stderr, "Cannot stat source directory \"%s\" because %s\n", source_path[i], strerror(errno));
+ 			EXIT_MKSQUASHFS();
+ 		}

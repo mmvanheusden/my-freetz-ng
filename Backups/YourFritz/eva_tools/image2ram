@@ -1,0 +1,54 @@
+#! /bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+if [ -t 0 ] || [ -t 1 ]; then
+	printf "I'm a filter, give me a firmware image file on STDIN and I'll put out an in-memory image on STDOUT.\n" 1>&2
+	exit 2
+fi
+tmp=${TMP:-/tmp}
+tmpdir=$tmp/$(date +%s)_$$
+mkdir -p $tmpdir
+trap "rm -r $tmpdir" EXIT HUP INT
+cat - >$tmpdir/image.tar
+kernelline=$(tar -t -v -f $tmpdir/image.tar | grep 'kernel\.image')
+filesystemline=$(tar -t -v -f $tmpdir/image.tar | grep 'filesystem\.image')
+if [ ${#kernelline} -eq 0 ]; then
+	printf "kernel.image not found\n" 1>&2
+	exit 1
+fi
+if [ ${#filesystemline} -eq 0 ]; then
+	printf "filesystem.image not found\n" 1>&2
+	exit 1
+fi
+set -- $kernelline
+kernel=$6
+kernelsize=$3
+set -- $filesystemline
+filesystem=$6
+filesyssize=$3
+tar -x -O -f $tmpdir/image.tar $kernel >$tmpdir/kernel 2>/dev/null
+tar -x -O -f $tmpdir/image.tar $filesystem >$tmpdir/fs 2>/dev/null
+krnlsize=$(wc -c <$tmpdir/kernel 2>/dev/null || printf "0")
+fssize=$(wc -c <$tmpdir/fs 2>/dev/null || printf "0")
+if [ $krnlsize -ne $kernelsize ]; then
+	printf "error extracting kernel.image\n" 1>&2
+	exit 1
+fi
+if [ $fssize -ne $filesyssize ]; then
+	printf "error extracting filesystem.image\n" 1>&2
+	exit 1
+fi
+chk=$(dd if=$tmpdir/kernel bs=4 count=1 skip=$(( krnlsize / 4 - 2 )) 2>/dev/null| base64)
+if [ ${#chk} -eq 0 ]; then
+	printf "error detecting checksum on kernel.image\n" 1>&2
+	exit 1
+fi
+[ "$chk" = "I95TxA==" ] && kernelcs=1 || kernelcs=0
+chk=$(dd if=$tmpdir/fs bs=4 count=1 skip=$(( fssize / 4 - 2 )) 2>/dev/null | base64)
+if [ ${#chk} -eq 0 ]; then
+	printf "error detecting checksum on filesystem.image\n" 1>&2
+	exit 1
+fi
+[ "$chk" = "I95TxA==" ] && filesyscs=1 || filesyscs=0
+[ $kernelcs -eq 1 ] && dd if=$tmpdir/kernel bs=$(( krnlsize - 8 )) count=1 2>/dev/null || cat $tmpdir/kernel
+[ $filesyscs -eq 1 ] && dd if=$tmpdir/fs bs=$(( fssize - 8 )) count=1 2>/dev/null || cat $tmpdir/fs
+exit 0

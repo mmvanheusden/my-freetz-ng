@@ -1,0 +1,9 @@
+config EXTERNAL_FREETZ_PACKAGE_USBIP
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_USBIP
+	bool "usbip"
+	default n
+	help
+		externals the following file(s):
+		 /usr/sbin/usbip_bind_driver
+		 /usr/sbin/usbipd
+

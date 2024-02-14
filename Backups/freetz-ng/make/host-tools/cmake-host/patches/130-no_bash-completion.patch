@@ -1,0 +1,7 @@
+--- Auxiliary/bash-completion/CMakeLists.txt
++++ Auxiliary/bash-completion/CMakeLists.txt
+@@ -18,4 +18,3 @@
+     set(CMake_INSTALL_BASH_COMP_DIR ${CMAKE_XDGDATA_DIR}/bash-completion/completions)
+   endif()
+ endif()
+-install(FILES cmake cpack ctest DESTINATION ${CMake_INSTALL_BASH_COMP_DIR})

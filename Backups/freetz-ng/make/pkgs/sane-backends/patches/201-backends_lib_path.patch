@@ -1,0 +1,11 @@
+--- backend/Makefile.in
++++ backend/Makefile.in
+@@ -1753,7 +1753,7 @@
+ AM_CFLAGS = @AM_CFLAGS@
+ AM_CPPFLAGS = @AM_CPPFLAGS@ -I. -I$(srcdir) -I$(top_builddir)/include \
+ 	-I$(top_srcdir)/include $(USB_CFLAGS) \
+-	-DLIBDIR="\"$(libdir)/sane\""
++	-DLIBDIR="\"$(libdir)/freetz/sane\""
+ AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
+ AM_LDFLAGS = @AM_LDFLAGS@ $(STRICT_LDFLAGS)
+ AR = @AR@

@@ -1,0 +1,33 @@
+
+  /usr/lib/cmake/libdeflate/libdeflate-config.cmake
+  /usr/lib/cmake/libdeflate/libdeflate-config-version.cmake
+  /usr/lib/cmake/libdeflate/libdeflate-targets.cmake
+  /usr/lib/cmake/libdeflate/libdeflate-targets-release.cmake
+
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -244,24 +244,6 @@
+        NAMESPACE libdeflate::
+        FILE libdeflate-targets.cmake)
+ 
+-# Generate and install a separate "libdeflate-targets.cmake" file that can be
+-# included by outside projects to import targets from the installation tree.
+-install(EXPORT libdeflate_exported_targets
+-        NAMESPACE libdeflate::
+-        FILE libdeflate-targets.cmake
+-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdeflate)
+-
+-# Generate and install the CMake package version and config files.
+-write_basic_package_version_file(libdeflate-config-version.cmake
+-                                 VERSION ${PROJECT_VERSION}
+-                                 COMPATIBILITY AnyNewerVersion)
+-configure_package_config_file(
+-    ${CMAKE_CURRENT_SOURCE_DIR}/libdeflate-config.cmake.in
+-    libdeflate-config.cmake
+-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdeflate)
+-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libdeflate-config.cmake
+-        ${CMAKE_CURRENT_BINARY_DIR}/libdeflate-config-version.cmake
+-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/libdeflate)
+ 
+ # Build the programs subdirectory if needed.
+ if(LIBDEFLATE_BUILD_GZIP OR LIBDEFLATE_BUILD_TESTS)

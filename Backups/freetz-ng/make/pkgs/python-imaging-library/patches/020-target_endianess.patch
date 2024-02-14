@@ -1,0 +1,20 @@
+--- setup.py
++++ setup.py
+@@ -5,7 +5,7 @@
+ # Usage: python setup.py install
+ #
+ 
+-import glob, os, re, struct, string, sys
++import glob, os, re, string, sys
+ 
+ # make it possible to run the setup script from another directory
+ try:
+@@ -282,7 +282,7 @@
+             defs.append(("HAVE_LIBZ", None))
+         if sys.platform == "win32":
+             libs.extend(["kernel32", "user32", "gdi32"])
+-        if struct.unpack("h", "\0\1")[0] == 1:
++        if os.getenv('TARGET_ARCH_BE', '') == "y":
+             defs.append(("WORDS_BIGENDIAN", None))
+ 
+         exts = [(Extension(

@@ -1,0 +1,29 @@
+--- avm/config-grx5-5530_07.29
++++ freetz/config-grx5-5530_07.29
+@@ -662,6 +662,7 @@
+ CONFIG_AVM_PA_MAX_SESSION=4096
+ # CONFIG_AVM_PA_TX_NAPI is not set
+ CONFIG_AVM_PA_SCH_LLQ=m
++CONFIG_AVM_PA_SCH_TACK=m
+ CONFIG_PACKET=y
+ # CONFIG_PACKET_DIAG is not set
+ CONFIG_UNIX=y
+@@ -1212,7 +1213,9 @@
+ # CONFIG_BLK_DEV_DAC960 is not set
+ # CONFIG_BLK_DEV_UMEM is not set
+ # CONFIG_BLK_DEV_COW_COMMON is not set
+-# CONFIG_BLK_DEV_LOOP is not set
++CONFIG_BLK_DEV_LOOP=m
++CONFIG_BLK_DEV_LOOP_MIN_COUNT=8
++# CONFIG_BLK_DEV_CRYPTOLOOP is not set
+ # CONFIG_BLK_DEV_DRBD is not set
+ # CONFIG_BLK_DEV_NBD is not set
+ # CONFIG_BLK_DEV_SX8 is not set
+@@ -1599,6 +1602,7 @@
+ # CONFIG_FDDI is not set
+ # CONFIG_HIPPI is not set
+ CONFIG_PHYLIB=y
++# CONFIG_PHY_ID0_JZ_66791_PANIC is not set
+ CONFIG_SWPHY=y
+ 
+ #

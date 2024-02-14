@@ -1,0 +1,48 @@
+#!/bin/sh
+
+DAEMON=polipo
+. /etc/init.d/modlibrc
+
+config() {
+	modlib_config
+}
+
+start() {
+	modlib_startdaemon $DAEMON -c $DAEMON_CONFIG
+}
+
+stop () {
+	killall $DAEMON > /dev/null 2>&1
+}
+
+case $1 in
+	""|load)
+		modreg cgi 'polipo' 'Polipo-Proxy'
+		modreg daemon $DAEMON
+
+		modlib_start $POLIPO_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi 'polipo'
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

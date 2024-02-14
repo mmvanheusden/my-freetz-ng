@@ -1,0 +1,7 @@
+config FREETZ_LIB_libdb
+	bool "Berkeley DB library (libdb.so)"
+	select FREETZ_LIB_libpthread if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	default n
+	help
+		The Berkeley database library.
+

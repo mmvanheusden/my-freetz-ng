@@ -1,0 +1,27 @@
+config EXTERNAL_FREETZ_PACKAGE_COLLECTD
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_COLLECTD
+	bool "collectd"
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/collectd
+		 /usr/share/collectd/types.db
+		 /usr/share/collectd/generate_graphs
+		 ${FREETZ_LIBRARY_DIR}/collectd/apache.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/contextswitch.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/cpu.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/df.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/disk.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/entropy.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/exec.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/fritzbox.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/interface.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/irq.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/load.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/memory.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/network.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/ping.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/rrdtool.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/syslog.so
+		 ${FREETZ_LIBRARY_DIR}/collectd/uptime.so
+

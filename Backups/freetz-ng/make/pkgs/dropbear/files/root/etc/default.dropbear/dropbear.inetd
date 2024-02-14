@@ -1,0 +1,10 @@
+. /mod/etc/conf/dropbear.cfg
+inetdcfg_desc="Dropbear"
+inetdcfg_port=$DROPBEAR_PORT
+inetdcfg_sock=stream
+inetdcfg_proto=tcp$1
+inetdcfg_flags=nowait
+inetdcfg_user=root
+inetdcfg_exe=/usr/sbin/dropbear
+inetdcfg_arg0=dropbear
+inetdcfg_args="-i$([ "$DROPBEAR_PWDAUTH" = "yes" ] || echo " -s")$([ "$DROPBEAR_ROOTONLY" = "yes" ] && echo " -0") $DROPBEAR_OPTIONS"

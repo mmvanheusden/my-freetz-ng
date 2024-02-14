@@ -1,0 +1,25 @@
+[PATCH] Fix _fat_bmap() locking
+
+On swapon() path, it has already i_mutex. So, this uses i_alloc_sem
+instead of it.
+
+Signed-off-by: OGAWA Hirofumi <hirofumi [at] mail>
+---
+
+fs/fat/inode.c | 4 ++--
+1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- linux-2.6.28/fs/fat/inode.c
++++ linux-2.6.28/fs/fat/inode.c
+@@ -202,9 +202,9 @@
+ 	sector_t blocknr;
+ 
+ 	/* fat_get_cluster() assumes the requested blocknr isn't truncated. */
+-	mutex_lock(&mapping->host->i_mutex);
++	down_read(&mapping->host->i_alloc_sem);
+ 	blocknr = generic_block_bmap(mapping, block, fat_get_block);
+-	mutex_unlock(&mapping->host->i_mutex);
++	up_read(&mapping->host->i_alloc_sem);
+ 
+ 	return blocknr;
+ }

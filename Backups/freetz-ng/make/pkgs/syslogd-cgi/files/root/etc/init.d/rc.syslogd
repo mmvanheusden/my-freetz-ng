@@ -1,0 +1,106 @@
+#!/bin/sh
+
+DAEMON=syslogd
+DAEMON_LONG_NAME=Syslogd
+. /etc/init.d/modlibrc
+
+start() {
+	[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+	if [ "$SYSLOGD_NETWORK" = "no" -a "$SYSLOGD_LOCAL" = "no" ] || [ "$SYSLOGD_NETWORK" = "yes" -a -z "$SYSLOGD_HOST" ]; then
+		echo 'Syslogd misconfigured. Please correct your settings! Starting with default options.'
+		modlib_startdaemon $DAEMON -C
+		return 1
+	fi
+
+	if [ "$SYSLOGD_LOCAL" = "yes" ]; then
+		modreg status $DAEMON 'Syslog' log
+
+		SYSLOGD_OPTIONS="-L"
+
+		case $SYSLOGD_LOGGING in
+		circular_buffer)
+			SYSLOGD_OPTIONS="$SYSLOGD_OPTIONS -C"
+			if [ -n "$SYSLOGD_BUFFER_MAXSIZE" ] && [ "$SYSLOGD_BUFFER_MAXSIZE" -gt "0" ]; then
+				SYSLOGD_OPTIONS="$SYSLOGD_OPTIONS$SYSLOGD_BUFFER_MAXSIZE"
+			fi
+		;;
+		log_to_file)
+			if [ -n "$SYSLOGD_ALTERNATIVE_LOGFILE" ]; then
+				SYSLOGD_OPTIONS="$SYSLOGD_OPTIONS -O $SYSLOGD_ALTERNATIVE_LOGFILE"
+				#create a symbolic link to /var/log but only if path to alternative logfile is not /var/log
+				[ $(dirname $SYSLOGD_ALTERNATIVE_LOGFILE) != /var/log ] && \
+					[ ! -e "/var/log/$(basename $SYSLOGD_ALTERNATIVE_LOGFILE)" ] && \
+					ln -sf "$SYSLOGD_ALTERNATIVE_LOGFILE" /var/log/
+			fi
+			if [ -n "$SYSLOGD_MAXFILES" ] && [ "$SYSLOGD_MAXFILES" -gt "1" ]; then
+				SYSLOGD_OPTIONS="$SYSLOGD_OPTIONS -b $SYSLOGD_MAXFILES"
+				[ -n "$SYSLOGD_MAXSIZE" ] && \
+					SYSLOGD_OPTIONS="$SYSLOGD_OPTIONS -s $SYSLOGD_MAXSIZE"
+			fi
+		;;
+		esac
+	fi
+
+	if [ "$SYSLOGD_NETWORK" = "yes" ]; then
+		SYSLOGD_OPTIONS="$SYSLOGD_OPTIONS -R $SYSLOGD_HOST"
+		if [ -n "$SYSLOGD_PORT" ] && [ "$SYSLOGD_PORT" -ne "514" ]; then
+			SYSLOGD_OPTIONS="$SYSLOGD_OPTIONS:$SYSLOGD_PORT"
+		fi
+	fi
+
+	#fallback
+	if [ -z "$SYSLOGD_OPTIONS" -a -z "$SYSLOGD_EXPERT_OPTIONS" ]; then
+		SYSLOGD_OPTIONS="-b 1 -s 16"
+	fi
+
+	modlib_startdaemon $DAEMON $SYSLOGD_OPTIONS $SYSLOGD_EXPERT_OPTIONS
+
+	if [ "$FREETZ_BUSYBOX_KLOGD" == "y" -a "$SYSLOGD_KLOGD" = "yes" ]; then
+		KLOGDOPTIONS=""
+		[ -n "$SYSLOGD_KLOGD_LEVEL" ] && KLOGDOPTIONS="-c $SYSLOGD_KLOGD_LEVEL"
+
+		/sbin/klogd $KLOGDOPTIONS > /dev/null 2>&1
+		if [ "$?" -ne 0 ]; then
+			echo 'Starting klogd ... failed.'
+			return 1
+		fi
+	fi
+}
+
+stop_post() {
+	modunreg status $DAEMON log
+	pidof klogd >/dev/null && killall klogd >/dev/null 2>&1
+}
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+
+		modlib_start $SYSLOGD_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

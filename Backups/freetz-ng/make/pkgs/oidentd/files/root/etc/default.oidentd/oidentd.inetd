@@ -1,0 +1,10 @@
+. /mod/etc/conf/oidentd.cfg
+inetdcfg_desc="Oidentd"
+inetdcfg_port=113
+inetdcfg_sock=stream
+inetdcfg_proto=tcp$1
+inetdcfg_flags=nowait
+inetdcfg_user=root
+inetdcfg_exe=/usr/bin/oidentd
+inetdcfg_arg0=oidentd
+inetdcfg_args="-I -C /tmp/flash/oidentd/oidentd.conf $OIDENTD_CMDLINE"

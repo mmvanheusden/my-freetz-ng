@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libid3tag
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libid3tag
+	bool "libid3tag"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libid3tag.so.0.16.3
+

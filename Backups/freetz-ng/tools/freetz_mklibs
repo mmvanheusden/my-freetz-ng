@@ -1,0 +1,61 @@
+#! /usr/bin/env bash
+
+freetz_mklibs() {
+	local HOST_TOOLS_DIR="${FREETZ_BASE_DIR}/tools/build"
+	local TARGET_TOOLCHAIN_STAGING_DIR="${FREETZ_BASE_DIR}/toolchain/target"
+	local GNU_TARGET_NAME=${FREETZ_TARGET_ARCH_ENDIANNESS_DEPENDENT}-linux
+	local REAL_GNU_TARGET_NAME=${GNU_TARGET_NAME}-uclibc
+	local UCLIBC_DIR
+	[ "$FREETZ_SEPARATE_AVM_UCLIBC" == "y" ] && UCLIBC_DIR="$FREETZ_LIBRARY_DIR" || UCLIBC_DIR="/lib"
+
+	# replace all absolute symlinks with relative ones to make mklibs happy
+	symlinks-abs2rel -r "${FILESYSTEM_MOD_DIR}" / "*.so*"
+
+	rm -rf "${MOD_DIR}/mklibs-progs" "${MOD_DIR}/mklibs-out"
+	mkdir -p "${MOD_DIR}/mklibs-out"
+	# first find all programs and add them to the mklibs list
+	find "${FILESYSTEM_MOD_DIR}" -type f -perm /100 -exec \
+		file -r -N -F '' {} + | \
+		awk ' /executable.*dynamically/ { print $1 }' > "${MOD_DIR}/mklibs-progs"
+	# find all loadable objects that are not regular libraries and add them to the list as well
+	find "${FILESYSTEM_MOD_DIR}" -type f -name "*.so*" -exec \
+		file -r -N -F '' {} + | \
+		awk ' /shared object/ { print $1 }' >> "${MOD_DIR}/mklibs-progs"
+	# Run mklibs script, needs path to mklibs-readelf and objcopy
+	[ "$FREETZ_TOOLCHAIN_CCACHE" == "y" ] \
+	  && BINS_PATH="${TARGET_TOOLCHAIN_STAGING_DIR}/bin:${TARGET_TOOLCHAIN_STAGING_DIR}/bin-ccache" \
+	  || BINS_PATH="${TARGET_TOOLCHAIN_STAGING_DIR}/bin-ccache:${TARGET_TOOLCHAIN_STAGING_DIR}/bin"
+	PATH="${HOST_TOOLS_DIR}/path:${HOST_TOOLS_DIR}/bin:${HOST_TOOLS_DIR}/usr/bin:${BINS_PATH}:${PATH}" \
+		"${HOST_TOOLS_DIR}/bin/mklibs" \
+		-vvv \
+		-D \
+		-d "${MOD_DIR}/mklibs-out" \
+		--sysroot "${FREETZ_BASE_DIR}/" \
+		-P toolchain/target/lib \
+		-L "${FILESYSTEM_MOD_DIR}${FREETZ_LIBRARY_DIR}" \
+		-L "${FILESYSTEM_MOD_DIR}/lib" \
+		-L "${FILESYSTEM_MOD_DIR}/usr/lib" \
+		--ldlib "${FILESYSTEM_MOD_DIR}${UCLIBC_DIR}/ld-uClibc.so.0" \
+		--target ${REAL_GNU_TARGET_NAME} \
+		$(cat "${MOD_DIR}/mklibs-progs") \
+		> "${MOD_DIR}/mklibs.log" 2>&1
+	local rv=$?
+	# Copy stripped libs to their destination directory
+	local LIB DEST DEST_DIR
+	for LIB in $(find "${MOD_DIR}/mklibs-out" -type f -name "*.so.*"); do
+		for DEST_DIR in ${FREETZ_LIBRARY_DIR#/} lib usr/lib; do
+			DEST=$(ls "${FILESYSTEM_MOD_DIR}/${DEST_DIR}/${LIB##*/}" 2>/dev/null)
+			[ -n "$DEST" ] && break
+		done
+		[ -n "$DEST" ] || error 1 "${FUNCNAME}: failed to determine the destination of ${LIB##*/}"
+		if cp "$LIB" "$DEST"; then
+			chmod +x "$DEST"
+			echo2 "Successfully copied mklibs-processed version of ${LIB##*/} to ${DEST#${FILESYSTEM_MOD_DIR}}"
+		else
+			error 1 "${FUNCNAME}: failed to copy ${LIB##*/} to the destination directory"
+		fi
+	done
+	rm -rf "${MOD_DIR}/mklibs-progs" "${MOD_DIR}/mklibs-out"
+
+	return $rv
+}

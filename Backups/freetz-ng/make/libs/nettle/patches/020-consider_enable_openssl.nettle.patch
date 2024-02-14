@@ -1,0 +1,18 @@
+--- configure
++++ configure
+@@ -5571,6 +5571,7 @@
+ 
+ 
+ 
++if test "$enable_openssl" = yes; then
+ for ac_header in openssl/evp.h openssl/ecdsa.h
+ do :
+   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+@@ -5586,6 +5587,7 @@
+ fi
+ 
+ done
++fi
+ 
+ 
+ # For use by the testsuite

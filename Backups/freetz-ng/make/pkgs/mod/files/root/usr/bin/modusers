@@ -1,0 +1,70 @@
+#!/bin/sh
+#save/load users and groups from/to flash (not TFFS)
+
+SAVE_DIR=/tmp/flash/users
+FILES="passwd group shadow gshadow"
+
+load() {
+	mkdir -pm 700 $SAVE_DIR
+	# temporary file
+	touch "/tmp/passwd.mod"
+	chmod 644 "/tmp/passwd.mod"
+	cat /tmp/passwd > /tmp/passwd.mod
+	for f in $FILES; do
+		# set permissions: 644 for passwd & group, 600 for shadow & gshadow
+		touch "/tmp/$f"
+		[ "$f" == "${f%shadow}" ] && chmod 644 "/tmp/$f" || chmod 600 "/tmp/$f"
+		# existing settings available?
+		if [ ! -e "$SAVE_DIR/$f" ]; then
+			# save default users&groups from var.tar
+			cat "/tmp/$f" > "$SAVE_DIR/$f" 2>/dev/null
+		else
+			# load saved freetz-users & -groups from flash
+			grep -vE '^(app|boxusr|ftpuser)[0-9]*(int|-internet)*:' "$SAVE_DIR/$f" | sort -u > "/tmp/${f/passwd/passwd.mod}" 2>/dev/null
+		fi
+	done
+	# read updated defaults from var.tar
+	for f in passwd.mod group; do
+		tar xOf /var.tar ./var/tmp/${f%.mod} | while read l; do grep -q "^${l%%:*}:" /tmp/$f || echo "$l" >> /tmp/$f; done
+	done
+	# no update by ctlmgr (manual load), so use current values
+	[ ! -e /tmp/passwd.tmp ] && cp -a /tmp/passwd /tmp/passwd.tmp 2>/dev/null
+	# load AVM's app-users, boxusrs (and ftpusers) which were created by ctlmgr
+	grep -E '^(app|boxusr|ftpuser)[0-9]*(int|-internet)*:' /tmp/passwd.tmp >> /tmp/passwd.mod 2>/dev/null
+	# special case: ftpuser is created and/or used by avm and/or freetz
+	grep -q "^ftpuser:" /tmp/passwd.mod || grep "^ftpuser:" "$SAVE_DIR/passwd" >> /tmp/passwd.mod 2>/dev/null
+	# /tmp/passwd.tmp is created by ctlmgr (during changes), do NOT MoVe due to libctlmgr
+	rm -f /tmp/passwd.tmp
+	# prevent race-condition while creating /etc/passwd
+	mv /tmp/passwd.mod /tmp/passwd
+	touch /tmp/.usersloaded
+}
+
+save() {
+	local rc=0
+	[ ! -e /tmp/.usersloaded ] && return 1
+	rm -rf $SAVE_DIR
+	mkdir -pm 700 $SAVE_DIR
+	for f in $FILES; do
+		cp -p "/tmp/$f" "$SAVE_DIR/$f" || rc=1
+	done
+	return $rc
+}
+
+case $1 in
+	load)
+		load
+		;;
+	save)
+		save
+		;;
+	update)
+		save
+		load
+		;;
+	*)
+		echo "Usage: $0 [load|save|update]" 1>&2
+		exit 1
+		;;
+esac
+

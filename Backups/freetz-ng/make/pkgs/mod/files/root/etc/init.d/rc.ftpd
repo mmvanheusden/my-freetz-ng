@@ -1,0 +1,85 @@
+#!/bin/sh
+
+DAEMON=ftpd
+DAEMON_LONG_NAME="AVM-$DAEMON"
+[ -r /mod/etc/conf/$DAEMON}.cfg ] || touch /mod/etc/conf/$DAEMON.cfg
+. /etc/init.d/modlibrc
+
+STATUS_FILE=/tmp/.status.$DAEMON
+[ -r $STATUS_FILE ] && FTPD_ENABLED="$(cat $STATUS_FILE)"
+
+get_options() {
+	local FTPD_OPTION=""
+	if  ftpd --help 2>&1 | grep -q "linux users"; then
+		if [ "$(echo usbhost.users_enabled | usbcfgctl -s)" == "yes" ];	then
+			FTPD_OPTION="-U"
+		else
+			[ "$(echo usbhost.readonly | usbcfgctl -s)" != "no" ] && FTPD_OPTION="-r"
+		fi
+	fi
+	echo "-q -t 120 $FTPD_OPTION -h $(echo $CONFIG_PRODUKT_NAME |tr -d ' ')"
+}
+
+start() {
+	echo -n "Starting ${DAEMON_LONG_NAME} ... "
+
+	# include environment variables
+	. /bin/env.mod.rcconf
+
+	# redirect is needed to allow start by webif
+	ftpd -D --pidfile=$PID_FILE -m 15 $(get_options) >/dev/null 2>&1
+
+	exitval=$?
+	if [ "$exitval" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		exit $exitval
+	fi
+}
+
+set_mode() {
+	echo $1 > $STATUS_FILE
+	/mod/etc/init.d/rc.inetd config $DAEMON
+}
+
+case $1 in
+	""|load)
+		modreg pkg $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon -p avm $DAEMON
+		;;
+	unload)
+		modunreg daemon avm $DAEMON
+		modunreg pkg $DAEMON
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	inetd_enable)
+		set_mode inetd
+		;;
+	inetd_disable)
+		set_mode stopped
+		;;
+	status)
+		modlib_status
+		;;
+	get_options)
+		get_options
+		;;
+	*)
+		echo "Usage: $0 [start|stop|restart|reload|inetd_enable|inetd_disable|status|get_options]" 1>&2
+		exit 1
+		;;
+esac
+
+exit $?

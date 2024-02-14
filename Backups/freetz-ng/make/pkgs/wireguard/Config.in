@@ -1,0 +1,30 @@
+comment "wireguard-tools (not available, needs at least kernel v3)"
+	depends on !FREETZ_KERNEL_VERSION_3_MIN
+
+comment "wireguard-tools (not available, needs replace kernel)"
+	depends on FREETZ_KERNEL_VERSION_3_MIN && !(FREETZ_AVM_HAS_CRYPTO_BLKCIPHER_BUILTIN || FREETZ_REPLACE_KERNEL)
+
+comment "wireguard-tools (not available, needs kernel modules)"
+	depends on FREETZ_KERNEL_VERSION_3_MIN && (FREETZ_AVM_HAS_CRYPTO_BLKCIPHER_BUILTIN || FREETZ_REPLACE_KERNEL) && !FREETZ_REPLACE_MODULE_AVAILABLE
+
+config FREETZ_PACKAGE_WIREGUARD
+	bool "wireguard-tools 1.0.20210914"
+	depends on FREETZ_KERNEL_VERSION_3_MIN && (FREETZ_AVM_HAS_CRYPTO_BLKCIPHER_BUILTIN || FREETZ_REPLACE_KERNEL) && FREETZ_REPLACE_MODULE_AVAILABLE
+	default n
+	select FREETZ_REMOVE_WIREGUARD if FREETZ_AVM_HAS_WIREGUARD
+	select FREETZ_BUSYBOX_IP
+	select FREETZ_PACKAGE_WIREGUARD_LINUX_COMPAT
+	help
+		WireGuard is an extremely simple yet fast and modern VPN
+		that utilizes state-of-the-art cryptography. It aims to be
+		faster, simpler, leaner, and more useful than IPSec, while
+		avoiding the massive headache. It intends to be considerably
+		more performant than OpenVPN. WireGuard is designed as a
+		general purpose VPN for running on embedded interfaces and
+		super computers alike, fit for many different circumstances.
+		Initially released for the Linux kernel, it plans to be
+		cross-platform and widely deployable. It is currently under
+		heavy development, but already it might be regarded as the
+		most secure, easiest to use, and simplest VPN solution in
+		the industry.
+

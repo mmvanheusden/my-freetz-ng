@@ -1,0 +1,57 @@
+#!/bin/sh
+
+DAEMON=inotify-tools
+DAEMON_BIN=inotifywait
+DAEMON_LONG_NAME=inotify
+. /etc/init.d/modlibrc
+
+start() {
+	echo -n "Starting $DAEMON_LONG_NAME ... "
+	$DAEMON_BIN -c -r -m / \
+		@/dev @/proc @/var @/rom @/sto \
+		--exclude 'busybox|uClibc|libcrypt-0' \
+		>> $INOTIFY_TOOLS_LOGFILE 2> /dev/null &
+	exitval=$?
+	pidof -s $DAEMON_BIN > $PID_FILE 2>/dev/null
+	if [ "$exitval" -eq 0 ] ; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		exit $exitval
+	fi
+
+}
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON $DAEMON
+		modreg daemon $DAEMON
+		modreg status $DAEMON $DAEMON inotify-tools_log
+
+		modlib_start $INOTIFY_TOOLS_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modunreg status $DAEMON inotify-tools_log
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

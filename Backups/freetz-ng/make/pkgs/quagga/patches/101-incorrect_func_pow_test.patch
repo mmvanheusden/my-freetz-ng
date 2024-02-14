@@ -1,0 +1,38 @@
+--- configure.ac.orig	2010-08-24 10:36:33.000000000 +0200
++++ configure.ac	2010-08-24 10:36:33.000000000 +0200
+@@ -687,9 +687,8 @@
+ AC_CHECK_HEADER([math.h],
+   [AC_CHECK_LIB([m], [pow],
+     [LIBM="-lm"
+-     LIBS="$LIBS $LIBM"
+      AC_DEFINE(HAVE_LIBM,, Have libm)
+-     AC_CHECK_FUNCS(pow,[],[LIBM=""])
++     AC_DEFINE(HAVE_POW,, Have pow)
+     ])
+ ])
+ if test x"$LIBM" = x ; then
+--- configure.orig	2010-08-24 10:36:33.000000000 +0200
++++ configure	2010-08-24 10:36:33.000000000 +0200
+@@ -14989,22 +14989,13 @@
+ $as_echo "$ac_cv_lib_m_pow" >&6; }
+ if test "x$ac_cv_lib_m_pow" = x""yes; then :
+   LIBM="-lm"
+-     LIBS="$LIBS $LIBM"
+ 
+ $as_echo "#define HAVE_LIBM /**/" >>confdefs.h
+ 
+-     for ac_func in pow
+-do :
+-  ac_fn_c_check_func "$LINENO" "pow" "ac_cv_func_pow"
+-if test "x$ac_cv_func_pow" = x""yes; then :
+   cat >>confdefs.h <<_ACEOF
+ #define HAVE_POW 1
+ _ACEOF
+ 
+-else
+-  LIBM=""
+-fi
+-done
+ 
+ 
+ fi

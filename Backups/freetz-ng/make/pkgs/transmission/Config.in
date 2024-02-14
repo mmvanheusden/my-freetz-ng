@@ -1,0 +1,126 @@
+menuconfig FREETZ_PACKAGE_TRANSMISSION
+	bool "Transmission 3.00/4.0.5 (binary only)"
+	default n
+	#
+	select FREETZ_LIB_libcurl    if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+	select FREETZ_LIB_libevent   if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+	select FREETZ_LIB_libm       if !FREETZ_PACKAGE_TRANSMISSION_STATIC && FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libpthread if !FREETZ_PACKAGE_TRANSMISSION_STATIC && FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_librt      if !FREETZ_PACKAGE_TRANSMISSION_STATIC && FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libz       if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+	help
+		If needed, remember to change the base directory as well
+		as the installation directory on the webif.
+
+if FREETZ_PACKAGE_TRANSMISSION
+
+	choice
+		prompt "Version"
+			default FREETZ_PACKAGE_TRANSMISSION_VERSION_CURRENT
+
+		config FREETZ_PACKAGE_TRANSMISSION_VERSION_ABANDON
+			bool "3.00"
+
+		config FREETZ_PACKAGE_TRANSMISSION_VERSION_CURRENT
+			bool "4.0.5"
+			depends on FREETZ_SEPARATE_AVM_UCLIBC
+			select FREETZ_STDCXXLIB_FORCE_GNULIBSTDCXX
+			select FREETZ_LIB_STDCXXLIB                 if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+			select FREETZ_LIB_libpsl                    if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+			select FREETZ_LIB_libdeflate                if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+
+	endchoice
+
+	config FREETZ_PACKAGE_TRANSMISSION_WITH_FINISHDIR
+		bool "With finish-dir patch"
+		default y
+		depends on FREETZ_PACKAGE_TRANSMISSION_VERSION_ABANDON
+		help
+			Applies the Freetz specific finish-dir patch.
+			If you want it also for v4, you have to fix it by yourself.
+
+	choice
+		prompt "SSL library"
+		help
+			To change the crypto lib, change the crypto lib of libcurl!
+
+		config FREETZ_PACKAGE_TRANSMISSION_WITH_OPENSSL
+			bool "OpenSSL"
+			depends on FREETZ_LIB_libcurl_WITH_OPENSSL || !FREETZ_LIB_libcurl_WITH_SSL
+			select FREETZ_LIB_libcrypto          if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+			select FREETZ_LIB_libssl             if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+			select FREETZ_LIB_libdl              if !FREETZ_PACKAGE_TRANSMISSION_STATIC && FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+			select FREETZ_LIB_libcrypto_WITH_RC4
+
+		config FREETZ_PACKAGE_TRANSMISSION_WITH_MBEDTLS
+			bool "mbed TLS"
+			depends on FREETZ_LIB_libcurl_WITH_MBEDTLS
+			select FREETZ_LIB_libmbedcrypto      if !FREETZ_PACKAGE_TRANSMISSION_STATIC
+
+	endchoice
+
+	config FREETZ_PACKAGE_TRANSMISSION_CLIENT
+		bool "Transmission client"
+		default n
+		help
+			Torrent client (interactive)
+
+			Note: transmission client is deprecated (see http://trac.transmissionbt.com/ticket/2983)
+			and will be removed in one of the next releases. Consider using web-interface controlled
+			daemon instead.
+
+	config FREETZ_PACKAGE_TRANSMISSION_DAEMON
+		bool "Transmission daemon"
+		default y
+		help
+			Torrent client (daemon)
+
+		config FREETZ_PACKAGE_TRANSMISSION_REMOTE
+			bool "Transmission remote"
+			depends on FREETZ_PACKAGE_TRANSMISSION_DAEMON
+			default n
+			help
+				A remote control utility for transmission-daemon
+
+		config FREETZ_PACKAGE_TRANSMISSION_WEBINTERFACE
+			bool "Transmission web interface"
+			depends on FREETZ_PACKAGE_TRANSMISSION_DAEMON
+			default y
+			help
+				The official web interface for transmission called clutch
+
+	config FREETZ_PACKAGE_TRANSMISSION_CREATE
+		bool "transmission-create"
+		default n
+		help
+			A command-line utility to create .torrent files
+
+	config FREETZ_PACKAGE_TRANSMISSION_EDIT
+		bool "transmission-edit"
+		default n
+		help
+			A command-line utility to modify .torrent files' announce URLs
+
+	config FREETZ_PACKAGE_TRANSMISSION_SHOW
+		bool "transmission-show"
+		default n
+		help
+			A command-line utility to show .torrent file metadata
+
+	config FREETZ_PACKAGE_TRANSMISSION_STATIC
+		bool "Link statically"
+		default n
+		depends on FREETZ_PACKAGE_TRANSMISSION_VERSION_ABANDON
+		help
+			Build transmission binaries with statically linked libraries.
+
+	config FREETZ_PACKAGE_TRANSMISSION_SELECT_CGI
+		bool "Select Transmission CGI"
+		select FREETZ_PACKAGE_TRANSMISSION_CGI
+		select FREETZ_PACKAGE_TRANSMISSION_DAEMON
+		default y
+		help
+			Configuration web interface for Freetz.
+
+endif # FREETZ_PACKAGE_TRANSMISSION
+

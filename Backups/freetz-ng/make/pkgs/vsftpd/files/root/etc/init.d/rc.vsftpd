@@ -1,0 +1,80 @@
+#!/bin/sh
+
+DAEMON=vsftpd
+DAEMON_LONG_NAME=Vsftpd
+. /etc/init.d/modlibrc
+
+
+config() {
+	modlib_config
+
+	echo -n > /mod/etc/vsftpd.user_list
+	[ $VSFTPD_ALLOW_ROOT == "yes" ] || echo root >> /mod/etc/vsftpd.user_list
+	[ $VSFTPD_ALLOW_FTPUSER == "yes" ] || echo ftpuser >> /mod/etc/vsftpd.user_list
+
+	echo -n > /mod/etc/vsftpd.chroot_list
+	echo "$VSFTPD_CHROOT_JAIL_LIST" | grep -v "^#" | while read -r line; do
+	[ -n "$line" ] && echo "$line" >> /mod/etc/vsftpd.chroot_list
+	done
+
+	local LOG_LINK=/var/log/vsftpd.log
+	rm -f $LOG_LINK 2>/dev/null
+	if [ "$VSFTPD_LOG_SYSLOG" = "no" ]; then
+		ln -sf $VSFTPD_LOG_FILE $LOG_LINK
+		modreg status vsftpd Vsftpd vsftpd_log
+	else
+		modunreg status vsftpd vsftpd_log
+	fi
+}
+
+start() {
+	modlib_startdaemon $DAEMON
+}
+
+case $1 in
+	""|load)
+		modlib_add_user_and_group ftp users
+		mkdir -p /mod/home/ftp
+		chown ftp:users /mod/home/ftp -R
+		mkdir -p /var/run/vsftpd
+		[ -e "/var/tmp/ftp" ] || ln -s /mod/home/ftp /var/tmp/ftp
+
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+		[ -r /etc/options.cfg ] && . /etc/options.cfg
+		[ "$FREETZ_PACKAGE_VSFTPD_WITH_SSL" == "y" ] && modreg file $DAEMON crt 'Cert+Key' 0 "vsftpd_crt"
+
+		modlib_start $VSFTPD_ENABLED
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg status $DAEMON vsftpd_log
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	config)
+		config
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|reload|restart|status|config]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

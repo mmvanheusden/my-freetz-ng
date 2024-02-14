@@ -1,0 +1,7 @@
+CAPTION='sudo: sudoers'
+
+CONFIG_FILE='/tmp/flash/sudo/sudoers'
+CONFIG_SAVE="chmod 0440 $CONFIG_FILE; modsave flash"
+CONFIG_TYPE='text'
+
+TEXT_ROWS=25

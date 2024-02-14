@@ -1,0 +1,95 @@
+#!/bin/sh
+
+FLASHFILE=/var/flash/freetz
+
+save() {
+	local TMPFILE=/tmp/.save.tmp
+	local rc=0
+	local MSG
+	local size
+	local MOD_LIMIT=$((32*1024))
+
+	# not really a lock
+	if [ -e "$TMPFILE" ]; then
+		echo "$TMPFILE exists! Concurrent update?" 1>&2
+		exit 1
+	fi
+	trap "rm -f $TMPFILE" EXIT
+
+	if [ -c $FLASHFILE ]; then
+		tar -cf $TMPFILE flash -C /tmp/
+		# compressed config size must be less than 32 KB (~32330Bytes)
+		size=$(gzip -c $TMPFILE | wc -c)
+		if [ "$size" -gt "$MOD_LIMIT" ]; then
+			echo "ERROR: $FLASHFILE too big: compressed size: $size, limit: $MOD_LIMIT" 1>&2
+			exit 1
+		fi
+	else
+		tar -c flash -C /tmp/ | gzip -c > $TMPFILE
+		# *file* size is limited by config-partition
+		size=$(stat -c %s $TMPFILE)
+	fi
+
+	if cmp -s $FLASHFILE $TMPFILE; then
+		echo "Configuration unchanged ... skipped."
+	else
+		echo -n "Writing $size bytes to $FLASHFILE ... "
+		MSG=$(cat $TMPFILE 2>&1 > $FLASHFILE)
+		rc=$?
+		if [ $rc -ne 0 ]; then
+			echo "write failed: $MSG"
+		elif ! cmp -s $FLASHFILE $TMPFILE; then
+			echo "verify failed."
+			rc=1
+		else
+			echo "done."
+		fi
+	fi
+	if [ $rc -ne 0 ]; then
+		mv -f $TMPFILE $TMPFILE.sav
+	fi
+	exit $rc
+}
+
+case $1 in
+	""|all)
+		echo -n 'Saving users, groups and passwords ... '
+		/usr/bin/modusers save
+		echo 'done.'
+
+		echo -n 'Saving config ... '
+		for pkg in $(cat /mod/etc/static.pkg 2>/dev/null); do
+			if [ -r "/mod/etc/default.$pkg/$pkg.cfg" ]; then
+				/usr/bin/modconf save "$pkg"
+			fi
+		done
+		echo 'done.'
+
+		save
+		;;
+	flash)
+		save
+		;;
+	char|file)
+		echo -n "Creating $FLASHFILE ($1) ... "
+		if [ "$1" == "file" ] && ! df ${FLASHFILE%/*} | grep -q "${FLASHFILE%/*}$"; then
+			echo 'not supported, aborted.'
+			exit 1
+		fi
+		rm -f "$FLASHFILE"
+		[ "$1" == "char" ] && mknod "$FLASHFILE" c "$(sed -n 's/ tffs$//p' /proc/devices)" "$((0x3C))"
+		[ "$1" == "file" ] && touch "$FLASHFILE" && chmod 600 "$FLASHFILE"
+		if [ ! -e "$FLASHFILE" ]; then
+			echo 'failed.'
+			exit 1
+		fi
+		echo 'done.'
+		$0 all
+		;;
+	*)
+		echo "Usage: $0 [flash|all|char|file]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

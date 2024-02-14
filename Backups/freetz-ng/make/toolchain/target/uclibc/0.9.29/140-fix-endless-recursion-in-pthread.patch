@@ -1,0 +1,13 @@
+--- libpthread/linuxthreads.old/pthread.c
++++ libpthread/linuxthreads.old/pthread.c
+@@ -335,9 +335,9 @@
+     .ptr_pthread_raise = pthread_raise,
+     .ptr__pthread_cleanup_push = _pthread_cleanup_push,
+     .ptr__pthread_cleanup_pop = _pthread_cleanup_pop
+-*/
+     .ptr__pthread_cleanup_push_defer = _pthread_cleanup_push_defer,
+     .ptr__pthread_cleanup_pop_restore = _pthread_cleanup_pop_restore,
++*/
+   };
+ #ifdef SHARED
+ # define ptr_pthread_functions &__pthread_functions

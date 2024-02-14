@@ -1,0 +1,35 @@
+#! /usr/bin/env bash
+
+mod_base="."
+fw_base="build/original/filesystem"
+DOT_CONFIG=".config"
+
+case $# in
+	0)
+		;;
+	1)
+		mod_base="$1"
+		;;
+	2)
+		mod_base="$1"
+		fw_base="$2"
+		;;
+	*)
+		echo "usage: $0 [<freetz base directory> [<fw base directory>]]" >&2
+		echo "    freetz base directory defaults to '.'" >&2
+		echo "    fw base directory defaults to 'build/original/filesystem'" >&2
+		exit 1
+esac
+
+# Import Freetz config variables
+source $mod_base/$DOT_CONFIG
+
+LDD="$mod_base/toolchain/target/bin/${FREETZ_TARGET_ARCH_ENDIANNESS_DEPENDENT}-linux-ldd"
+
+files=$(find "$mod_base/$fw_base" -type f | xargs file | grep "ELF 32" | sed -e 's/: .*//' | grep -v -E '\.ko$')
+
+for file in $files; do
+	echo "$file"
+	$LDD "$file" | sed -e 's/ =>.*//'
+	echo "----------------------------------------------------------------------"
+done

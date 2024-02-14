@@ -1,0 +1,75 @@
+config FREETZ_PACKAGE_ASTERISK
+	bool "Asterisk 11.25.3 - EXPERIMENTAL"
+	select FREETZ_LIB_libdl       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libm        if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libpthread  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libcrypto
+	select FREETZ_LIB_libncurses
+	select FREETZ_LIB_libsqlite3
+	select FREETZ_LIB_libssl
+	default n
+	help
+		Asterisk is an open source framework for building communications applications.
+
+config FREETZ_PACKAGE_ASTERISK_LOWMEMORY
+	depends on FREETZ_PACKAGE_ASTERISK
+#	bool "optimize asterisk for low-memory usage"
+	bool
+	default n
+	help
+		Warning: this feature is known to cause problems with some modules (e.g. chan_sip).
+		Please try disabling it if you experience problems like segmentation faults.
+
+config FREETZ_PACKAGE_ASTERISK_WITH_BACKTRACE
+	depends on FREETZ_PACKAGE_ASTERISK && FREETZ_TARGET_UCLIBC_SUPPORTS_libubacktrace
+	bool "enable backtrace support"
+	select FREETZ_LIB_libubacktrace if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	default n
+
+config FREETZ_PACKAGE_ASTERISK_DEBUG
+	depends on FREETZ_PACKAGE_ASTERISK
+	bool "add debug information (read help please!)"
+	default n
+	help
+		Causes compiler to disable optimizations and to add debug information
+		to the asterisk binary and modules. Debug information might help
+		tracking down different run-time problems.
+
+		Note1:
+		  The resulting asterisk binary is huge! It doesn't make any sense to
+		  activate this option on boxes with less than 64MB RAM. It won't run.
+
+		Note2:
+		  Don't forget to disable stripping under "Strip options/Strip leftover
+		  unstripped binaries/libraries". Otherwise all debug information will
+		  be stripped at the "modifying firmware"-step.
+
+		Note3:
+		  Use "ulimit -c unlimited" to disable core-file size limit.
+
+config FREETZ_PACKAGE_ASTERISK_EMBED_MODULES
+	bool "embed selected modules (non 3rd-party modules only)"
+	depends on FREETZ_PACKAGE_ASTERISK
+	default n
+
+config FREETZ_PACKAGE_ASTERISK_STATIC
+	bool
+# doesn't work yet
+#	bool "Link statically"
+	depends on FREETZ_PACKAGE_ASTERISK && FREETZ_PACKAGE_ASTERISK_EMBED_MODULES
+	default n
+
+source "make/pkgs/asterisk-gui/Config.in"
+
+menu "Asterisk modules"
+	depends on FREETZ_PACKAGE_ASTERISK
+	source "make/pkgs/asterisk/Config.in.generated"
+endmenu
+
+menu "Asterisk 3rd-party modules"
+	depends on FREETZ_PACKAGE_ASTERISK && !FREETZ_PACKAGE_ASTERISK_STATIC
+	source "make/pkgs/asterisk-chan-capi/Config.in"
+	source "make/pkgs/asterisk-chan-dongle/Config.in"
+	source "make/pkgs/asterisk-chan-sccp/Config.in"
+endmenu
+

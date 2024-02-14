@@ -1,0 +1,90 @@
+#!/bin/sh
+
+DAEMON="${0##*/rc.}"
+DAEMON_LONG_NAME="$(cat /tmp/.openvpn.title.${DAEMON} 2>/dev/null || echo -n ${DAEMON/openvpn/OpenVPN})"
+PID_FILE="/var/run/${DAEMON}.pid"
+CONF_ENABLED="OPENVPN_ENABLED"
+. /etc/init.d/modlibrc
+
+[ -z "$OPENVPN_ENABLED" ] && OPENVPN_ENABLED="no"
+
+
+config() {
+	if [ "$OPENVPN_LOAD_TUN" == "yes" ]; then
+		modprobe tun 2>/dev/null
+		modprobe yf_patchkernel 2>/dev/null
+	fi
+
+	modlib_config
+}
+
+start() {
+	modlib_startdaemon ${DAEMON} --config /mod/etc/${DAEMON}.conf --writepid "$PID_FILE" --daemon
+}
+
+configs() {
+	touch /tmp/.openvpn.firstrun
+	for config in $(sed 's/#.*//g' /tmp/flash/openvpn/configs 2>/dev/null); do
+		/mod/etc/default.openvpn/generate_virtual_pkg $config
+	done
+}
+
+case $1 in
+	""|load)
+		modreg cgi "${DAEMON}" "${DAEMON_LONG_NAME}"
+		modreg daemon ${DAEMON}
+
+		if [ "$DAEMON" == "openvpn" ]; then
+		modlib_defaults
+		modlib_add_user_and_group ${DAEMON}
+		[ -e /tmp/.openvpn.firstrun ] || configs
+
+		modreg file "${DAEMON}" "configs"    "Configs"    0 "configs"
+#		modreg file "${DAEMON}" "script1"    "Script1"    0 "script1"
+#		modreg file "${DAEMON}" "script2"    "Script2"    0 "script2"
+#		modreg file "${DAEMON}" "script3"    "Script3"    0 "script3"
+		fi
+
+		modreg file "${DAEMON}" "box_crt"    "box.crt"    0 "box_crt"
+		modreg file "${DAEMON}" "box_key"    "box.key"    0 "box_key"
+		modreg file "${DAEMON}" "ca_crt"     "ca.crt"     0 "ca_crt"
+		modreg file "${DAEMON}" "crl_pem"    "crl.pem"    0 "crl_pem"
+		modreg file "${DAEMON}" "dh_pem"     "dh.pem"     0 "dh_pem"
+		modreg file "${DAEMON}" "static_key" "static.key" 0 "static_key"
+
+		modlib_start "${OPENVPN_ENABLED}"
+		;;
+	unload)
+		modlib_stop
+
+		modunreg file ${DAEMON}
+		modunreg daemon ${DAEMON}
+		modunreg cgi ${DAEMON}
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	configs)
+		[ "$DAEMON" == "openvpn" ] || exit 1
+		for x in /mod/etc/init.d/rc.openvpn-*; do [ -e "$x" ] && "$x" unload; done
+		configs
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|reload|configs|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

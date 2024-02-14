@@ -1,0 +1,11 @@
+--- Makefile.in
++++ Makefile.in
+@@ -283,7 +283,7 @@
+ AWK = @AWK@
+ CC = @CC@
+ CCDEPMODE = @CCDEPMODE@
+-CFLAGS = @CFLAGS@
++CFLAGS = @CFLAGS@ $(EXTRA_CFLAGS)
+ CPP = @CPP@
+ CPPFLAGS = @CPPFLAGS@
+ CYGPATH_W = @CYGPATH_W@

@@ -1,0 +1,10 @@
+
+[constants]
+arch              = 'arm-linux-uclibcgnueabi'
+
+[target_machine]
+system            = 'linux'
+cpu_family        = 'arm'
+cpu               = 'arm'
+endian            = 'little'
+

@@ -1,0 +1,19 @@
+--- scripts/kconfig/lkc.h
++++ scripts/kconfig/lkc.h
+@@ -20,15 +20,7 @@
+ 
+ #define SRCTREE "srctree"
+ 
+-#ifndef CONFIG_
+-#define CONFIG_ "CONFIG_"
+-#endif
+-static inline const char *CONFIG_prefix(void)
+-{
+-	return getenv( "CONFIG_" ) ?: CONFIG_;
+-}
+-#undef CONFIG_
+-#define CONFIG_ CONFIG_prefix()
++#define CONFIG_ ""
+ 
+ extern int yylineno;
+ void zconfdump(FILE *out);

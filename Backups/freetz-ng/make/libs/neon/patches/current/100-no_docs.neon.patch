@@ -1,0 +1,11 @@
+--- Makefile.in
++++ Makefile.in
+@@ -148,7 +148,7 @@
+ 	@echo "ERROR: purposes only; this copy of neon must not be installed."
+ 	@false
+ 
+-install-yes: install-lib install-headers install-config install-docs install-nls
++install-yes: install-lib install-headers install-config install-nls
+ 
+ # libtool does all the necessary magic here
+ install-lib: subdirs

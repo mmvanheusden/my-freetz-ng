@@ -1,0 +1,13 @@
+comment "authorized_keys (needs Dropbear or OpenSSH)"
+	depends on !(FREETZ_PACKAGE_DROPBEAR || FREETZ_PACKAGE_OPENSSH)
+
+config FREETZ_PACKAGE_AUTHORIZED_KEYS
+	bool "authorized_keys: Frontend for SSH keys"
+	depends on FREETZ_PACKAGE_DROPBEAR || FREETZ_PACKAGE_OPENSSH
+	default n
+	help
+		This frontend allows the management of the authorized_keys file
+		used by either Dropbear or OpenSSH to allow a key-based authentication.
+		The key-based authentication is much more secure than password-based
+		authentication.
+

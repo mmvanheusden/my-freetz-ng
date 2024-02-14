@@ -1,0 +1,11 @@
+--- usr/www/all/html/de/usb/status.js
++++ usr/www/all/html/de/usb/status.js
+@@ -436,7 +436,7 @@
+ }
+ else
+ {
+-str += "{?2798:8143?}";
++str += "Es wurden " + nStor + " von " + nPartTotal + " Partitionen eingebunden.";
+ str += "<a href=\"javascript:goto_syslog_usb();\">{?2798:9581?}</a>";
+ }
+ str += "</td></tr>";

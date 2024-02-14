@@ -1,0 +1,48 @@
+config FREETZ_PACKAGE_OPENSSL
+	bool "OpenSSL 0.9.8zh/1.0.2u/1.1.1w/3.0.13 (binary only)"
+	default n
+	select FREETZ_LIB_libdl              if !FREETZ_PACKAGE_OPENSSL_STATIC && FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libpthread         if !FREETZ_PACKAGE_OPENSSL_STATIC && FREETZ_TARGET_UCLIBC_HAS_multiple_libs && FREETZ_OPENSSL_VERSION_2_MIN
+	select FREETZ_LIB_libcrypto          if !FREETZ_PACKAGE_OPENSSL_STATIC
+	select FREETZ_LIB_libssl             if !FREETZ_PACKAGE_OPENSSL_STATIC
+	help
+		This package contains the OpenSSL command-line utility.
+
+if FREETZ_PACKAGE_OPENSSL
+
+	choice
+		prompt "Version"
+
+		config FREETZ_PACKAGE_OPENSSL_VERSION_0
+			bool "0.9.8 - DEPRECATED"
+			depends on FREETZ_OPENSSL_VERSION_0
+
+		config FREETZ_PACKAGE_OPENSSL_VERSION_1
+			bool "1.0.2 - DEPRECATED"
+			depends on FREETZ_OPENSSL_VERSION_1
+
+		config FREETZ_PACKAGE_OPENSSL_VERSION_2
+			bool "1.1.1 - DEPRECATED"
+			depends on FREETZ_OPENSSL_VERSION_2
+
+		config FREETZ_PACKAGE_OPENSSL_VERSION_3
+			bool "3.0"
+			depends on FREETZ_OPENSSL_VERSION_3
+
+	endchoice
+
+	config FREETZ_PACKAGE_OPENSSL_TRACE
+		bool "With trace output support"
+		depends on FREETZ_OPENSSL_VERSION_1_MIN
+		default n
+		help
+			Build OpenSSL binary with SSL trace support.
+
+	config FREETZ_PACKAGE_OPENSSL_STATIC
+		bool "Link statically"
+		default n
+		help
+			Causes all libraries OpenSSL binary depends on to be linked in statically.
+
+endif # FREETZ_PACKAGE_OPENSSL
+

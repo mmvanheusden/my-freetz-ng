@@ -1,0 +1,35 @@
+--- build.mak.in
++++ build.mak.in
+@@ -168,7 +168,7 @@
+ export APP_CC := @CC@
+ export APP_CXX := @CXX@
+ export APP_CFLAGS := -DPJ_AUTOCONF=1\
+-	@CFLAGS@\
++	@CFLAGS@ $(EXTRA_CFLAGS) \
+ 	$(PJ_VIDEO_CFLAGS) \
+ 	-I$(PJDIR)/pjlib/include\
+ 	-I$(PJDIR)/pjlib-util/include\
+@@ -183,7 +183,7 @@
+ 	-L$(PJDIR)/pjsip/lib\
+ 	-L$(PJDIR)/third_party/lib\
+ 	$(PJ_VIDEO_LDFLAGS) \
+-	@LDFLAGS@
++	@LDFLAGS@ $(EXTRA_LDFLAGS)
+ export APP_LDXXFLAGS := $(APP_LDFLAGS)
+ 
+ export APP_LIB_FILES = \
+--- build/os-auto.mak.in
++++ build/os-auto.mak.in
+@@ -1,10 +1,10 @@
+ # @configure_input@
+ 
+-export OS_CFLAGS   := $(CC_DEF)PJ_AUTOCONF=1 @CFLAGS@
++export OS_CFLAGS   := $(CC_DEF)PJ_AUTOCONF=1 @CFLAGS@ $(EXTRA_CFLAGS)
+ 
+ export OS_CXXFLAGS := $(CC_DEF)PJ_AUTOCONF=1 @CXXFLAGS@
+ 
+-export OS_LDFLAGS  := @LDFLAGS@ @LIBS@
++export OS_LDFLAGS  := @LDFLAGS@ $(EXTRA_LDFLAGS) @LIBS@
+ 
+ export OS_SOURCES  := 
+ 

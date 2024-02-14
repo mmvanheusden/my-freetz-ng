@@ -1,0 +1,64 @@
+config EXTERNAL_FREETZ_LIB_libavcodec
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libavcodec
+	bool "libavcodec"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libavcodec.so.59.37.100
+
+config EXTERNAL_FREETZ_LIB_libavdevice
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libavdevice
+	bool "libavdevice"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libavdevice.so.59.7.100
+
+config EXTERNAL_FREETZ_LIB_libavfilter
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libavfilter
+	bool "libavfilter"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libavfilter.so.8.44.100
+
+config EXTERNAL_FREETZ_LIB_libavformat
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libavformat
+	bool "libavformat"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libavformat.so.59.27.100
+
+config EXTERNAL_FREETZ_LIB_libavutil
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libavutil
+	bool "libavutil"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libavutil.so.57.28.100
+
+config EXTERNAL_FREETZ_LIB_libpostproc
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libpostproc
+	bool "libpostproc"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libpostproc.so.56.6.100
+
+config EXTERNAL_FREETZ_LIB_libswresample
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libswresample
+	bool "libswresample"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libswresample.so.4.7.100
+
+config EXTERNAL_FREETZ_LIB_libswscale
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libswscale
+	bool "libswscale"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libswscale.so.6.7.100
+

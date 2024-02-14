@@ -1,0 +1,8 @@
+config FREETZ_PACKAGE_CA_BUNDLE
+	bool "CA-bundle 2023-12-12"
+	default n
+	help
+		The Mozilla CA certificate store in PEM format,
+		see https://www.curl.se/docs/caextract.html
+		Size of uncompressed file is about 250 KB.
+

@@ -1,0 +1,68 @@
+#!/bin/sh
+
+DAEMON=inetd
+DAEMON_LONG_NAME=Inetd
+. /etc/init.d/modlibrc
+. /etc/init.d/modlibinetd
+
+start() {
+	[ "$INETD_IPV6_SUPPORT" == "yes" ] && modprobe ipv6 2>/dev/null
+	local SLQ PSA
+	[ "$INETD_SLQ" != "128" ] && [ "$INETD_SLQ" -gt 0 ] 2>/dev/null && SLQ="-q $INETD_SLQ"
+	[ "$INETD_PSA" !=  "0"  ] && [ "$INETD_PSA" -gt 0 ] 2>/dev/null && PSA="-R $INETD_PSA"
+	modlib_startdaemon $DAEMON $SLQ $PSA
+}
+
+case $1 in
+	""|load)
+		modlib_defaults "${DAEMON}.user"
+
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+		modreg file $DAEMON conf "$(lang en:"Inetd config" de:"Konfiguration")" 2 "inetd_conf"
+		modreg file $DAEMON user "$(lang en:"Inetd custom" de:"Benutzerdefiniert")" 0 "inetd_user"
+
+		# enable pending AVM daemons which tried to start early during startup by inetdctl
+		for daemon in /tmp/.inetd.pending.*; do
+			action="$(cat "$daemon" 2>/dev/null && rm -f "$daemon")"
+			[ -n "$action" ] && inetdctl "$action" "${daemon##*.}"
+		done
+
+		modlib_start "yes"
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modunreg file $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	reload)
+		modlib_reload
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	config)
+		shift
+		update_main $*
+		if ! modlib_reload >/dev/null; then
+			echo "Reloading inetd failed."
+			exit 1
+		fi
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|reload|restart|status|config [package]]" 1>&2
+		exit 1
+		;;
+esac
+
+exit $?

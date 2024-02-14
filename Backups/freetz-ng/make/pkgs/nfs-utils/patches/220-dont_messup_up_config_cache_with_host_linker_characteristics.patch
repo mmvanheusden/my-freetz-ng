@@ -1,0 +1,34 @@
+--- configure_	2016-10-09 03:20:19.764916044 +0200
++++ configure	2016-10-09 03:23:35.863789663 +0200
+@@ -13423,6 +13423,7 @@
+ 
+ 
+ 
++if false; then
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking dynamic linker characteristics" >&5
+ $as_echo_n "checking dynamic linker characteristics... " >&6; }
+ 
+@@ -14252,6 +14253,7 @@
+ if test yes = "$GCC"; then
+   variables_saved_for_relink="$variables_saved_for_relink GCC_EXEC_PREFIX COMPILER_PATH LIBRARY_PATH"
+ fi
++fi
+ 
+ if test set = "${lt_cv_sys_lib_search_path_spec+set}"; then
+   sys_lib_search_path_spec=$lt_cv_sys_lib_search_path_spec
+@@ -17461,6 +17463,7 @@
+ 
+ 
+ 
++if false; then
+     { $as_echo "$as_me:${as_lineno-$LINENO}: checking dynamic linker characteristics" >&5
+ $as_echo_n "checking dynamic linker characteristics... " >&6; }
+ 
+@@ -18311,6 +18314,7 @@
+   # Fast installation is not necessary
+   enable_fast_install=needless
+ fi
++fi
+ 
+ 
+ 

@@ -1,0 +1,1 @@
+[ "$EXTERNAL_FREETZ_LIB_libdeflate" == "y" ] && EXTERNAL_FILES+=" ${FREETZ_LIBRARY_DIR}/libdeflate.so.0"

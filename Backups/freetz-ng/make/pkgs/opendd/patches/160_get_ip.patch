@@ -1,0 +1,51 @@
+--- opendd.c.orig	2010-09-17 21:10:03.000000000 +0200
++++ opendd.c	2010-09-17 21:10:05.000000000 +0200
+@@ -527,32 +527,28 @@
+  * @return int
+  * -------------------------------------------------------------------------- */
+  
+-  option_type type;
+   void *value = NULL;
+-  struct sockaddr addr;
+   
+-  /* iface (mandatory) */
+-  /* Get my IP from an interface */
+-  value = get_option("iface", &type);
+-  if (value == NULL) {
+-    logmsg(LOG_ERR, "dyndns() : \"iface\" is mandatory !");
+-    return 0;
+-  }
+-  switch(type) {
+-  case OPTION_STRING:     
+-    if (getaddrbyif((const char *)value, &addr)) {
+-      *ip = strdup(inet_ntoa(((struct sockaddr_in *)&addr)->sin_addr));
++  struct in_addr in;
++  FILE *file;
++  char buffer[20];
++
++  /* Get my IP from an /tmp/.opendd.ip */
++  file = fopen("/tmp/.opendd.ip", "r");
++  if (NULL == file) {
++    logmsg(LOG_ERR, "dyndns() : Can't read external IP file!");
++    return 0;
++  }
++  fgets(buffer, sizeof(buffer), file);
++  fclose (file);
++  file = NULL;
++  if (inet_aton(buffer, &in)) {
++    *ip = strdup(inet_ntoa(in));
+       if (*ip != NULL) {
+         return 1;
+       }
+     }
+-    else
+-      logmsg(LOG_ERR, "dyndns() : Cannot find interface %s", (const char *)value);
+-    break;
+-  default:
+-    logmsg(LOG_ERR, "dyndns() : \"iface\" is not a valid option !");
+-    break;    
+-  }
++  logmsg(LOG_ERR, "dyndns() : Can't determine external IP!");
+   return 0;
+ }
+ 

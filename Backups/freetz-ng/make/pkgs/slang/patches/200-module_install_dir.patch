@@ -1,0 +1,22 @@
+--- src/mkfiles/makefile.all
++++ src/mkfiles/makefile.all
+@@ -296,7 +296,7 @@
+ OBJDIR = gw32objs# Location of objects
+ TGTBASE=$(OBJDIR)/libslang
+ prefix=/mingw/local
+-module_install_dir = $(prefix)/lib/slang/v2/modules#
++module_install_dir = $(FREETZ_LIBRARY_DIR)/slang#
+ install_doc_dir = $(prefix)/share/doc/slang/v2
+ slstd_C_FLAGS = -DSLANG_DOC_DIR='"$(install_doc_dir)"' -DSLANG_INSTALL_PREFIX='"$(prefix)"'
+ slimport_C_FLAGS = -DMODULE_INSTALL_DIR='"$(module_install_dir)"'
+--- src/slimport.c
++++ src/slimport.c
+@@ -53,7 +53,7 @@
+ # define MODULE_PATH_ENV_NAME "SLANG_MODULE_PATH"
+ #endif
+ #ifndef MODULE_INSTALL_DIR
+-# define MODULE_INSTALL_DIR "/usr/local/lib/slang/v2/modules"
++# error "Freetz: MODULE_INSTALL_DIR is expected to be set externally, see module_install_dir.patch for details."
+ #endif
+ 
+ #define MAX_MODULE_NAME_SIZE 256

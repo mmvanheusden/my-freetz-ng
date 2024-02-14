@@ -1,0 +1,9 @@
+inetdcfg_desc="Telnetd"
+inetdcfg_port=23
+inetdcfg_sock=stream
+inetdcfg_proto=tcp$1
+inetdcfg_flags=nowait
+inetdcfg_user=root
+inetdcfg_exe=/usr/sbin/telnetd
+inetdcfg_arg0=telnetd
+inetdcfg_args="-i -l /sbin/ar7login"

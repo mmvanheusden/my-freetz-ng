@@ -1,0 +1,3 @@
+ifeq ($(strip $(FREETZ_LIB_libpixman_1)),y)
+LIBS+=pixman
+endif

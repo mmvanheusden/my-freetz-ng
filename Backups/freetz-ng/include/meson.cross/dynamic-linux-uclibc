@@ -1,0 +1,39 @@
+
+[constants]
+triplet           = '%FREETZ_TARGET_UCLIBC_TRIPLET%'
+
+[target_machine]
+system            = 'linux'
+cpu_family        = '%FREETZ_TARGET_MESON_FAMILY%'
+cpu               = '%FREETZ_TARGET_MESON_CPU%'
+endian            = '%FREETZ_TARGET_MESON_ENDIAN%'
+
+[built-in options]
+prefix            = '/usr'
+c_args            = [%TARGET_CFLAGS%]
+c_link_args       = [%TARGET_LDFLAGS%]
+cpp_args          = [%TARGET_CFLAGS%]
+cpp_link_args     = [%TARGET_LDFLAGS%]
+
+[properties]
+needs_exe_wrapper = true
+pkg_config_libdir = '%PKGCONFIG%'
+
+[binaries]
+ar                = '%TARGET_AR%'
+as                = '%TARGET_AS%'
+c                 = '%TARGET_CC%'
+cc                = '%TARGET_CC%'
+cpp               = '%TARGET_CXX%'
+cxx               = '%TARGET_CXX%'
+ld                = '%TARGET_LD%'
+ldconfig          = '%TARGET_LDCONFIG%'
+nm                = '%TARGET_NM%'
+ranlib            = '%TARGET_RANLIB%'
+objcopy           = '%TARGET_OBJCOPY%'
+readelf           = '%TARGET_READELF%'
+strip             = '%TARGET_STRIP%'
+pkgconfig         = 'pkg-config'
+python            = 'python3'
+cmake             = 'cmake'
+

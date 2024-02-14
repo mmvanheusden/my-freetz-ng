@@ -1,0 +1,48 @@
+#!/bin/sh
+
+DAEMON=netatalk
+DAEMON_LONG_NAME="Netatalk-cnid_metad"
+DAEMON_BIN=cnid_metad
+. /etc/init.d/modlibrc
+
+start() {
+	modlib_startdaemon $DAEMON_BIN \
+	  -l $NETATALK_LOG_LEVEL \
+	  -s /sbin/cnid_dbd
+	pidof cnid_metad >/var/run/$DAEMON_BIN.pid
+}
+
+case $1 in
+	""|load)
+		modreg daemon -h -n netatalk-cnid_metad -r rc.netatalk.$DAEMON_BIN -p netatalk cnid_metad
+		modlib_start $NETATALK_ENABLED
+		;;
+	unload)
+		modunreg daemon netatalk cnid_metad
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	config)
+		/mod/etc/init.d/rc.netatalk config
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|reload|status|config]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

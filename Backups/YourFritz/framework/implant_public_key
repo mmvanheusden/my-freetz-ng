@@ -1,0 +1,413 @@
+#! /bin/sh
+# vim: set tabstop=4 syntax=sh :
+# SPDX-License-Identifier: GPL-2.0-or-later
+#######################################################################################################
+#                                                                                                     #
+# add an own or replace one of AVM's public keys with an own version, so we may use a (self-signed)   #
+# update image again, to install our own software or execute some other commands from an 'install'    #
+# script, before the device gets restarted                                                            #
+#                                                                                                     #
+###################################################################################################VER#
+#                                                                                                     #
+# implant_public_key, version 0.2                                                                     #
+#                                                                                                     #
+# This script is a part of the YourFritz project from https://github.com/PeterPawn/YourFritz.         #
+#                                                                                                     #
+###################################################################################################CPY#
+#                                                                                                     #
+# Copyright (C) 2017-2020 P.Haemmerlein (peterpawn@yourfritz.de)                                      #
+#                                                                                                     #
+###################################################################################################LIC#
+#                                                                                                     #
+# This project is free software, you can redistribute it and/or modify it under the terms of the GNU  #
+# General Public License as published by the Free Software Foundation; either version 2 of the        #
+# License, or (at your option) any later version.                                                     #
+#                                                                                                     #
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without   #
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU      #
+# General Public License under http://www.gnu.org/licenses/gpl-2.0.html for more details.             #
+#                                                                                                     #
+#######################################################################################################
+#                                                                                                     #
+# This script may inject an own public key for image signature verification in three different ways.  #
+#                                                                                                     #
+# The keys to install are checked for valid content/format, whether they're installed already and     #
+# whether they're duplicate. Therefore you may call this script as often as needed, without the risk  #
+# to run out of available names or to install unnecessary duplicate public keys.                      #
+#                                                                                                     #
+# The first and most effective approach is to use an overlay file-system, if the kernel supports this #
+# option. The script creates an own tmpfs part, mounts it on a free subdirectory from a list of       #
+# candidates and creates another subdirectory for the key location. This directory will be mounted as #
+# 'upperdir' with a 'lowerdir' from the current key location and their union (they get merged) is     #
+# mounted on the current key location.                                                                #
+#                                                                                                     #
+# If the key location is the '/etc' directory, a symbolic link from '/proc/mounts' will be created as #
+# 'mtab' in the 'upperdir' location, because the mount operation has to save the current state to     #
+# '/etc/mtab' and this would create a new regular file 'mtab' in 'upperdir', if this link does not    #
+# exits.                                                                                              #
+#                                                                                                     #
+# If the needed overlayfs driver isn't available, the script switches automatically to the second     #
+# approach.                                                                                           #
+#                                                                                                     #
+# This second option is to create a copy of the key location directory in an own tmpfs part and mount #
+# this subtree over the original key location directory to get a writable place, where one or more of #
+# the supported key files (avm_firmware_public_key[1-9] and plugin_global_key.pem) may be added or    #
+# replaced. This way needs a huge amount of additional memory, because a complete, recursive copy of  #
+# the usual key location directory '/etc' contains up to 5 MB of data.                                #
+#                                                                                                     #
+# The third option needs far less storage, but it has to overload one of the keys from AVM - as a     #
+# result, updates can't be installed any longer, if they were signed with the - now invisible - key.  #
+# Because the plugin signing key (if present) is urgently needed to bring the original plugins to     #
+# run, it will never be overloaded by this script. The avm_firmware_public_key3 file is usually used  #
+# to sign updates for DECT devices and other AVM accessoiries and should also kept as original.       # 
+#                                                                                                     #
+# So those files are ignored, while the script looks for an existing public key file, starting with   #
+# an index of 9 and counting down to 1. The first file found will be overloaded, because only an      #
+# existing file inode may be replaced with another one by a mount operation with option 'bind'.       #
+#                                                                                                     #
+# If the first or second approach is used, the first name of a missing public key file will be used   #
+# to add the own key - it doesn't matter from the view of libfwsign.so, which file contains the key   #
+# for a currently processed file. Here the plugin signing key is included in the search order - at    #
+# the very first position, because most firmware versions don't use an own file here and there are    #
+# best chances for a 'first hit' on first attempt.                                                    #
+#                                                                                                     #
+# The first command line parameter selects the 'operation mode' and has to be 'overlay', 'replace' or #
+# 'overload' for the approaches from above. Each following command line parameter is expected to be   #
+# one of the following values:                                                                        #
+#                                                                                                     #
+# - a direct 'modulus' value (big number) as hexadecimal string                                       #
+# - a hash sign (#), followed by the name of an environment (urlader) variable containing the 256     #
+#   characters of a 'modulus' value                                                                   #  
+# - an absolute path (starting with a slash) of a key file in AVM's format, where the first line      #
+#   contains the hexadecimal string (256 or 258 characters) with modulus to use                       #
+#                                                                                                     #
+# The exponent is always assumed to be 65537 in decimal, it will be written to the file as 010001 in  #
+# hexadecimal.                                                                                        #
+#                                                                                                     #
+# It's impossible to add or modify an 'urlader' variable containing the needed 256 characters from    #
+# the running system. Any line written to the procfs interface for TFFS is limited to 256 bytes and   #
+# due to the needs of a name in front of the value, there's not enough room to set any valid value    #
+# via the TFFS driver of AVM. But it's possible to set such a value from the FTP server in AVM's      #
+# bootloader EVA - that makes it a perfect place to store such a value. If anyone is able to change   #
+# the key in this manner, he's also able to change more important settings. There's (currently) no    #
+# kind known, to tamper with a key stored in this location, if the attacker isn't able to access      #
+# EVA's FTP server - no matter, whether the running system contains any vulnerability or not.         #
+#                                                                                                     #
+# If the key location directory is already writable, the script switches immediately to the search    #
+# mode of the first and second approach and looks for the first free key file name; but if key file   #
+# names are exhausted and each of them is already in use, it will not switch back to overload one of  #
+# the existing files.                                                                                 #
+#                                                                                                     #
+# Error messages are written to STDERR handle and if the variable 'YF_PROGRESS' is set to any non-    #
+# empty value, it has to be the name of a file (or a handle) to be used for progress messages, so     #
+# they may be distinguished from error messages.                                                      #
+#                                                                                                     #
+#######################################################################################################
+#                                                                                                     #
+# constants                                                                                           #
+#                                                                                                     #
+#######################################################################################################
+pubkey_mask="avm_firmware_public_key%s"
+pubkey_min=1
+pubkey_max=9
+pubkey_forbidden="3"
+plugin_pubkey_mask="plugin_global_key.pem"
+mode_overlay="overlay"
+mode_replace="replace"
+mode_overload="overload"
+key_location="/etc"
+write_check="$key_location/.modified"
+overlay_storage="/var/flash"
+possible_mountpoints="mnt filesystem data var/YourFritz/keys var/media/ftp/YourFritz/keys var/etc"
+overlayfs_name="overlayfs"
+procfs_filesystems="/proc/filesystems"
+procfs_mounts="/proc/mounts"
+procfs_urlader="/proc/sys/urlader/environment"
+mtab_name="/etc/mtab"
+#######################################################################################################
+#                                                                                                     #
+# subfunctions                                                                                        #
+#                                                                                                     #
+#######################################################################################################
+#                                                                                                     #
+# display progress messages, if YF_PROGRESS is present                                                #
+#                                                                                                     #
+#######################################################################################################
+progress()
+{
+	[ -z "$YF_PROGRESS" ] || cat >>"$YF_PROGRESS"
+}
+#######################################################################################################
+#                                                                                                     #
+# shorten the specified modulus for output to log files                                               #
+#                                                                                                     #
+#######################################################################################################
+shorten_modulus()
+{
+	printf "%s...%s\n" "$(expr "$1" : "\(.\{8\}\).*")" "$(expr "$1" : ".*\(.\{8\}\)\$")"
+}
+#######################################################################################################
+#                                                                                                     #
+# check the specified modulus for valid content and length                                            #
+#                                                                                                     #
+#######################################################################################################
+check_modulus()
+(
+	modulus="$1"
+	key_size=1024
+	bytes=$(( key_size / 8 ))
+	if [ ${#modulus} -ne $(( bytes * 2 )) ]; then
+		if [ "$(expr \( "$modulus" : "\(..\).*" \) )" = "00" ] && [ ${#modulus} -ne $(( ( bytes + 1 ) * 2 )) ]; then
+			exit 1
+		fi
+	fi
+	if [ "$(expr \( "$modulus" : "\([0-9a-f]*\)" \) )" = "$modulus" ]; then
+		exit 0
+	fi
+	exit 1
+)
+#######################################################################################################
+#                                                                                                     #
+# check, whether the specified key is installed already                                               #
+#                                                                                                     #
+#######################################################################################################
+check_installed()
+(
+	modulus="$1"
+	for key in $(printf "%s/%s" "$key_location" "$(printf "$pubkey_mask" '*')") $(printf "%s/%s" "$key_location" "$plugin_pubkey_mask"); do
+		[ -f "$key" ] && [ "$(sed -n -e 1p "$key")" = "$modulus" ] && exit 1
+	done
+	exit 0
+)
+#######################################################################################################
+#                                                                                                     #
+# check, whether the specified key is present already in the list of new keys                         #
+#                                                                                                     #
+#######################################################################################################
+check_duplicate()
+(
+	modulus="$1"
+	shift
+	for key in $*; do
+		[ "$key" = "$modulus" ] && exit 1
+	done
+	exit 0
+)
+#######################################################################################################
+#                                                                                                     #
+# find free directory                                                                                 #
+#                                                                                                     #
+#######################################################################################################
+is_directory_a_mountpoint()
+(
+	dir="$1"
+	[ "$(sed -n -e "s|^[^ ]* \($dir\) .*$|\1|p" $procfs_mounts)" = "$dir" ] && exit 0
+	exit 1
+)
+#######################################################################################################
+#                                                                                                     #
+# find the next usable key file name                                                                  #
+#                                                                                                     #
+#######################################################################################################
+get_key_index()
+(
+	exists=$1
+	index=$2
+	if [ $exists -eq 0 ]; then
+		if ! [ -f $key_location/$plugin_pubkey_mask ] && ! [ -h $key_location/$plugin_pubkey_mask ]; then
+			printf "%u" $(( index + 1 ))
+			exit 0
+		fi
+		while [ $index -ge $pubkey_min ]; do
+			name="$(printf "$pubkey_mask" $index)"
+			if [ -f $key_location/$name ] || [ -h $key_location/$name ]; then
+				index=$(( index - 1 ))
+				continue
+			fi
+			printf "%u" $index
+			exit 0
+		done
+		printf "-1"
+		exit 1
+	else
+		while [ $index -ge $pubkey_min ]; do
+			name="$(printf "$pubkey_mask" $index)"
+			if [ -f $key_location/$name ] && ! [ -h $key_location/$name ]; then
+				if ! [ "$(sed -n -e "s|^[^ ]* \($key_location/$name\) .*|\1|p" $procfs_mounts)" = "$key_location/$name" ]; then
+					printf "%u" $index
+					exit 0
+				fi
+			fi
+			index=$(( index - 1 ))
+			for i in $pubkey_forbidden; do
+				if [ $i -eq $index ]; then
+					index=$(( index - 1 ))
+					break
+				fi
+			done
+		done
+	fi
+	printf "-1"
+	exit 1
+)
+#######################################################################################################
+#                                                                                                     #
+# check mode parameter                                                                                #
+#                                                                                                     #
+#######################################################################################################
+mode="$1"
+if [ -z "$mode" ]; then
+	printf "Missing 'mode' parameter and any modulus value(s).\n" 1>&2
+	exit 1
+elif [ "$mode" = "$mode_overlay" ] || [ "$mode" = "$mode_replace" ] || [ "$mode" = "$mode_overload" ]; then
+	[ "$mode" = "$mode_overload" ] && overload=1 || overload=0
+	[ "$mode" = "$mode_overlay" ] && overlay=1 || overlay=0
+	shift
+	if [ $# -eq 0 ]; then
+		printf "Missing any modulus value(s) for '%s' mode.\n" "$mode" 1>&2
+		exit 1
+	fi
+else
+	printf "Invalid mode parameter '%s'.\n" "$mode" 1>&2
+	exit 1
+fi
+#######################################################################################################
+#                                                                                                     #
+# loop over all remaining parameters and treat them as modulus values to install, check them for      #
+# duplicates and already installed keys to prevent preparations, if no further installation is        #
+# necessary                                                                                           #
+#                                                                                                     #
+#######################################################################################################
+unset keys
+unset pos
+i=0
+for modulus in $*; do
+	s1="$(expr "$modulus" : "\(.\).*")"
+	i=$(( i + 1 ))
+	if [ "$s1" = "#" ]; then
+		s2="$(expr "$modulus" : ".\(.*\)")"
+		modulus="$(sed -n -e "/^$s2/s|[^ \t]*[ \t]*\(.*\)|\1|p" "$procfs_urlader")"
+		if [ -z "$modulus" ]; then
+			printf "Environment value '%s' is empty, the key (%u) was skipped.\n" "$s2" "$i" 1>&2
+			continue
+		fi
+		s1="$(expr "$modulus" : "\(.\).*")"
+		[ -z "$(expr "$s1" : "\([89a-fA-F]\).*")" ] || modulus="00$modulus"
+	elif [ "$s1" = "/" ]; then
+		f="$modulus"
+		if [ -s "$f" ]; then
+			modulus="$(sed -n -e "1p" "$f")"
+		else
+			printf "File '%s' was not found or is empty, the key (%u) was skipped.\n" "$f" "$i" 1>&2
+			continue
+		fi
+	fi
+	if ! check_modulus "$modulus"; then
+		printf "Invalid modulus content or length, the key (%u) was skipped.\n" "$i" 1>&2
+		continue
+	fi
+	if check_installed "$modulus"; then
+		if check_duplicate "$modulus" $keys; then
+			keys="${keys}${keys:+ }$modulus"
+			pos="${pos}${pos:+ }$i"
+		else
+			printf "Key with modulus '%s' is duplicate and was skipped.\n" "$(shorten_modulus "$modulus")" 1>&2
+		fi
+	else
+		printf "Key with modulus '%s' is installed already and was skipped.\n" "$(shorten_modulus "$modulus")" 1>&2
+	fi
+done
+if [ -z "$keys" ]; then
+	printf "No keys to install, exiting.\n" | progress
+	printf "No keys to install, exiting.\n" 1>&2
+	exit 1
+fi
+#######################################################################################################
+#                                                                                                     #
+# mount an overlayfs for key location directory or prepare a tmpfs stored copy of the key location,   #
+# if it's necessary or switch operation mode accordingly                                              #
+#                                                                                                     #
+#######################################################################################################
+if [ $overload -eq 0 ]; then
+	mountpoint=""
+	mounted=0
+	if [ "$(sed -n -e "s|^$overlayfs_name \($key_location\) .*|\1|p" $procfs_mounts)" = "$key_location" ]; then
+		mounted=1
+	elif [ "$(sed -n -e "s|^tmpfs \($key_location\) .*|\1|p" $procfs_mounts)" = "$key_location" ]; then
+		mounted=1
+	fi
+	if [ $mounted -eq 0 ]; then
+		for candidate in $possible_mountpoints; do
+			if [ -d /$candidate ]; then
+				if ! is_directory_a_mountpoint /$candidate; then
+					mountpoint=/$candidate
+					break
+				fi
+			fi
+		done
+		if [ -z "$mountpoint" ]; then
+			# last candidate will always be used, even if its original content gets invisible thereby
+			mkdir -p /$candidate
+			mountpoint=/$candidate
+		fi
+		mount -t tmpfs tmpfs $mountpoint
+		if [ $overlay -eq 1 ]; then
+			if [ "$(sed -n -e "s|^.*[ \t]*\($overlayfs_name\)|\1|p" $procfs_filesystems)" = "$overlayfs_name" ]; then
+				mkdir -p $mountpoint$key_location 2>/dev/null
+				ln -sf $procfs_mounts $mountpoint$mtab_name
+				mount -t $overlayfs_name -o upperdir=$mountpoint$key_location,lowerdir=$key_location $overlayfs_name $key_location && mounted=1
+			fi
+		fi
+		if [ $mounted -eq 0 ]; then
+			if cp -a $key_location/* $mountpoint; then
+				mount -o move $mountpoint $key_location
+			else
+				umount $mountpoint
+				printf "Error creating a copy of key-file location '%s'.\n" "$key_location" 1>&2
+				exit 1
+			fi
+		fi
+	fi
+else
+	touch $write_check 2>/dev/null && overload=0 && overlay=0
+fi
+#######################################################################################################
+#                                                                                                     #
+# install remaining keys                                                                              #
+#                                                                                                     #
+#######################################################################################################
+key_index=$pubkey_max
+set -- $pos
+for modulus in $keys; do
+	key_index=$(get_key_index $overload $key_index)
+	if [ $key_index -lt 0 ]; then
+		printf "Unable to find a usable key file name.\n" 1>&2
+		exit 1
+	else
+		if [ $key_index -gt $pubkey_max ]; then
+			key_name="$plugin_pubkey_mask"
+		else
+			key_name="$(printf "$pubkey_mask" $key_index)"
+		fi
+		file_name=$key_location/$key_name
+		if [ $overload -eq 1 ]; then
+			touch $overlay_storage/$key_name
+			mount -o bind $overlay_storage/$key_name $file_name
+		fi
+		printf "%s\n010001\n" "$modulus" >$file_name
+		printf "Installed public key (%u) to file '%s'.\n" "$1" $key_name | progress
+		key_index=$(( key_index - 1 ))
+	fi
+	shift
+done
+#######################################################################################################
+#                                                                                                     #
+# finish and regular exit                                                                             #
+#                                                                                                     #
+#######################################################################################################
+exit 0
+#######################################################################################################
+#                                                                                                     #
+# end of script                                                                                       #
+#                                                                                                     #
+#######################################################################################################

@@ -1,0 +1,36 @@
+config FREETZ_PACKAGE_RRDTOOL
+	bool "RRDtool 1.2.30/1.8.0 (binary only)"
+	select FREETZ_LIB_librrd
+	select FREETZ_LIB_libm                                 if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libz                                 if FREETZ_PACKAGE_RRDTOOL_VERSION_ABANDON
+	select FREETZ_PACKAGE_DEJAVU_FONTS_TTF                 if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansMono  if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	default n
+	help
+		RRDtool is the OpenSource industry standard, high
+		performance data logging and graphing system for
+		time series data. Use it to write your custom
+		monitoring shell scripts or create whole applications
+		using its PHP bindings.
+
+if FREETZ_PACKAGE_RRDTOOL
+
+	choice
+		prompt "Version"
+			default FREETZ_PACKAGE_RRDTOOL_VERSION_ABANDON
+
+		config FREETZ_PACKAGE_RRDTOOL_VERSION_ABANDON
+			bool "1.2.30"
+			help
+				This version needs about 0,7MB (including all libs).
+
+		config FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+			bool "1.8.0"
+			depends on FREETZ_SEPARATE_AVM_UCLIBC
+			help
+				This version needs about 3,7MB (including all libs).
+
+	endchoice
+
+endif # FREETZ_PACKAGE_RRDTOOL
+

@@ -1,0 +1,33 @@
+#!/bin/sh
+[ "$(echo ${1:0:7} | tr 'A-Z' 'a-z')" == "openvpn" ] && title="${1:8}"
+title="OpenVPN-${title:-$1}"
+packagename="$(echo $title | tr 'A-Z' 'a-z')"
+echo -n "$title" > "/tmp/.openvpn.title.$packagename"
+
+mkdir -p /mod/etc/default.${packagename}
+rm -f /mod/etc/default.${packagename}/${packagename}_conf
+ln -sf /mod/etc/default.openvpn/openvpn_conf /mod/etc/default.${packagename}/${packagename}_conf
+ln -sf /mod/etc/default.openvpn/openvpn.save /mod/etc/default.${packagename}/${packagename}.save
+ln -sf /mod/usr/lib/cgi-bin/openvpn.cgi /mod/usr/lib/cgi-bin/${packagename}.cgi
+ln -sf rc.openvpn /mod/etc/init.d/rc.${packagename}
+ln -sf /usr/sbin/openvpn /mod/sbin/$packagename
+sed "s%/openvpn/%/openvpn/${packagename}/%" /mod/etc/default.openvpn/openvpn.cfg > /mod/etc/default.${packagename}/${packagename}.cfg
+sed "s%/openvpn\.c%/${packagename}.c% ; s%OpenVPN%$title% ; s%/usr/sbin/openvpn$%/mod/sbin/${packagename}%" \
+  /mod/etc/default.openvpn/openvpn.inetd > /mod/etc/default.${packagename}/${packagename}.inetd
+for deffile in /mod/etc/default.openvpn/*.def; do
+	sed "/DESC/ s%/openvpn/%/openvpn/${packagename}/%;/SAVE/ s/openvpn/${packagename}/g;/CAPTION/ s/OpenVPN/$title/g;/FILE/ s%/openvpn/%/openvpn/${packagename}/%" \
+	  $deffile > /mod/etc/default.${packagename}/${deffile##*/}
+done
+
+#compat, remove me later
+if [ -d /tmp/flash/openvpn/${packagename#openvpn-} ]; then
+	mv /tmp/flash/openvpn/${packagename#openvpn-} /tmp/flash/openvpn/${packagename}
+	for x in /tmp/flash/openvpn/${packagename}/*; do
+		[ -e "$x" ] && sed "s%/tmp/flash/openvpn/${packagename#openvpn-}%/tmp/flash/openvpn/${packagename}%g" -i "$x"
+	done
+fi
+
+mkdir -p /tmp/flash/openvpn/${packagename}
+modconf load ${packagename}
+/mod/etc/init.d/rc.${packagename} load
+

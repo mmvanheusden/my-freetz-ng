@@ -1,0 +1,126 @@
+#!/bin/sh
+
+DAEMON=opendd
+DAEMON_LONG_NAME=OpenDD
+. /etc/init.d/modlibrc
+
+set_cron() {
+	CRON_OLD="$(cat /tmp/cron.d/opendd 2>/dev/null)"
+	if [ "$OPENDD_ENABLED" == "yes" -a "$OPENDD_FORCE_UPDATE" == "yes" ]; then
+		CRON_NEW="45 5 * * *  /mod/etc/init.d/rc.opendd cron"
+	fi
+	if [ "$CRON_OLD" != "$CRON_NEW" ] ; then
+		mkdir -p /tmp/cron.d/
+		echo "$CRON_NEW" > /tmp/cron.d/opendd
+		/mod/etc/init.d/rc.crond reload >/dev/null
+	fi
+}
+
+update_ip() {
+	echo "$1" > /tmp/.opendd.ip
+	$DAEMON -c $DAEMON_CONFIG
+	rm -rf /tmp/.opendd.ip 2>/dev/null
+}
+
+run() {
+	echo -n "Running $DAEMON_LONG_NAME ... "
+	if modlib_check_running; then
+		echo 'already running.'
+		exit 0
+	fi
+	if [ "$OPENDD_ENABLED" != "yes" ]; then
+		echo 'is disabled.'
+		exit 0
+	fi
+	if [ ! -x "$(which $DAEMON_BIN)" ]; then
+		echo "binary not found, skipped."
+		exit 1
+	fi
+
+	modlib_config
+	chmod 600 $DAEMON_CONFIG
+
+	NEW_IP=$(get_ip)
+	if [ -z "$NEW_IP" ]; then
+		echo 'failed.'
+		exit 1
+	fi
+
+	if [ "$OPENDD_FORCE_UPDATE" == "yes" ]; then
+		OLD_IP="$(cat /tmp/flash/opendd/opendd.ip 2>/dev/null)"
+		if [ "$OLD_IP" != "$NEW_IP" ]; then
+			rm -rf /tmp/flash/opendd/opendd.ip
+		else
+			find /tmp/flash/opendd/ -name opendd.ip -mtime +25 -exec rm -rf {} ';'
+			if [ ! -e /tmp/flash/opendd/opendd.ip ]; then
+				update_ip 127.168.178.1
+				sleep 90
+			fi
+		fi
+		if [ ! -e /tmp/flash/opendd/opendd.ip ]; then
+			echo "$NEW_IP" >/tmp/flash/opendd/opendd.ip
+			modsave flash >/dev/null
+			. /tmp/flash/opendd/opendd.onforcedupdate >/dev/null 2>&1
+		fi
+	fi
+	update_ip $NEW_IP
+
+	# return-value of opendd is always 0
+	echo 'done.'
+}
+
+case $1 in
+	""|load)
+		mkdir -p /tmp/flash/opendd
+		[ ! -e /tmp/flash/opendd/opendd.pem ] && touch /tmp/flash/opendd/opendd.pem
+
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg file $DAEMON opendd_pem 'opendd.pem' 0 "opendd_pem"
+		modreg daemon --hide $DAEMON
+
+		if [ "$OPENDD_ENABLED" != "yes" ]; then
+			echo "$DAEMON is disabled." 1>&2
+			exit 1
+		else
+			set_cron
+			#check if this script is executed by rc.external
+			if [ "$(ps | sed -rn "s/^ *$PPID .*(rc.external).*/y/p")" != "y" ]; then
+				echo "$DAEMON is enabled." 1>&2
+			else
+				echo "$DAEMON will be run in background ... active." 1>&2
+#				run
+			fi
+		fi
+		;;
+	stop)
+#		echo "$DAEMON can't be stopped." 1>&2
+		exit 1
+		;;
+	unload)
+		if [ -e /tmp/cron.d/$DAEMON ]; then
+			rm -rf /tmp/cron.d/$DAEMON
+			/mod/etc/init.d/rc.crond reload >/dev/null
+		fi
+
+		modunreg cgi $DAEMON
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		;;
+	run)
+		run
+		;;
+	config)
+		set_cron
+		;;
+	cron)
+		[ "$OPENDD_ENABLED" != "yes" ] && return
+		loglib_logger "$DAEMON" "Run $DAEMON_LONG_NAME by cron."
+		run
+		;;
+	*)
+		echo "Usage: $0 [load|unload|run|config|cron]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

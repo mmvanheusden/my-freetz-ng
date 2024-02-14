@@ -1,0 +1,169 @@
+config FREETZ_LIB_libcrypto
+	bool "OpenSSL cryptographic library (libcrypto.so)"
+	select FREETZ_LIB_libdl       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libpthread  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs && FREETZ_OPENSSL_VERSION_2_MIN
+	select FREETZ_LIB_libatomic   if FREETZ_OPENSSL_VERSION_3_MIN
+	default n
+	help
+		crypto - OpenSSL cryptographic library
+
+		The OpenSSL crypto library implements a wide range of cryptographic
+		algorithms used in various Internet standards. The services provided by
+		this library are used by the OpenSSL implementations of SSL, TLS and
+		S/MIME, and they have also been used to implement SSH, OpenPGP, and
+		other cryptographic standards.
+
+		libcrypto consists of a number of sub-libraries that implement the
+		individual algorithms. The functionality includes symmetric encryption,
+		public key cryptography and key agreement, certificate handling,
+		cryptographic hash functions and a cryptographic pseudo-random number
+		generator.
+
+config FREETZ_LIB_libssl
+	bool "OpenSSL SSL/TLS library (libssl.so)"
+	select FREETZ_LIB_libdl       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libcrypto
+	select FREETZ_LIB_libatomic   if FREETZ_OPENSSL_VERSION_3_MIN
+	default n
+	help
+		SSL - OpenSSL SSL/TLS library
+
+		The OpenSSL ssl library implements the Secure Sockets Layer (SSL v2/v3)
+		and Transport Layer Security (TLS v1) protocols. It provides a rich API.
+
+
+choice
+	prompt "OpenSSL version"
+	default FREETZ_OPENSSL_VERSION_3
+	default FREETZ_OPENSSL_VERSION_2
+	default FREETZ_OPENSSL_VERSION_1
+	help
+		Version 0.9.8:
+		 - Supported until 2015-12-31, Long Term Support (LTS) version
+		 - NOT supported by the OpenSSL development team anymore
+		 - could be used (with some limitations) as a replacement for AVM's OpenSSL library
+
+		Version 1.0.2:
+		 - Supported until 2019-12-31, Long Term Support (LTS) version
+		 - NOT supported by the OpenSSL development team anymore
+
+		Version 1.1.1:
+		 - Supported until 2023-09-11, Long Term Support (LTS) version
+		 - NOT supported by the OpenSSL development team anymore
+
+		Version 3.0:
+		 - Supported until 2026-09-07, Long Term Support (LTS) version
+
+		See https://www.openssl.org/policies/releasestrat.html
+
+	config FREETZ_OPENSSL_VERSION_0
+		bool "0.9.8 - DEPRECATED"
+		depends on FREETZ_AVM_HAS_OPENSSL_VERSION_0
+
+	config FREETZ_OPENSSL_VERSION_1
+		bool "1.0.2 - DEPRECATED"
+		depends on !FREETZ_SEPARATE_AVM_UCLIBC
+
+	config FREETZ_OPENSSL_VERSION_2
+		bool "1.1.1 - DEPRECATED"
+		depends on !FREETZ_TARGET_UCLIBC_0_9_28 && !FREETZ_TARGET_UCLIBC_0_9_29
+
+	config FREETZ_OPENSSL_VERSION_3
+		bool "3.0"
+		depends on !FREETZ_TARGET_UCLIBC_0_9_28 && !FREETZ_TARGET_UCLIBC_0_9_29 && FREETZ_TARGET_GCC_4_8_MIN
+
+endchoice # "OpenSSL version"
+
+
+menu "OpenSSL configuration"
+
+	config FREETZ_OPENSSL_SHLIB_VERSION
+		string
+		default "0.9.8" if FREETZ_OPENSSL_VERSION_0
+		default "1.0.0" if FREETZ_OPENSSL_VERSION_1
+		default "1.1"   if FREETZ_OPENSSL_VERSION_2
+		default "3"     if FREETZ_OPENSSL_VERSION_3
+
+	config FREETZ_OPENSSL_LIBCRYPTO_EXTRA_LIBS
+		string
+		default "-ldl -pthread -lz"  if FREETZ_OPENSSL_VERSION_2_MIN && FREETZ_LIB_libcrypto_WITH_ZLIB
+		default "-ldl -pthread"      if FREETZ_OPENSSL_VERSION_2_MIN
+		default "-ldl -lz"           if FREETZ_OPENSSL_VERSION_1_MAX && FREETZ_LIB_libcrypto_WITH_ZLIB
+		default "-ldl"               if FREETZ_OPENSSL_VERSION_1_MAX
+
+	config FREETZ_LIB_libcrypto_WITH_EC
+		bool "Support elliptic curve cryptography"
+		default n
+		help
+			Enable support for elliptic curve cryptography (ECDSA/ECDH/ECDHE)
+
+	config FREETZ_LIB_libcrypto_WITH_RC4
+		bool "Support RC4 cipher (NOT RECOMMENDED)"
+		default n
+		help
+			Enable support for RC4 cipher.
+			NOT RECOMMENDED, please enable it only if absolutely necessary.
+
+			As of 2015, there is speculation that some state cryptologic agencies
+			may possess the capability to break RC4 when used in the TLS protocol[1].
+			IETF has published RFC 7465 to prohibit the use of RC4 in TLS[2].
+			Mozilla[3] and Microsoft[4] have issued similar recommendations.
+
+			[1] http://www.theregister.co.uk/2013/09/06/nsa_cryptobreaking_bullrun_analysis/
+			[2] https://tools.ietf.org/html/rfc7465
+			[3] https://wiki.mozilla.org/Security/Server_Side_TLS
+			[4] https://blogs.technet.microsoft.com/srd/2013/11/12/security-advisory-2868725-recommendation-to-disable-rc4/
+
+	config FREETZ_LIB_libcrypto_WITH_ZLIB
+		bool "Build with zlib support"
+		depends on !FREETZ_OPENSSL_VERSION_0
+		select FREETZ_LIB_libz
+		default n
+
+	config FREETZ_OPENSSL_SMALL_FOOTPRINT
+		bool "Reduce the footprint of OpenSSL libraries"
+		default y
+		help
+			Build a version with smaller memory/storage footprint.
+
+	config FREETZ_OPENSSL_CONFIG_DIR
+		string "OpenSSL configuration directory"
+		default "/mod/etc/ssl"
+		help
+			The location of OpenSSL directory, where several files
+			(configuration settings, private key, certificates, etc.)
+			can be found.
+
+endmenu # "OpenSSL configuration"
+
+
+config FREETZ_OPENSSL_VERSION_1_MIN
+	def_bool y
+	depends on \
+		FREETZ_OPENSSL_VERSION_1 || \
+		FREETZ_OPENSSL_VERSION_2_MIN
+
+config FREETZ_OPENSSL_VERSION_2_MIN
+	def_bool y
+	depends on \
+		FREETZ_OPENSSL_VERSION_2 || \
+		FREETZ_OPENSSL_VERSION_3_MIN
+
+config FREETZ_OPENSSL_VERSION_3_MIN
+	def_bool y
+	depends on \
+		FREETZ_OPENSSL_VERSION_3
+
+
+config FREETZ_OPENSSL_VERSION_1_MAX
+	def_bool y
+	depends on \
+		FREETZ_OPENSSL_VERSION_1 || \
+		FREETZ_OPENSSL_VERSION_0
+
+config FREETZ_OPENSSL_VERSION_2_MAX
+	def_bool y
+	depends on \
+		FREETZ_OPENSSL_VERSION_2 || \
+		FREETZ_OPENSSL_VERSION_1_MAX
+

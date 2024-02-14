@@ -1,0 +1,51 @@
+config FREETZ_PACKAGE_SUNDTEK
+	bool "Sundtek DVB driver 130210.134617/170310.204343/210803.071224"
+	depends on FREETZ_KERNEL_VERSION_2_6_19_MIN
+	depends on !FREETZ_TARGET_ARCH_X86
+	depends on !FREETZ_SEPARATE_AVM_UCLIBC
+	select FREETZ_LIB_libdl       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libpthread  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_librt       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs && FREETZ_TARGET_ARCH_MIPS && FREETZ_TARGET_ARCH_BE
+	default n
+	help
+		Sundtek closed-source linux driver daemon & client.
+		To use this driver you have to run:
+		export LD_PRELOAD=/usr/lib/libsundtekmediaclient.so
+
+if FREETZ_PACKAGE_SUNDTEK
+
+	choice
+		prompt "Version"
+		default FREETZ_PACKAGE_SUNDTEK_VERSION_2017
+		default FREETZ_PACKAGE_SUNDTEK_VERSION_2021
+
+		config FREETZ_PACKAGE_SUNDTEK_VERSION_2013
+		bool "130210.134617"
+		depends on !FREETZ_SEPARATE_AVM_UCLIBC
+
+		config FREETZ_PACKAGE_SUNDTEK_VERSION_2017
+		bool "170310.204343"
+		depends on !FREETZ_SEPARATE_AVM_UCLIBC
+
+		config FREETZ_PACKAGE_SUNDTEK_VERSION_2021
+		bool "210803.071224"
+
+		config FREETZ_PACKAGE_SUNDTEK_VERSION_LATEST
+		bool "latest available"
+	endchoice
+
+	config FREETZ_PACKAGE_SUNDTEK_ARCH
+		string
+		default "openwrtarm4"    if FREETZ_TARGET_ARCH_ARM
+		default "openwrtmipsr2"  if FREETZ_TARGET_ARCH_MIPS && FREETZ_TARGET_ARCH_BE && (FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29 || FREETZ_TARGET_UCLIBC_0_9_32)
+		default "openwrtmipsr3"  if FREETZ_TARGET_ARCH_MIPS && FREETZ_TARGET_ARCH_BE && (FREETZ_TARGET_UCLIBC_0_9_33 || FREETZ_TARGET_UCLIBC_1_0_14)
+		default "mipselbcm"      if FREETZ_TARGET_ARCH_MIPS && FREETZ_TARGET_ARCH_LE
+
+	comment "Note: Try using older version if you experience any problems"
+		depends on FREETZ_KERNEL_VERSION_2_6_19_MAX && !FREETZ_PACKAGE_SUNDTEK_VERSION_2013
+
+	comment "CAUTION: Use 'replace kernel' to avoid memory leaks!"
+		depends on FREETZ_KERNEL_VERSION_2_6_19 && !FREETZ_REPLACE_KERNEL
+
+endif # FREETZ_PACKAGE_SUNDTEK
+

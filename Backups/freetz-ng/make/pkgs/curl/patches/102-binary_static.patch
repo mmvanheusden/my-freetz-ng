@@ -1,0 +1,11 @@
+--- src/Makefile.in
++++ src/Makefile.in
+@@ -232,7 +232,7 @@
+ libcurltool_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC \
+ 	$(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=link $(CCLD) \
+ 	$(libcurltool_la_CFLAGS) $(CFLAGS) $(libcurltool_la_LDFLAGS) \
+-	$(LDFLAGS) -o $@
++	$(LDFLAGS) $(STATIC_LDFLAGS) -o $@
+ @BUILD_UNITTESTS_TRUE@am_libcurltool_la_rpath =
+ am__curl_SOURCES_DIST = slist_wc.c tool_binmode.c tool_bname.c \
+ 	tool_cb_dbg.c tool_cb_hdr.c tool_cb_prg.c tool_cb_rea.c \

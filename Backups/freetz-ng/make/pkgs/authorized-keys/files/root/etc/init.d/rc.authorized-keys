@@ -1,0 +1,43 @@
+#!/bin/sh
+
+DAEMON=authorized-keys
+DAEMON_LONG_NAME="SSH authorized-keys"
+
+case $1 in
+	""|load)
+		modreg pkg $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon --hide $DAEMON
+
+		[ -r /etc/options.cfg ] && . /etc/options.cfg
+		[ "$FREETZ_PACKAGE_OPENSSH" == "y" ] && id_files="id_dsa id_rsa id_ed25519 id_ecdsa"
+		for ak_file in authorized_keys known_hosts $id_files; do
+			modreg file authorized-keys $ak_file "$ak_file" 0 $ak_file
+		done
+
+		echo -n "Setting up $DAEMON_LONG_NAME for root ... "
+		dir="/tmp/flash/authorized_keys_root"
+		mkdir -p $dir
+
+		[ ! -e ~root/.ssh ] && ln -s $dir ~root/.ssh
+		echo "done."
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		modunreg pkg $DAEMON
+		;;
+	start)
+		;;
+	stop)
+		;;
+	restart)
+		;;
+	status)
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,91 @@
+#!/bin/sh
+
+KERNEL_MAJOR=$(uname -r | sed -n -r -e 's,([0-9]+[.][0-9]+)[.].*,\1,p')
+KERNEL_MINOR=$(uname -r | sed -n -r -e 's,([0-9]+[.][0-9]+)[.]([0-9]+).*,\2,p')
+[ "${KERNEL_MAJOR}" = "2.6" -a "${KERNEL_MINOR}" -le 19 ] \
+  && DAEMON_CHECK="cifsoplockd cifsdnotifyd" \
+  || DAEMON_CHECK="cifsd"
+
+DAEMON=cifsmount
+. /etc/init.d/modlibrc
+
+
+start() {
+	echo -n 'Starting cifs ... '
+
+	for x in md4 md5 hmac cmac arc4 ecb des_generic sha256_generic; do
+		modprobe $x 2>/dev/null
+	done
+	modprobe cifs
+
+	exitval=0
+	for i in 1 2 3 4 5; do
+		eval CIFSMOUNT_SHARE=\$CIFSMOUNT_SHARE$i
+		eval CIFSMOUNT_MOUNTPOINT=\$CIFSMOUNT_MOUNTPOINT$i
+		eval CIFSMOUNT_USER=\$CIFSMOUNT_USER$i
+		eval CIFSMOUNT_PASS=\$CIFSMOUNT_PASS$i
+		eval CIFSMOUNT_MOUNTOPTIONS=\$CIFSMOUNT_MOUNTOPTIONS$i
+		CIFSOPTS="user=${CIFSMOUNT_USER},pass=${CIFSMOUNT_PASS}${CIFSMOUNT_MOUNTOPTIONS:+,}${CIFSMOUNT_MOUNTOPTIONS}"
+		if [ -n "$CIFSMOUNT_MOUNTPOINT" ]; then
+			echo -n "$CIFSMOUNT_SHARE ... "
+			mkdir -p "$CIFSMOUNT_MOUNTPOINT"
+			mount.cifs "$CIFSMOUNT_SHARE" "$CIFSMOUNT_MOUNTPOINT" -o "$CIFSOPTS"
+			[ "$?" -gt 0 ] && exitval=1
+		fi
+	done
+
+	if [ "$exitval" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		exit $exitval
+	fi
+}
+
+stop() {
+	exitval=0
+	for i in 1 2 3 4 5; do
+		eval CIFSMOUNT_SHARE=\$CIFSMOUNT_SHARE$i
+		eval CIFSMOUNT_MOUNTPOINT=\$CIFSMOUNT_MOUNTPOINT$i
+		if [ -n "$CIFSMOUNT_MOUNTPOINT" ]; then
+			echo -n "$CIFSMOUNT_SHARE ... "
+			umount $CIFSMOUNT_MOUNTPOINT
+			[ "$?" -gt 0 ] && exitval=1
+			#rmdir $CIFSMOUNT_MOUNTPOINT
+		fi
+	done
+	rmmod cifs 2>/dev/null
+	return $exitval
+}
+
+case $1 in
+	""|load)
+		modreg cgi cifsmount 'cifsmount'
+		modreg daemon $DAEMON
+
+		modlib_start $CIFSMOUNT_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi cifsmount
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

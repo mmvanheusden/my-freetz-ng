@@ -1,0 +1,68 @@
+config FREETZ_PACKAGE_SCANBUTTOND
+	bool "scanbuttond cvs"
+	select FREETZ_LIB_libdl if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libusb_0
+	select FREETZ_PACKAGE_SANE_BACKENDS
+	select FREETZ_PACKAGE_SANE_BACKENDS_scanimage
+	select FREETZ_PACKAGE_SCANBUTTOND_BACKEND_meta
+	default n
+	help
+		Scanner button daemon. It allows you to invoke actions such as shell
+		scripts whenever one of the scanner front panel buttons is pressed.
+
+if FREETZ_PACKAGE_SCANBUTTOND
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_artec_eplus48u
+	bool "artec_eplus48u backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_epson
+	bool "epson backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_genesys
+	bool "genesys backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_gt68xx
+	bool "gt68xx backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_hp3500
+	bool "hp3500 backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_hp3900
+	bool "hp3900 backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_hp5590
+	bool "hp5590 backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_meta
+	bool "meta backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_mustek
+	bool "mustek backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_niash
+	bool "niash backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_plustek
+	bool "plustek backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_plustek_umax
+	bool "plustek_umax backend"
+	default n
+
+config FREETZ_PACKAGE_SCANBUTTOND_BACKEND_snapscan
+	bool "snapscan backend"
+	default n
+
+endif # FREETZ_PACKAGE_SCANBUTTOND
+

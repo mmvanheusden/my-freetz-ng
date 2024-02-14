@@ -1,0 +1,123 @@
+# Makefiles
+
+By convention, each package has two package names. In this text we
+will refer to them as ```$pkg``` and ```$PKG```.  The name
+```$pkg``` usually consists of lower case letters, digits, underlines
+and hyphens. ```$PKG``` consists of uppercase letters, digits and
+underlines, but no hyphens.  Normally ```$PKG``` is the name
+```$pkg``` with letters converted to upper case and hyphens
+converted to underlines. Version numbers are not part of a package
+name, so most package names don't contain digits.
+
+Packages may be either library packages or binary packages.  Library
+packages are in [make/libs/*](../../../make/libs/), while binary packages are in [make/*](../../../make/).
+
+Each package must define the following targets:
+
+```
+$(pkg)-download
+	Download source for the package
+
+${pkg}-source
+${pkg}-unpacked
+	Unpack source for the package
+
+${pkg}-precompiled
+	Compile package and prepare for firmware generation
+
+${pkg}-clean
+${pkg}-dirclean
+	Remove all files that can be recreated
+
+${pkg}-list
+	add package to the list of static or dynamic patches
+
+${pkg}-uninstall
+	remove binary files from package or library files from root/${FREETZ_LIBRARY_DIR}
+
+```
+
+
+To use the convenience macros, you need some more defines:
+```
+# initialize package macros, ether BINary or LIBrary.
+#   $(1) = version (mandatory)
+#   $(2) = lower-case package name (optional, default name of makefile)
+#   $(3) = upper-case package name (optional, default $2 converted to uppercase/underline)
+# default values for
+#  - $(PKG)_DIR : directory for sources
+#  - $(PKG)_MAKE_DIR : directory for freetz makefile, patches and files
+#  - $(PKG)_TARGET_DIR : directory for installation
+BIN:
+$(call PKG_INIT_BIN, VERSION, [pkg], [PKG])
+LIB:
+$(call PKG_INIT_LIB, VERSION, [pkg], [PKG])
+
+# The download URL, split in directory part and filename
+$(PKG)_SITE:=http://www.server.net/download
+$(PKG)_SOURCE:=package-name-$($(PKG)_VERSION).tar.gz
+
+# directory containing the makefiles. This value is the default from PKG_INIT.
+# It should not be necessary to override this value.
+$(PKG)_MAKE_DIR:=$(MAKE_DIR)/$(pkg)
+
+# directory for sourcefile, "$($(PKG)_SOURCE_DIR)/" and the directory created by extracting the tar-file
+# This value is the default from PKG_INIT.
+$(PKG)_DIR:=$($(PKG)_SOURCE_DIR)/package-name-$($(PKG)_VERSION)
+
+# target directory for the package. The default value depends on BIN/LIB,
+# It should not be necessary to override this value.
+BIN:
+$(PKG)_TARGET_DIR:=$(PACKAGES_DIR)/$(pkg)-$($(PKG)_VERSION)
+LIB:
+$(PKG)_TARGET_DIR:=$(TARGET_SPECIFIC_ROOT_DIR)$(FREETZ_LIBRARY_DIR)
+
+# root directory for installation. The default value depends on BIN/LIB,
+# It should not be necessary to override this value.
+BIN:
+$(PKG)_TARGET_DIR:=$(PACKAGES_DIR)/$(pkg)-$($(PKG)_VERSION)/root
+LIB:
+$(PKG)_TARGET_DIR:=$(TARGET_SPECIFIC_ROOT_DIR)
+
+# Order for inclusion in list of static or dynamic packages. Only for binary packages.
+# Only necessary if the package contains a run-script
+# The default is 99, which is intended for packages that have no run-script.
+$(PKG)_STARTLEVEL=40
+
+
+# Now you can use these macros:
+# Download $($(PKG)_SITE)/$($(PKG)_SOURCE) to dl/$($(PKG)_SOURCE)
+# defines $(pkg)-download
+$(PKG_SOURCE_DOWNLOAD)
+
+# Unpack binary or library package from dl/$($(PKG)_SOURCE) and apply patches
+# defines $(pkg)-unpacked and $(pkg)-source
+#
+# Some packages contain suboptions. If $(PKG)_REBUILD_SUBOPTS is defined, the package is
+# rebuild from scratch if one of the named options are changed in .config.
+$(PKG_UNPACKED)
+
+# configure package with ./configure with standard options
+# common settings are read from include/site/*, a common config.cache is enabled.
+# for special needs, use these macros:
+#  - $(PKG)_CONFIGURE_PRE_CMDS
+#    commands to execute before ./configure
+#    terminate each command with ';'
+#    example: $(PKG)_CONFIGURE_PRE_CMDS += autoconf --force ;
+#  - $(PKG)_CONFIGURE_ENV
+#    environment assignments before ./configure
+#    example: $(PKG)_CONFIGURE_ENV += ac_cv_special_value=yes
+#  - $(PKG)_CONFIGURE_OPTIONS
+#    options for ./configure
+#    example: $(PKG)_CONFIGURE_OPTIONS += --with-foo --enable-bar
+$(PKG_CONFIGURED_CONFIGURE)
+
+# If the package has no configuration, use this
+$(PKG_CONFIGURED_NOP)
+
+# Finalize package
+# defines ${pkg}-list for binary packages
+# defines $(pkg)-dirclean
+$(PKG_FINISH)
+
+```

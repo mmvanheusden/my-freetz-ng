@@ -1,0 +1,34 @@
+#!/bin/sh
+
+DAEMON=rcapid
+DAEMON_LONG_NAME=Rcapid
+. /etc/init.d/modlibrc
+
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon --disable $DAEMON
+
+		modlib_start $RCAPID_ENABLED
+		;;
+	unload)
+		modunreg cgi $DAEMON
+		modunreg daemon $DAEMON
+		;;
+	start)
+		;;
+	stop)
+		;;
+	restart)
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

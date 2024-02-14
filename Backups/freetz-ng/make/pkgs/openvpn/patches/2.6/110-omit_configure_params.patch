@@ -1,0 +1,11 @@
+--- src/openvpn/options.c
++++ src/openvpn/options.c
+@@ -4901,7 +4901,7 @@
+     show_dco_version(M_INFO | M_NOPREFIX);
+     msg(M_INFO|M_NOPREFIX, "Originally developed by James Yonan");
+     msg(M_INFO|M_NOPREFIX, "Copyright (C) 2002-2023 OpenVPN Inc <sales@openvpn.net>");
+-#ifndef ENABLE_SMALL
++#if 0
+ #ifdef CONFIGURE_DEFINES
+     msg(M_INFO|M_NOPREFIX, "Compile time defines: %s", CONFIGURE_DEFINES);
+ #endif

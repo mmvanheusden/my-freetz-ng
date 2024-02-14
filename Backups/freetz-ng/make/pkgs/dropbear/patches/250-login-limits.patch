@@ -1,0 +1,12 @@
+--- localoptions.h
++++ localoptions.h
+@@ -22,4 +22,9 @@
+ #define DROPBEAR_PATH_SSH_PROGRAM "ssh"
+ #endif
+ 
++#define MAX_UNAUTH_PER_IP 2  /* limited by freetz, default 5 */
++#define MAX_UNAUTH_CLIENTS 5 /* limited by freetz, default 30 */
++#define MAX_AUTH_TRIES 2     /* limited by freetz, default 10 */
++#define AUTH_TIMEOUT 60      /* limited by freetz down to 60 seconds, default 300 */
++
+ #endif

@@ -1,0 +1,247 @@
+#! /bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+# vim: set tabstop=4 syntax=bash :
+#######################################################################################################
+#                                                                                                     #
+# get version information from unpacked firmware files                                                #
+#                                                                                                     #
+###################################################################################################VER#
+#                                                                                                     #
+# extract_version_values, version 0.6                                                                 #
+#                                                                                                     #
+# This script is a part of the YourFritz project from https://github.com/PeterPawn/YourFritz.         #
+#                                                                                                     #
+###################################################################################################CPY#
+#                                                                                                     #
+# Copyright (C) 2017-2020 P.Haemmerlein (peterpawn@yourfritz.de)                                      #
+#                                                                                                     #
+###################################################################################################LIC#
+#                                                                                                     #
+# This project is free software, you can redistribute it and/or modify it under the terms of the GNU  #
+# General Public License as published by the Free Software Foundation; either version 2 of the        #
+# License, or (at your option) any later version.                                                     #
+#                                                                                                     #
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without   #
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU      #
+# General Public License under http://www.gnu.org/licenses/gpl-2.0.html for more details.             #
+#                                                                                                     #
+#######################################################################################################
+#                                                                                                     #
+# Run the script without parameters for an usage description.                                         #
+#                                                                                                     #
+#######################################################################################################
+usage()
+(
+	printf "Extract version information from an unpacked filesystem tree of FRITZ!OS.\n\n"
+	printf "Copyright (C) 2017-2020 P. Haemmerlein (peterpawn@yourfritz.de)\n\n"
+	printf "Usage:\n\n"
+	printf "\033[1m%s\033[0m <local_directory> [ -q | -m ] [ prefix ]\n\n" "${0##*/}"
+	printf "Version information will be extracted from the specified tree. If no '-q'\n"
+	printf "option was specified, some info for the contained FRITZ!OS will be put out\n"
+	printf "on STDERR, while the values needed for database generator get written to\n"
+	printf "STDOUT.\n\n"
+	printf "The caller is responsible for proper redirection, e.g. appending STDOUT data\n"
+	printf "to a file, which may be used as input for 'generate_database'.\n"
+	printf "If the '-m' option was specified, no data for key generator will be written\n"
+	printf "to STDOUT, instead the STDERR info gets redirected to STDOUT and the script\n"
+	printf "shows the version info there.\n"
+	printf "If a 'prefix' value is specified, each value key from output is prefixed with\n"
+	printf "this value to avoid collisions with other variable names while 'eval'-uating.\n"
+)
+
+[ -z "$1" ] && usage && exit 0
+
+src="$1"
+shift
+
+if [ "$1" = "-q" ]; then
+	quiet=1
+	redirect=0
+	shift
+else
+	quiet=0
+	redirect=0
+	if [ "$1" = "-m" ]; then
+		redirect=1
+		shift
+	fi
+fi
+
+
+[ -z "$1" ] && output_prefix="" || output_prefix="$1"
+
+src="${src%/}"
+# at least one slash is needed, if called for root filesystem
+[ -z "$src" ] && src="/"
+
+if ! [ -d "$src" ]; then
+	printf "'%s' is not a valid directory name / directory was not found.\a\n" "$src" 1>&2
+	exit 1
+fi
+
+for cmd in sed grep find date readlink expr; do
+	if ! command -v $cmd >/dev/null 2>&1; then
+		printf "Missing '%s' command, needed for this script.\a\n" "$cmd" 1>&2
+		exit 1
+	fi
+done
+
+files=$(find "$src" -maxdepth 3 -type f | wc -l)
+[ "$files" -lt 2 ] && printf "Unsupported filesystem format.\n" 1>&2 && exit 1
+( ! [ -f "$src/etc/init.d/rc.conf" ] || ! [ -f "$src/etc/version" ] ) && printf "Missing version files.\n" 1>&2 && exit 1
+
+# values from rc.conf
+
+# main version
+version="$(sed -n -e "s|^export CONFIG_VERSION=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# may be empty for release versions
+subversion="$(sed -n -e "s|^export CONFIG_SUBVERSION=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# model identification
+version_major="$(sed -n -e "s|^export CONFIG_VERSION_MAJOR=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf" | sed -n -e "2p")"
+
+# zero or a single occurence of CONFIG_VERSION_MAJOR in rc.conf
+[ -z "$version_major" ] && version_major="$(sed -n -e "s|^export CONFIG_VERSION_MAJOR=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# build type (known values are at least 1, 1000, 1001, 1004, 1007)
+buildtype="$(sed -n -e "s|^export CONFIG_BUILDTYPE=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# incrementing build number from vendor - covers all builds, as far as it's known
+buildnumber="$(sed -n -e "s|^export CONFIG_BUILDNUMBER=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# build type description for BETA/LABOR versions
+labor_id_name="$(sed -n -e "s|^export CONFIG_LABOR_ID_NAME=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# release value - '1'=public release, '0'=private build, '2'=labor/beta version
+release="$(sed -n -e "s|^export CONFIG_RELEASE=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# sub-classification for beta versions - '1'=beta (release has to be '1', too), all other values are handled like 'release'
+beta_release="$(sed -n -e "s|^export CONFIG_BETA_RELEASE=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# build was made with tampered source files
+build_dirty="$(sed -n -e "s|^export CONFIG_BUILD_DIRTY=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# date of firmware build
+date="$(date +"%d.%m.%Y %H:%M:%S" --date @$(stat -c %Y "$src/etc/version"))"
+
+if grep -q "^[ \t]*export FIRMWARE_.*\$" "$src/etc/version" 2>/dev/null; then # use old version values to fill gaps
+	[ -z "$version" ] && version="$(sed -n -e "s|^export FIRMWARE_VERSION=\${CONFIG_VERSION_MAJOR}\.\([^\"]*\)\$|\1|p" "$src/etc/version")"
+	[ -z "$subversion" ] && subversion="$(sed -n -e "s|^export FIRMWARE_SUBVERSION=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/version")"
+	grep -q "^[ \t]*export FIRMWARE_DATE=.*\$" "$src/etc/version" 2>/dev/null && date="$(sed -n -e "s|^export FIRMWARE_DATE=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/version")"
+fi
+
+if [ -z "$subversion" ]; then
+	if [ -n "$buildnumber" ]; then
+		subversion="-$buildnumber"
+	else
+		subversion="$(sed -n -e "/^[ \t]*--project)\$/{N;p}" "$src/etc/version" | sed -n -e "s|^[ \t]*echo \(.*\)\$|\1|p")"
+		[ -n "$subversion" ] && subversion="-${subversion}"
+	fi
+fi
+
+# product identification, used for defaults subdirectory of '/etc'
+model="$(sed -n -e "s|^export CONFIG_PRODUKT=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf")"
+
+# supported brandings
+if [ -n "$model" ]; then
+	brandings=""
+	for d in $src/etc/default.$model/*; do
+		brandings="$brandings${brandings:+ }${d##*/}"
+	done
+else
+	brandings="avm"
+fi
+
+# product name, may be set more than once, if it depends on branding value
+product="$(sed -n -e "s|^export CONFIG_PRODUKT_NAME=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf" | sed -n -e "1p")"
+
+HWRevision="$(( version_major + 72 ))"
+
+# install type, used to detect architecture and flash size
+install_type="$(sed -n -e "s|^export CONFIG_INSTALL_TYPE=\"\?\([^\"]*\)\"\?\$|\1|p" "$src/etc/init.d/rc.conf" | sed -n -e "\$p")"
+
+[ -f "$src/etc/boot.d/1" ] && boot_type="systemd" || boot_type="rc.S"
+
+kernel_version="$(find "$src/lib/modules" -type d | sed -n -e "s|^$src/lib/modules/\([^/]*\)/kernel\$|\1|p" | sed -n -e "1p")"
+
+libc_project="unknown"
+libc_display_version="unknown"
+libc_ident="unknown"
+
+libc_file="$(readlink -f "$(find "$src"/lib -maxdepth 1 -name "libc.so*" | sed -n -e 1p)")"
+if [ -n "$libc_file" ]; then
+	libc_version="$(printf "%s" "$libc_file}" | sed -n -e "s|^.*/libuClibc-\([0-9\.]*\)\.so.*\$|\1|p")"
+	if [ -z "$libc_version" ]; then # no uClibc[-ng] used here
+		check_glibc="$(grep -ao "glibc [0-9]\+\.[0-9]\+" "$libc_file")"
+		if [ -n "$check_glibc" ]; then # it's a glibc version
+			libc_project="glibc"
+			libc_display_version="$(printf "%s" "$check_glibc" | sed -n -e "s|.*glibc \([0-9\.]*\).*|\1|p")"
+			libc_ident="glibc-$libc_display_version"
+		else
+			check_musl="$(grep -ao "musl libc (" "$libc_file")"
+			if [ -n "$check_musl" ]; then # it's a musl version
+				libc_project="musl"
+				libc_ident="musl-undetected"
+				libc_display_version="(undetectable)"
+				# - musl version number detection is a bit wobbly ... version is stored as symbol __libc_version (it's a string), but AVM has stripped the lib
+				# - the version number consists of three groups of numbers/digits, delimited by a dot, optionally followed by a git commit spec,
+				#   if built from a git checkout
+				# - look into 'tools/version.sh' from musl project to find possible formats
+				# - the IPv4 localhost address 127.0.0.1 may be found by our grep attempts, so we'll filter it out (this should not be the version)
+				# - the first value found in the rest has to be the version number - as a compiler stamp with the same format could follow, so we use the first line only
+				musl_version="$(grep -ao "[0-9]\+\.[0-9]\+\.[0-9]\+" "$libc_file" | grep -v "127\.0\.0" | sed -n -e 1p)"
+				if [ -n "$musl_version" ]; then
+					libc_display_version="$musl_version"
+					libc_ident="musl-$musl_version"
+				fi
+			fi
+		fi
+	else # it's a uClibc[-ng] version
+		[ "$(expr "$libc_version" : "\(.\).*")" = "1" ] && libc_project="uClibc-ng" || libc_project="uClibc"
+		libc_ident="$libc_project-$libc_version"
+		libc_display_version="$libc_version"
+	fi
+fi
+
+# log and output data
+if [ $quiet -eq 1 ]; then
+	exec 2>/dev/null
+elif [ $redirect -eq 1 ]; then
+	exec 2>&1
+fi
+
+printf "%sModel=\"%s\"\n" "$output_prefix" "$model" 1>&2
+printf "%sProduct=\"%s\"\n" "$output_prefix" "$product" 1>&2
+printf "%sDate=\"%s\"\n" "$output_prefix" "$date" 1>&2
+printf "%sVersion=\"%s.%s\"\n" "$output_prefix" "$version_major" "$version" 1>&2
+printf "%sSubversion=\"%s\"\n" "$output_prefix" "$subversion" 1>&2
+printf "%sBuildnumber=\"%s\"\n" "$output_prefix" "$buildnumber" 1>&2
+printf "%sBuildtype=\"%s\"\n" "$output_prefix" "$buildtype" 1>&2
+printf "%sBrandings=\"%s\"\n" "$output_prefix" "$brandings" 1>&2
+printf "%sRelease=\"%s\"\n" "$output_prefix" "$release" 1>&2
+printf "%sBetaRelease=\"%s\"\n" "$output_prefix" "$beta_release" 1>&2
+printf "%sLaborName=\"%s\"\n" "$output_prefix" "$labor_id_name" 1>&2
+printf "%sDirtyBuild=\"%s\"\n" "$output_prefix" "$build_dirty" 1>&2
+printf "%sInstallType=\"%s\"\n" "$output_prefix" "$install_type" 1>&2
+printf "%sKernelVersion=\"%s\"\n" "$output_prefix" "$kernel_version" 1>&2
+printf "%sLibraryProject=\"%s\"\n" "$output_prefix" "$libc_project" 1>&2
+printf "%sLibraryVersion=\"%s\"\n" "$output_prefix" "$libc_display_version" 1>&2
+printf "%sLibraryIdent=\"%s\"\n" "$output_prefix" "$libc_ident" 1>&2
+printf "%sBootType=\"%s\"\n" "$output_prefix" "$boot_type" 1>&2
+for k in $src/etc/avm_firmware_public_key* $src/etc/plugin_global_key.pem; do
+	[ -f "$k" ] || continue
+	key="$(expr "$k" : ".*avm_firmware_public_key\(.*\)")"
+	[ -z "$key" ] && key="PluginKey" || key="PublicKey$key"
+	keyvalue="$(sed -n -e "1p" "$k")"
+	printf "%s%s=\"%s\"\n" "$output_prefix" "$key" "$keyvalue" 1>&2
+
+	# output data
+	[ $redirect -eq 0 ] && printf "HWRevision='%s' VersionMajor='%s' Model='%s' Name='%s' Source='%s' Modulus='%s' Exponent='%s'\n" "$HWRevision" "$version_major" "$product" "${k##*/}" "vendor" "$keyvalue" "$(sed -n -e '2p' "$k")"
+done
+#######################################################################################################
+#                                                                                                     #
+# end of script, no cleanup necessary                                                                 #
+#                                                                                                     #
+#######################################################################################################
+exit 0

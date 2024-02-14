@@ -1,0 +1,57 @@
+--- runopts.h
++++ runopts.h
+@@ -104,6 +104,9 @@
+ 	gid_t restrict_group_gid;
+ #endif
+ 
++	/* FRITZ!box */
++	int rootonlylogin;
++
+ 	int noauthpass;
+ 	int norootpass;
+ 	int allowblankpass;
+--- svr-runopts.c
++++ svr-runopts.c
+@@ -74,6 +74,7 @@
+ 					"-m		Don't display the motd on login\n"
+ #endif
+ 					"-w		Disallow root logins\n"
++					"-0		Allow only root logins\n"
+ #ifdef HAVE_GETGROUPLIST
+ 					"-G		Restrict logins to members of specified group\n"
+ #endif
+@@ -154,6 +155,7 @@
+ 	svr_opts.forced_command = NULL;
+ 	svr_opts.forkbg = 1;
+ 	svr_opts.norootlogin = 0;
++	svr_opts.rootonlylogin = 0;
+ #ifdef HAVE_GETGROUPLIST
+ 	svr_opts.restrict_group = NULL;
+ 	svr_opts.restrict_group_gid = 0;
+@@ -274,6 +276,9 @@
+ 				case 'w':
+ 					svr_opts.norootlogin = 1;
+ 					break;
++				case '0':
++					svr_opts.rootonlylogin = 1;
++					break;
+ #ifdef HAVE_GETGROUPLIST
+ 				case 'G':
+ 					next = &svr_opts.restrict_group;
+--- svr-auth.c
++++ svr-auth.c
+@@ -303,6 +303,14 @@
+ 	}
+ #endif /* HAVE_GETGROUPLIST */
+ 
++	/* FRITZBOX PATCH: only allow root user */
++	if (svr_opts.rootonlylogin && ses.authstate.pw_uid != 0) {
++		TRACE(("leave checkusername: non-root login disabled"))
++		dropbear_log(LOG_WARNING, "non-root login rejected");
++		send_msg_userauth_failure(0, 1);
++		return DROPBEAR_FAILURE;
++	}
++
+ 	TRACE(("shell is %s", ses.authstate.pw_shell))
+ 
+ 	/* check that the shell is set */

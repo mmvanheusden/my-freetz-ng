@@ -1,0 +1,10 @@
+config FREETZ_LIB_libtesseract
+	bool "libtesseract (libtesseract.so)"
+	select FREETZ_STDCXXLIB_FORCE_GNULIBSTDCXX
+	select FREETZ_LIB_STDCXXLIB
+	select FREETZ_LIB_libpthread if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_liblept
+	default n
+	help
+		Tesseract OCR engine library
+

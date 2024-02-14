@@ -1,0 +1,7 @@
+config FREETZ_LIB_libopenjpeg
+	bool "libopenjpeg (libopenjpeg.so)"
+	select FREETZ_LIB_libm if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	default n
+	help
+		JPEG 2000 image compression/decompression library
+

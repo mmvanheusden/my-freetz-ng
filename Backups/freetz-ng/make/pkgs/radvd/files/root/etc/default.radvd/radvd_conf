@@ -1,0 +1,45 @@
+#!/bin/sh
+[ $RADVD_SETMANAGED == "yes" ] && RADVD_SETVMANAGED=on || RADVD_SETVMANAGED=off
+[ $RADVD_SETOTHER == "yes" ] && RADVD_SETVOTHER=on || RADVD_SETVOTHER=off
+cat << EOF
+interface $RADVD_INTERFACE
+{
+	AdvSendAdvert on;
+	AdvManagedFlag $RADVD_SETVMANAGED;
+	AdvOtherConfigFlag $RADVD_SETVOTHER;
+	AdvLinkMTU $RADVD_MTU;
+	prefix $RADVD_PREFIX
+	{
+
+	};
+EOF
+if [ -n "$RADVD_RDNS" ]; then
+cat << EOF
+	RDNSS $RADVD_RDNS
+	{
+	};
+EOF
+fi
+if [ -n "$RADVD_DNSSL" ]; then
+cat << EOF
+	DNSSL $RADVD_DNSSL
+	{
+	};
+EOF
+fi
+if [ -n "$RADVD_CLIENTS" ]; then
+cat << EOF
+	clients
+	{
+EOF
+for client in $RADVD_CLIENTS; do
+echo "	${client};"
+done
+cat << EOF
+	};
+EOF
+fi
+
+cat << EOF
+};
+EOF

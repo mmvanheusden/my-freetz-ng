@@ -1,0 +1,18 @@
+config EXTERNAL_FREETZ_PACKAGE_APACHE2
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_APACHE2 && EXTERNAL_SUBDIRS
+	bool "Apache2"
+	default n
+	help
+		externals the following file(s):
+		 /usr/sbin/apache2
+		 /usr/sbin/apachectl
+		 /usr/sbin/checkgid
+		 /usr/sbin/envvars
+		 /usr/sbin/fcgistarter
+		 /usr/sbin/htcacheclean
+		 /usr/sbin/rotatelogs
+		 /usr/sbin/suexec2
+		 /etc/apache2/
+		 /usr/lib/apache2/
+		 /usr/share/apache2/
+

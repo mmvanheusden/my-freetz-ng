@@ -1,0 +1,33 @@
+config FREETZ_LIB_librrd
+	bool "librrd (librrd.so)"
+	select FREETZ_LIB_libglib_2        if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_LIB_libgobject_2     if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_LIB_libintl          if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_LIB_libharfbuzz      if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_LIB_libcairo         if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_LIB_libpango_1       if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_LIB_libpangocairo_1  if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_LIB_libxml2          if FREETZ_PACKAGE_RRDTOOL_VERSION_CURRENT
+	select FREETZ_LIB_libpng16
+	select FREETZ_LIB_libm             if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libart_lgpl_2    if FREETZ_PACKAGE_RRDTOOL_VERSION_ABANDON
+	select FREETZ_LIB_libfreetype      if FREETZ_PACKAGE_RRDTOOL_VERSION_ABANDON
+	select FREETZ_LIB_libz             if FREETZ_PACKAGE_RRDTOOL_VERSION_ABANDON
+	default n
+	help
+		Library implementing most of the functionality of RRDTool.
+
+config FREETZ_LIB_librrd_th
+	bool "librrd_th (librrd_th.so)"
+	depends on FREETZ_PACKAGE_RRDTOOL_VERSION_ABANDON
+	select FREETZ_LIB_libpthread  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libart_lgpl_2
+	select FREETZ_LIB_libfreetype
+	select FREETZ_LIB_libm        if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libpng16
+	select FREETZ_LIB_libz
+	default n
+	help
+		Threaded version of librrd library.
+		This lib is only available with RRDtool version 1.2.
+

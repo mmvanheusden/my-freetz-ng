@@ -1,0 +1,385 @@
+--- src/mod_openssl.c
++++ src/mod_openssl.c
+@@ -187,6 +187,11 @@
+ #define LOCAL_SEND_BUFSIZE (16 * 1024)
+ static char *local_send_buffer;
+ 
++static char* lighttpd_ERR_error_string_n(unsigned long e, char* buf, unsigned long len) {
++     ERR_error_string_n(e, buf, len);
++     return buf;
++}
++
+ typedef struct {
+     SSL *ssl;
+     request_st *r;
+@@ -499,9 +504,10 @@
+     memcpy(ocsp_resp, ssl_stapling->ptr, len);
+ 
+     if (!SSL_set_tlsext_status_ocsp_resp(ssl, ocsp_resp, len)) {
++        char ssl_error_string_buf[256];
+         log_error(hctx->r->conf.errh, __FILE__, __LINE__,
+           "SSL: failed to set OCSP response for TLS server name %s: %s",
+-          hctx->r->uri.authority.ptr, ERR_error_string(ERR_get_error(), NULL));
++          hctx->r->uri.authority.ptr, lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+         OPENSSL_free(ocsp_resp);
+         return SSL_TLSEXT_ERR_NOACK; /* ignore OCSP request if error occurs */
+         /*return SSL_TLSEXT_ERR_ALERT_FATAL;*/
+@@ -807,8 +813,9 @@
+     if (1 != X509_STORE_load_locations(store, ssl_ca_crl_file->ptr, NULL))
+   #endif
+     {
++        char ssl_error_string_buf[256];
+         log_error(srv->errh, __FILE__, __LINE__,
+-          "SSL: %s %s", ERR_error_string(ERR_get_error(), NULL),
++          "SSL: %s %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)),
+           ssl_ca_crl_file->ptr);
+         return 0;
+     }
+@@ -826,8 +833,9 @@
+     if (1 == SSL_CTX_load_verify_locations(ssl_ctx, fn, NULL))
+         return 1;
+ 
++    char ssl_error_string_buf[256];
+     log_error(srv->errh, __FILE__, __LINE__,
+-      "SSL: %s %s", ERR_error_string(ERR_get_error(), NULL), fn);
++      "SSL: %s %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)), fn);
+     return 0;
+ }
+ 
+@@ -1100,9 +1108,10 @@
+     /* first set certificate!
+      * setting private key checks whether certificate matches it */
+     if (1 != SSL_use_certificate(ssl, pc->ssl_pemfile_x509)) {
++        char ssl_error_string_buf[256];
+         log_error(hctx->r->conf.errh, __FILE__, __LINE__,
+           "SSL: failed to set certificate for TLS server name %s: %s",
+-          hctx->r->uri.authority.ptr, ERR_error_string(ERR_get_error(), NULL));
++          hctx->r->uri.authority.ptr, lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+         return 0;
+     }
+ 
+@@ -1125,10 +1134,11 @@
+                                         SSL_BUILD_CHAIN_FLAG_NO_ROOT
+                                       | SSL_BUILD_CHAIN_FLAG_IGNORE_ERROR
+                                       | SSL_BUILD_CHAIN_FLAG_CLEAR_ERROR)) {
++            char ssl_error_string_buf[256];
+             log_error(hctx->r->conf.errh, __FILE__, __LINE__,
+               "SSL: building cert chain for TLS server name %s: %s",
+               hctx->r->uri.authority.ptr,
+-              ERR_error_string(ERR_get_error(), NULL));
++              lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             return 0;
+         }
+         else { /* copy chain for future reuse */
+@@ -1142,9 +1152,10 @@
+   #endif
+ 
+     if (1 != SSL_use_PrivateKey(ssl, pc->ssl_pemfile_pkey)) {
++        char ssl_error_string_buf[256];
+         log_error(hctx->r->conf.errh, __FILE__, __LINE__,
+           "SSL: failed to set private key for TLS server name %s: %s",
+-          hctx->r->uri.authority.ptr, ERR_error_string(ERR_get_error(), NULL));
++          hctx->r->uri.authority.ptr, lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+         return 0;
+     }
+ 
+@@ -1154,9 +1165,10 @@
+     buffer *ocsp_resp = pc->ssl_stapling;
+     if (NULL != ocsp_resp
+         && !SSL_set_ocsp_response(ssl, (uint8_t *)BUF_PTR_LEN(ocsp_resp))) {
++        char ssl_error_string_buf[256];
+         log_error(hctx->r->conf.errh, __FILE__, __LINE__,
+           "SSL: failed to set OCSP response for TLS server name %s: %s",
+-          hctx->r->uri.authority.ptr, ERR_error_string(ERR_get_error(), NULL));
++          hctx->r->uri.authority.ptr, lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+         return 0;
+     }
+   #endif
+@@ -1443,9 +1455,10 @@
+     BIO_free(in);
+     free(data);
+     if (NULL == x) {
++        char ssl_error_string_buf[256];
+         log_error(errh, __FILE__, __LINE__,
+           "SSL: OCSP stapling file read error: %s %s",
+-          ERR_error_string(ERR_get_error(), NULL), file);
++          lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)), file);
+         return NULL;
+     }
+ 
+@@ -1719,9 +1732,10 @@
+     }
+ 
+     if (!X509_check_private_key(ssl_pemfile_x509, ssl_pemfile_pkey)) {
++        char ssl_error_string_buf[256];
+         log_error(srv->errh, __FILE__, __LINE__, "SSL:"
+           "Private key does not match the certificate public key, "
+-          "reason: %s %s %s", ERR_error_string(ERR_get_error(), NULL),
++          "reason: %s %s %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)),
+           pemfile->ptr, privkey->ptr);
+         EVP_PKEY_free(ssl_pemfile_pkey);
+         X509_free(ssl_pemfile_x509);
+@@ -1829,10 +1843,11 @@
+ 
+       #if 0 /* redundant with below? */
+         if (!X509_check_private_key(ssl_pemfile_x509, ssl_pemfile_pkey)) {
++            char ssl_error_string_buf[256];
+             log_error(errh, __FILE__, __LINE__,
+                "SSL: Private key does not match acme-tls/1 "
+                "certificate public key, reason: %s %s"
+-               ERR_error_string(ERR_get_error(), NULL), b->ptr);
++               lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)), b->ptr);
+             break;
+         }
+       #endif
+@@ -1840,9 +1855,10 @@
+         /* first set certificate!
+          * setting private key checks whether certificate matches it */
+         if (1 != SSL_use_certificate(ssl, ssl_pemfile_x509)) {
++            char ssl_error_string_buf[256];
+             log_error(errh, __FILE__, __LINE__,
+               "SSL: failed to set acme-tls/1 certificate for TLS server "
+-              "name %s: %s", name->ptr, ERR_error_string(ERR_get_error(),NULL));
++              "name %s: %s", name->ptr, lighttpd_ERR_error_string_n(ERR_get_error(),ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             break;
+         }
+ 
+@@ -1852,9 +1868,10 @@
+         }
+ 
+         if (1 != SSL_use_PrivateKey(ssl, ssl_pemfile_pkey)) {
++            char ssl_error_string_buf[256];
+             log_error(errh, __FILE__, __LINE__,
+               "SSL: failed to set acme-tls/1 private key for TLS server "
+-              "name %s: %s", name->ptr, ERR_error_string(ERR_get_error(),NULL));
++              "name %s: %s", name->ptr, lighttpd_ERR_error_string_n(ERR_get_error(),ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             break;
+         }
+ 
+@@ -2011,18 +2028,20 @@
+       #endif
+         ERR_clear_error();
+         if (SSL_CONF_cmd(cctx, ds->key.ptr, ds->value.ptr) <= 0) {
++            char ssl_error_string_buf[256];
+             log_error(srv->errh, __FILE__, __LINE__,
+               "SSL: SSL_CONF_cmd %s %s: %s", ds->key.ptr, ds->value.ptr,
+-              ERR_error_string(ERR_get_error(), NULL));
++              lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             rc = -1;
+             break;
+         }
+     }
+ 
+     if (0 == rc && 1 != SSL_CONF_CTX_finish(cctx)) {
++        char ssl_error_string_buf[256];
+         log_error(srv->errh, __FILE__, __LINE__,
+           "SSL: SSL_CONF_CTX_finish(): %s",
+-          ERR_error_string(ERR_get_error(), NULL));
++          lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+         rc = -1;
+     }
+ 
+@@ -2287,8 +2306,9 @@
+         s->ssl_ctx = SSL_CTX_new(SSLv23_server_method());
+       #endif
+         if (NULL == s->ssl_ctx) {
++            char ssl_error_string_buf[256];
+             log_error(srv->errh, __FILE__, __LINE__,
+-              "SSL: %s", ERR_error_string(ERR_get_error(), NULL));
++              "SSL: %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             return -1;
+         }
+ 
+@@ -2307,9 +2327,10 @@
+          * required for client cert verification to work with sessions */
+         if (0 == SSL_CTX_set_session_id_context(
+                    s->ssl_ctx,(const unsigned char*)CONST_STR_LEN("lighttpd"))){
++            char ssl_error_string_buf[256];
+             log_error(srv->errh, __FILE__, __LINE__,
+               "SSL: failed to set session context: %s",
+-              ERR_error_string(ERR_get_error(), NULL));
++              lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             return -1;
+         }
+ 
+@@ -2330,8 +2351,9 @@
+             if ((SSL_OP_NO_SSLv2
+                  & SSL_CTX_set_options(s->ssl_ctx, SSL_OP_NO_SSLv2))
+                 != SSL_OP_NO_SSLv2) {
++                char ssl_error_string_buf[256];
+                 log_error(srv->errh, __FILE__, __LINE__,
+-                  "SSL: %s", ERR_error_string(ERR_get_error(), NULL));
++                  "SSL: %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+                 return -1;
+             }
+         }
+@@ -2341,8 +2363,9 @@
+             if ((SSL_OP_NO_SSLv3
+                  & SSL_CTX_set_options(s->ssl_ctx, SSL_OP_NO_SSLv3))
+                 != SSL_OP_NO_SSLv3) {
++                char ssl_error_string_buf[256];
+                 log_error(srv->errh, __FILE__, __LINE__,
+-                  "SSL: %s", ERR_error_string(ERR_get_error(), NULL));
++                  "SSL: %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+                 return -1;
+             }
+         }
+@@ -2350,8 +2373,9 @@
+         if (s->ssl_cipher_list) {
+             /* Disable support for low encryption ciphers */
+             if (SSL_CTX_set_cipher_list(s->ssl_ctx,s->ssl_cipher_list->ptr)!=1){
++                char ssl_error_string_buf[256];
+                 log_error(srv->errh, __FILE__, __LINE__,
+-                  "SSL: %s", ERR_error_string(ERR_get_error(), NULL));
++                  "SSL: %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+                 return -1;
+             }
+ 
+@@ -2445,23 +2469,26 @@
+ 
+         if (1 != SSL_CTX_use_certificate_chain_file(s->ssl_ctx,
+                                                     s->pc->ssl_pemfile->ptr)) {
++            char ssl_error_string_buf[256];
+             log_error(srv->errh, __FILE__, __LINE__,
+-              "SSL: %s %s", ERR_error_string(ERR_get_error(), NULL),
++              "SSL: %s %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)),
+               s->pc->ssl_pemfile->ptr);
+             return -1;
+         }
+ 
+         if (1 != SSL_CTX_use_PrivateKey(s->ssl_ctx, s->pc->ssl_pemfile_pkey)) {
++            char ssl_error_string_buf[256];
+             log_error(srv->errh, __FILE__, __LINE__,
+-              "SSL: %s %s %s", ERR_error_string(ERR_get_error(), NULL),
++              "SSL: %s %s %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)),
+               s->pc->ssl_pemfile->ptr, s->pc->ssl_privkey->ptr);
+             return -1;
+         }
+ 
+         if (SSL_CTX_check_private_key(s->ssl_ctx) != 1) {
++            char ssl_error_string_buf[256];
+             log_error(srv->errh, __FILE__, __LINE__,
+               "SSL: Private key does not match the certificate public key, "
+-              "reason: %s %s %s", ERR_error_string(ERR_get_error(), NULL),
++              "reason: %s %s %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)),
+               s->pc->ssl_pemfile->ptr, s->pc->ssl_privkey->ptr);
+             return -1;
+         }
+@@ -2828,6 +2855,7 @@
+         config_plugin_value_t *cpv = p->cvlist + p->cvlist[i].v.u2[0];
+         config_plugin_value_t *pemfile = NULL;
+         config_plugin_value_t *privkey = NULL;
++        char ssl_error_string_buf[256];
+         const buffer *ssl_stapling_file = NULL;
+         const buffer *ssl_ca_file = NULL;
+         const buffer *ssl_ca_dn_file = NULL;
+@@ -2855,7 +2883,7 @@
+                 }
+                 else {
+                     log_error(srv->errh, __FILE__, __LINE__, "SSL: %s %s",
+-                      ERR_error_string(ERR_get_error(), NULL),
++                      lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)),
+                       ssl_ca_file->ptr);
+                     return HANDLER_ERROR;
+                 }
+@@ -2873,7 +2901,7 @@
+                 }
+                 else {
+                     log_error(srv->errh, __FILE__, __LINE__, "SSL: %s %s",
+-                      ERR_error_string(ERR_get_error(), NULL),
++                      lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)),
+                       ssl_ca_dn_file->ptr);
+                     return HANDLER_ERROR;
+                 }
+@@ -3048,6 +3076,7 @@
+ {
+     int ssl_r;
+     unsigned long err;
++    char ssl_error_string_buf[256];
+ 
+     switch ((ssl_r = SSL_get_error(ssl, wr))) {
+       case SSL_ERROR_WANT_READ:
+@@ -3061,7 +3090,7 @@
+         if (0 != (err = ERR_get_error())) {
+             do {
+                 log_error(errh, __FILE__, __LINE__,
+-                  "SSL: %d %d %s",ssl_r,wr,ERR_error_string(err,NULL));
++                  "SSL: %d %d %s",ssl_r,wr,lighttpd_ERR_error_string_n(err, ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             } while ((err = ERR_get_error()));
+         }
+         else if (wr == -1) {
+@@ -3091,7 +3120,7 @@
+       default:
+         while ((err = ERR_get_error()))
+             log_error(errh, __FILE__, __LINE__,
+-              "SSL: %d %d %s", ssl_r, wr, ERR_error_string(err, NULL));
++              "SSL: %d %d %s", ssl_r, wr, lighttpd_ERR_error_string_n(err, ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+         break;
+     }
+ 
+@@ -3306,8 +3335,9 @@
+              */
+             while((ssl_err = ERR_get_error())) {
+                 /* get all errors from the error-queue */
++                char ssl_error_string_buf[256];
+                 log_error(hctx->errh, __FILE__, __LINE__,
+-                  "SSL: %d %s", rc, ERR_error_string(ssl_err, NULL));
++                  "SSL: %d %s", rc, lighttpd_ERR_error_string_n(ssl_err, ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             }
+ 
+             switch(oerrno) {
+@@ -3364,8 +3394,9 @@
+                     break;
+                 }
+                 /* get all errors from the error-queue */
++                char ssl_error_string_buf[256];
+                 log_error(hctx->errh, __FILE__, __LINE__,
+-                  "SSL: %d %s (%s)", rc, ERR_error_string(ssl_err, NULL),
++                  "SSL: %d %s (%s)", rc, lighttpd_ERR_error_string_n(ssl_err, ssl_error_string_buf, sizeof(ssl_error_string_buf)),
+                   con->dst_addr_buf.ptr);
+             }
+             break;
+@@ -3411,8 +3442,9 @@
+         return HANDLER_GO_ON;
+     }
+     else {
++        char ssl_error_string_buf[256];
+         log_error(r->conf.errh, __FILE__, __LINE__,
+-          "SSL: %s", ERR_error_string(ERR_get_error(), NULL));
++          "SSL: %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+         return HANDLER_ERROR;
+     }
+ }
+@@ -3538,8 +3570,9 @@
+             default:
+                 errh = hctx->r->conf.errh;
+                 while((err = ERR_get_error())) {
++                    char ssl_error_string_buf[256];
+                     log_error(errh, __FILE__, __LINE__,
+-                      "SSL: %d %d %s", ssl_r, ret, ERR_error_string(err, NULL));
++                      "SSL: %d %d %s", ssl_r, ret, lighttpd_ERR_error_string_n(err, ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+                 }
+ 
+                 break;
+@@ -3990,8 +4023,9 @@
+     if (ciphersuites && !buffer_is_blank(ciphersuites)) {
+       #if defined(LIBRESSL_VERSION_NUMBER) && defined(LIBRESSL_HAS_TLS1_3)
+         if (SSL_CTX_set_ciphersuites(s->ssl_ctx, ciphersuites->ptr) != 1) {
++            char ssl_error_string_buf[256];
+             log_error(srv->errh, __FILE__, __LINE__,
+-              "SSL: %s", ERR_error_string(ERR_get_error(), NULL));
++              "SSL: %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             rc = -1;
+         }
+       #endif
+@@ -4002,8 +4036,9 @@
+         buffer_append_string_len(cipherstring,
+                                  CONST_STR_LEN(":!aNULL:!eNULL:!EXP"));
+         if (SSL_CTX_set_cipher_list(s->ssl_ctx, cipherstring->ptr) != 1) {
++            char ssl_error_string_buf[256];
+             log_error(srv->errh, __FILE__, __LINE__,
+-              "SSL: %s", ERR_error_string(ERR_get_error(), NULL));
++              "SSL: %s", lighttpd_ERR_error_string_n(ERR_get_error(), ssl_error_string_buf, sizeof(ssl_error_string_buf)));
+             rc = -1;
+         }
+ 

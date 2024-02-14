@@ -1,0 +1,11 @@
+--- Makefile.in
++++ Makefile.in
+@@ -1973,7 +1973,7 @@
+ info-am: $(INFO_DEPS)
+ 
+ install-data-am: install-data-local install-includeHEADERS \
+-	install-info-am install-ltdlincludeHEADERS install-man
++	                install-ltdlincludeHEADERS            
+ 
+ install-dvi: install-dvi-recursive
+ 

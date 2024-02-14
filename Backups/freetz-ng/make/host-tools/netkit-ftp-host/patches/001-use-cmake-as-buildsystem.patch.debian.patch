@@ -1,0 +1,57 @@
+Description: Use cmake as build system
+Author: Christoph Biedl <debian.axhn@manchmal.in-ulm.de>
+Bug-Debian: https://bugs.debian.org/912125
+Last-Update: 2019-02-24
+
+--- /dev/null
++++ CMakeLists.txt
+@@ -0,0 +1,10 @@
++cmake_minimum_required(VERSION 3.7)
++project(netkit-ftp)
++
++set(BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin")
++set(MAN_DIR "${CMAKE_INSTALL_PREFIX}/share/man")
++
++find_library(USE_READLINE readline)
++find_library(USE_CRYPT crypt REQUIRED)
++
++add_subdirectory(ftp)
+--- /dev/null
++++ ftp/CMakeLists.txt
+@@ -0,0 +1,36 @@
++
++add_executable(
++    ftp
++    cmds.c
++    cmdtab.c
++    domacro.c
++    ftp.c
++    main.c
++    ruserpass.c
++)
++install(
++    TARGETS ftp
++    DESTINATION ${BIN_DIR}
++)
++install(
++    CODE "execute_process( \
++        COMMAND ${CMAKE_COMMAND} -E create_symlink \
++        ptftp \$ENV{DESTDIR}${BIN_DIR}/ftp \
++    )"
++)
++
++install(
++    FILES ftp.1
++    DESTINATION ${MAN_DIR}/man1/
++)
++install(
++    CODE "execute_process( \
++        COMMAND ${CMAKE_COMMAND} -E create_symlink \
++        pftp.1 \$ENV{DESTDIR}${MAN_DIR}/pftp.1 \
++    )"
++)
++
++install(
++    FILES netrc.5
++    DESTINATION ${MAN_DIR}/man5/
++)

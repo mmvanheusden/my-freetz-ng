@@ -1,0 +1,9 @@
+config EXTERNAL_FREETZ_PACKAGE_GIT
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_GIT
+	bool "Git"
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/git*
+		 /usr/lib/git-core/
+

@@ -1,0 +1,9 @@
+config EXTERNAL_FREETZ_PACKAGE_P7ZIP
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_P7ZIP && EXTERNAL_SUBDIRS
+	bool "p7zip"
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/7z
+		 /usr/lib/p7zip/
+

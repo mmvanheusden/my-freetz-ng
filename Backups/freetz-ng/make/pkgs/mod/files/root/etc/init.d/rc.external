@@ -1,0 +1,251 @@
+#!/bin/sh
+
+DAEMON=external
+CONF_NAME=mod
+. /etc/init.d/modlibrc
+
+LOG_FILE=/var/log/$DAEMON.log
+EXTERNAL_LINK=/mod/external
+EXTERNAL_DIRECTORY=`echo $MOD_EXTERNAL_DIRECTORY|sed 's/\/*$//'`
+EXTERNAL_CUSTOM_FILE=/tmp/flash/mod/rc.external
+
+#parameter -n: no new-line at line end
+#parameter -x: add trailing new-line, if logfile exists
+log() {
+	local addl=""
+	local newl=""
+	while [ "$1" == "-n" -o "$1" == "-x" ]; do
+		[ "$1" == "-n" ] && newl="-n"
+		[ "$1" == "-x" ] && [ -f $LOG_FILE ] && addl="\n"
+		shift
+	done
+	[ -z "$*" ] && return
+	echo $newl -e "$addl$*" | tee -a $LOG_FILE
+	[ "$*" == "." -o "$*" == " ." ] && return
+	IFS='\n' echo "$*" | while read -r line; do
+		loglib_system "$DAEMON" "$line"
+	done
+}
+
+check_date() {
+	log -n "Waiting for time-synchronisation:"
+	counter=225
+	spaceit=" "
+	while [ `date +%Y` -lt 2020 -a $counter -ne 0 ]; do
+		log -n "$spaceit."
+		spaceit=
+		[ "$MOD_EXTERNAL_WAIT_INFINITE" == "yes" ] || let counter=$counter-1
+		sleep 4
+	done
+	if [ `date +%Y` -lt 2020 ]; then
+		log " timeout, failed."
+		exit 1
+	fi
+	if [ `date +%Y` -gt $MOD_EXTERNAL_YEAR_MAX ]; then
+		log " error, failed."
+		[ -f /tmp/flash/mod/external.year ] && . /tmp/flash/mod/external.year
+		exit 1
+	fi
+	log " done."
+}
+
+exec_rcs() {
+	eventadd 1 "Running external: $1" 2>/dev/null
+	if [ "$MOD_EXTERNAL_FREETZ_SERVICES" != "yes" ]; then
+		if [ -z "$MOD_EXTERNAL_OWN_SERVICES" ]; then
+			log "No services selected, failed."
+			exit 1
+		fi
+		EXTERNAL_SERVICES="$(echo $MOD_EXTERNAL_OWN_SERVICES | tr '\n' ' ')"
+	else
+		EXTERNAL_SERVICES="$(cat /mod/etc/external.pkg 2>/dev/null) $(echo $MOD_EXTERNAL_OWN_SERVICES | tr '\n' ' ')"
+	fi
+	if ! status; then
+		log "Directory could not be found, failed."
+		exit 1
+	fi
+	for pkg in $(cat /mod/etc/static.pkg 2>/dev/null); do
+		if echo " $EXTERNAL_SERVICES " | grep -q " $pkg "; then
+			[ -x /mod/etc/init.d/rc.$pkg ] && log "$(/mod/etc/init.d/rc.$pkg $1 2>&1)"
+		fi
+	done
+	[ -f $EXTERNAL_CUSTOM_FILE ] && log "$(. $EXTERNAL_CUSTOM_FILE $1 2>&1)"
+}
+
+start() {
+	log -x "Starting external ($EXTERNAL_DIRECTORY):"
+
+	# wait until it's external's turn
+	if [ ! -e /tmp/.mod.started -o -e /var/run/onlinechanged ]; then
+		log -n "Waiting for mod-startup:"
+		spaceit=" "
+		while [ true ]; do
+			[ -e /tmp/.mod.started -a ! -e /var/run/onlinechanged ] && break
+			log -n "$spaceit."
+			spaceit=
+			sleep 1
+		done
+		log " done."
+	fi
+	[ "$MOD_EXTERNAL_YEAR_MIN" == "yes" ] && check_date
+
+	# create /mod/external
+	rm -rf "$EXTERNAL_LINK" 2>/dev/null
+	ln -s "$EXTERNAL_DIRECTORY" "$EXTERNAL_LINK"
+
+	# create /mod/etc/(static|external).pkg
+	if [ -e "${EXTERNAL_LINK}/.external" ]; then
+		EXTERNAL_SERVICES="$(cat ${EXTERNAL_LINK}/*.pkg 2>/dev/null | tr "\n" " ")"
+		echo "$EXTERNAL_SERVICES" > /mod/etc/external.pkg
+		for package in $EXTERNAL_SERVICES; do
+			grep -q "^$package$" /mod/etc/static.pkg || echo "$package" >> /mod/etc/static.pkg
+		done
+	fi
+
+	# create dynamic links (or copy)
+	[ -r /etc/options.cfg ] && . /etc/options.cfg
+	[ "$EXTERNAL_DYNAMIC" == "y" ] && local SRC_DIR="${EXTERNAL_LINK}" || local SRC_DIR=""
+	for pkg in $(cat /mod/etc/external.pkg); do
+		status="$(/mod/etc/init.d/rc.$pkg status 2>/dev/null)"
+		[ -n "$status" -a "$status" != "stopped" ] && continue
+		for src in \
+		  ${SRC_DIR}/etc/default.$pkg \
+		  ${SRC_DIR}/etc/init.d/rc.$pkg \
+		  ${SRC_DIR}/etc/init.d/rc.$pkg.* \
+		  ${SRC_DIR}/etc/onlinechanged/*$pkg \
+		  ${SRC_DIR}/etc/cron.d/$pkg \
+		  ${SRC_DIR}/usr/lib/cgi-bin/$pkg.cgi \
+		  ${SRC_DIR}/usr/lib/cgi-bin/$pkg \
+		  ; do
+			# no links to local scripts in /etc/
+			# the condition below could only be fulfilled if $EXTERNAL_DYNAMIC != y
+			case $src in
+				/etc/onlinechanged/*|/etc/cron.d/*) continue ;;
+			esac
+
+			[ ! -e "$src" ] && continue
+			dst="/mod${src#$EXTERNAL_LINK}"
+			mkdir -p "${src%/*}"
+			rm -rf "$dst" 2>/dev/null
+			if [ "$MOD_EXTERNAL_BEHAVIOUR" == "copy" -a "$EXTERNAL_DYNAMIC" == "y" ]; then
+				cp -r "$src" "$dst"
+			else
+				ln -s "$src" "$dst"
+			fi
+		done
+		[ -r "/mod/etc/default.$pkg/$pkg.cfg" ] && /usr/bin/modconf load "$pkg"
+	done
+
+	exec_rcs load
+
+	log "Starting external finished."
+}
+
+stop() {
+	log -x "Stopping external ($EXTERNAL_DIRECTORY):"
+
+	if [ -e /var/run/shutdown ]; then
+		log -x "Stopping external is skipped because of system shutdown."
+		return
+	fi
+
+	exec_rcs unload
+
+	# remove dynamic
+	for pkg in $(cat /mod/etc/external.pkg); do
+		remove_scripts $pkg
+	done
+
+	rm -rf "$EXTERNAL_LINK" 2>/dev/null
+	tar xf /var.tar ./var/mod/etc/external.pkg ./var/mod/etc/static.pkg -C /
+
+	log "Stopping external finished."
+}
+
+status() {
+	[ -L "$EXTERNAL_LINK" -a -d "$EXTERNAL_LINK" ] && return 0
+	rm -rf "$EXTERNAL_LINK" 2>/dev/null
+	return 1
+}
+
+remove_scripts() {
+	#removes script-links (after unload)
+	local pkg=$1
+	rm -rf \
+	  /mod/etc/default.$pkg \
+	  /mod/etc/init.d/rc.$pkg        /mod/etc/init.d/rc.$pkg.* \
+	  /mod/etc/onlinechanged/*$pkg   /mod/etc/cron.d/$pkg \
+	  /mod/usr/lib/cgi-bin/$pkg.cgi  /mod/usr/lib/cgi-bin/$pkg \
+	  2>/dev/null
+}
+
+remove() {
+	# removes single packages
+	for pkg in $*; do
+		if ! echo " $(cat /mod/etc/external.pkg) " | grep -q " $pkg "; then
+			log "Can not remove package '$pkg', failed."
+			continue
+		fi
+		# unload package
+		[ -x /mod/etc/init.d/rc.$pkg ] && log "$(/mod/etc/init.d/rc.$pkg unload 2>&1)"
+		#delete scripts
+		remove_scripts $pkg
+		# remove PKG from external.pkg
+		sed -i "s/^$pkg //;s/ $pkg / /;s/ $pkg$//" /mod/etc/external.pkg
+		log "Removed package '$pkg', done."
+	done
+}
+
+usage() {
+	echo "Usage: $0 [start [mountpoint]|stop|status|remove <PKG>]" 1>&2
+	echo "Logfile is stored here: $LOG_FILE"
+	exit 1
+}
+
+create_custom_file() {
+cat << 'EOF' > $EXTERNAL_CUSTOM_FILE
+#!/bin/sh
+case "$1" in
+	load)
+		;;
+	unload)
+		;;
+esac
+EOF
+}
+
+
+case $1 in
+	start|stop)
+	if [ $# -ge 2 ]; then
+		# no output, every mounted partition runs this with its path
+		echo "$EXTERNAL_DIRECTORY" | grep -q "$2" || exit 1
+	fi
+esac
+
+case $1 in
+	""|load)
+		modreg file mod rc_external rc.external 0 rc_external
+
+		[ ! -e $EXTERNAL_CUSTOM_FILE ] && create_custom_file
+		;;
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	status)
+		status && echo running || echo stopped
+		;;
+	remove)
+		shift
+		[ $# -lt 1 ] && usage
+		remove $*
+		;;
+	*)
+		usage
+		;;
+esac
+
+exit 0

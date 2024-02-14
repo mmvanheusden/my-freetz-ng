@@ -1,0 +1,46 @@
+config FREETZ_PACKAGE_MODULE_INIT_TOOLS
+	bool "module-init-tools 3.12 (binary only)"
+	default n
+	help
+		The module-init-tools (m-i-t) package provides many of
+		the utilities needed by Linux systems for managing loadable
+		Linux Kernel Modules. This includes depmod, insmod, rmmod,
+		modprobe and tools like modinfo.
+
+
+if FREETZ_PACKAGE_MODULE_INIT_TOOLS
+
+config FREETZ_PACKAGE_MODULE_INIT_TOOLS_depmod
+	bool "depmod"
+	default n
+
+config FREETZ_PACKAGE_MODULE_INIT_TOOLS_insmod
+	bool "insmod"
+	depends on !FREETZ_AVM_HAS_KMOD
+	default n
+
+config FREETZ_PACKAGE_MODULE_INIT_TOOLS_lsmod
+	depends on !FREETZ_AVM_HAS_KMOD
+	bool "lsmod"
+	default n
+
+config FREETZ_PACKAGE_MODULE_INIT_TOOLS_modindex
+	bool "modindex"
+	default n
+
+config FREETZ_PACKAGE_MODULE_INIT_TOOLS_modinfo
+	bool "modinfo"
+	default n
+
+config FREETZ_PACKAGE_MODULE_INIT_TOOLS_modprobe
+	bool "modprobe"
+	depends on !FREETZ_AVM_HAS_KMOD
+	default n
+
+config FREETZ_PACKAGE_MODULE_INIT_TOOLS_rmmod
+	bool "rmmod"
+	depends on !FREETZ_AVM_HAS_KMOD
+	default n
+
+endif #FREETZ_PACKAGE_MODULE_INIT_TOOLS
+

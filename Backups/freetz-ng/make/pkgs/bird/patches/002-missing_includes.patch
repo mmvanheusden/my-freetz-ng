@@ -1,0 +1,32 @@
+--- filter/tree.c
++++ filter/tree.c
+@@ -6,6 +6,8 @@
+  *	Can be freely distributed and used under the terms of the GNU GPL.
+  */
+ 
++#include <stdlib.h> /* qsort */
++
+ #include "lib/alloca.h"
+ #include "nest/bird.h"
+ #include "conf/conf.h"
+--- lib/alloca.h
++++ lib/alloca.h
+@@ -9,6 +9,8 @@
+ #ifndef _BIRD_ALLOCA_H_
+ #define _BIRD_ALLOCA_H_
+ 
++#include "nest/bird.h" /* HAVE_ALLOCA_H is defined in one of the headers included from nest/bird.h */
++
+ #ifdef HAVE_ALLOCA_H
+ #include <alloca.h>
+ #else
+--- lib/resource.h
++++ lib/resource.h
+@@ -93,6 +93,7 @@
+ #define xrealloc(size) _xrealloc_leap(__FILE__, __LINE__, size)
+ #define xfree(ptr) _xfree_leap(__FILE__, __LINE__, ptr)
+ #else
++#include <stdlib.h> /* free */
+ /*
+  * Unfortunately, several libraries we might want to link to define
+  * their own xmalloc and we don't want to interfere with them, hence

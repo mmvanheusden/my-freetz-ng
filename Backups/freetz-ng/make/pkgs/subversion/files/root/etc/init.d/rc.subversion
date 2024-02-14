@@ -1,0 +1,105 @@
+#!/bin/sh
+
+DAEMON=subversion
+DAEMON_BIN=svnserve
+DAEMON_LONG_NAME=Subversion
+PID_FILE=/var/run/$DAEMON.pid
+. /etc/init.d/modlibrc
+
+
+echoDone() { echo 'done.'; }
+echoFailed() { echo 'failed.'; }
+echoFailedAndExit() { echoFailed; [ -n "$1" ] && exit $1 || exit 1; }
+
+logfileOptions() {
+	modunreg status subversion
+	if [ "$SUBVERSION_LOGGING" = "yes" -a -n "$SUBVERSION_LOGFILE" ]; then
+		[ -f "$SUBVERSION_LOGFILE" ] || touch "$SUBVERSION_LOGFILE" >/dev/null 2>&1
+		if [ -f "$SUBVERSION_LOGFILE" ] && chown $SUBVERSION_USER:$SUBVERSION_GROUP "$SUBVERSION_LOGFILE" >/dev/null 2>&1; then
+			modreg status subversion Subversion subversion-log >/dev/null 2>&1
+			echo -n "--log-file $SUBVERSION_LOGFILE"
+		fi
+	fi
+}
+
+config() {
+	if ! echo "$SUBVERSION_NICELEVEL" | egrep -q "^(-20|-?1?[0-9])$" >/dev/null 2>&1; then
+		echo -e "\nInvalid nice level ($SUBVERSION_NICELEVEL), nice level must be between -20 (the highest priority) and 19 (the lowest)."
+		echoFailedAndExit
+	fi
+
+	if [ -z "$SUBVERSION_ROOT" ]; then
+		echo -e "\nSubversion repository directory must not be empty."
+		echoFailedAndExit
+	fi
+
+	if [ ! -d "$SUBVERSION_ROOT" ]; then
+		echoFailed
+		echo "The subversion repository ($SUBVERSION_ROOT) does not exist."
+		echo "Create a new repository and/or change the path using freetz' webinterface."
+		echo
+		echo "To create a new subversion repository use the following commands:"
+		echo "    mkdir -p /srv"
+		echo "    svnadmin create --fs-type fsfs /srv/SVNROOT"
+		exit 1
+	fi
+
+	chown -R $SUBVERSION_USER:$SUBVERSION_GROUP "$SUBVERSION_ROOT"
+
+	[ -e $PID_FILE ] || echo -n > $PID_FILE
+	chown $SUBVERSION_USER:$SUBVERSION_GROUP $PID_FILE
+}
+
+start() {
+	echo -n "Starting $DAEMON_LONG_NAME ... "
+
+	config
+
+	local OPTIONS="--daemon --pid-file $PID_FILE"
+	[ -n "$SUBVERSION_BINDADDRESS" ] && OPTIONS="$OPTIONS --listen-host $SUBVERSION_BINDADDRESS"
+	[ -n "$SUBVERSION_PORT" ] && OPTIONS="$OPTIONS --listen-port $SUBVERSION_PORT"
+
+	start-stop-daemon -S -N "$SUBVERSION_NICELEVEL" -x /usr/bin/$DAEMON_BIN -c $SUBVERSION_USER:$SUBVERSION_GROUP -q -- $OPTIONS --root "$SUBVERSION_ROOT" $(logfileOptions) \
+	|| echoFailedAndExit
+
+	sleep 1
+	modlib_check_running && echoDone || echoFailedAndExit
+}
+
+case $1 in
+	""|load)
+		modlib_add_user_and_group $SUBVERSION_USER $SUBVERSION_GROUP
+
+		modreg cgi $DAEMON $DAEMON_LONG_NAME
+		modreg daemon $DAEMON
+
+		modlib_start $SUBVERSION_ENABLED
+		;;
+	unload)
+		modunreg status $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	logfile-options) # for internal use only
+		logfileOptions
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

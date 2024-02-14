@@ -1,0 +1,50 @@
+$(call PKG_INIT_BIN, 3.4)
+$(PKG)_PRJNAME:=squashfs
+$(PKG)_SOURCE:=$($(PKG)_PRJNAME)$($(PKG)_VERSION).tar.gz
+$(PKG)_HASH:=9ea1a9b3bd4f387ca11b5e96f00f8ae996fb81c4c7ad41f7c7f359917628a339
+$(PKG)_SITE:=@SF/$($(PKG)_PRJNAME)
+
+$(PKG)_DEPENDS_ON += zlib lzma1
+
+$(PKG)_REBUILD_SUBOPTS += FREETZ_PACKAGE_SQUASHFS3_ALL_DYN
+$(PKG)_REBUILD_SUBOPTS += FREETZ_PACKAGE_SQUASHFS3_COMP_STAT
+$(PKG)_REBUILD_SUBOPTS += FREETZ_PACKAGE_SQUASHFS3_ALL_STAT
+
+$(PKG)_BUILD_DIR := $($(PKG)_DIR)/squashfs-tools
+
+$(PKG)_BINARIES            := mksquashfs-multi unsquashfs-multi
+$(PKG)_BINARIES_BUILD_DIR  := $($(PKG)_BINARIES:%=$($(PKG)_BUILD_DIR)/%)
+$(PKG)_BINARIES_TARGET_DIR := $($(PKG)_BINARIES:%-multi=$($(PKG)_DEST_DIR)/usr/bin/%3-multi)
+
+$(PKG)_LDFLAGS := -Wl,--gc-sections
+$(PKG)_LDFLAGS += $(if $(FREETZ_PACKAGE_SQUASHFS3_ALL_STAT),-static)
+
+ifneq ($(strip $(DL_DIR)/$(SQUASHFS3_SOURCE)),$(strip $(DL_DIR)/$(SQUASHFS3_HOST_SOURCE)))
+$(PKG_SOURCE_DOWNLOAD)
+endif
+$(PKG_UNPACKED)
+$(PKG_CONFIGURED_NOP)
+
+$($(PKG)_BINARIES_BUILD_DIR): $($(PKG)_DIR)/.configured
+	$(SUBMAKE) -C $(SQUASHFS3_BUILD_DIR) \
+		CC="$(TARGET_CC)" \
+		CFLAGS="$(TARGET_CFLAGS) -D_GNU_SOURCE -ffunction-sections -fdata-sections" \
+		LZMA1_SUPPORT=1 \
+		LZMA_LIBNAME=lzma1 \
+		$(if $(FREETZ_PACKAGE_SQUASHFS3_COMP_STAT),LINK_COMPRESSION_LIBS_STATICALLY=1) \
+		LDFLAGS="$(SQUASHFS3_LDFLAGS)"
+
+$($(PKG)_BINARIES_TARGET_DIR): $($(PKG)_DEST_DIR)/usr/bin/%3-multi: $($(PKG)_BUILD_DIR)/%-multi
+	$(INSTALL_BINARY_STRIP)
+
+$(pkg):
+
+$(pkg)-precompiled: $($(PKG)_BINARIES_TARGET_DIR)
+
+$(pkg)-clean:
+	-$(SUBMAKE) -C $(SQUASHFS3_BUILD_DIR) clean
+
+$(pkg)-uninstall:
+	$(RM) $(SQUASHFS3_BINARIES_TARGET_DIR)
+
+$(PKG_FINISH)

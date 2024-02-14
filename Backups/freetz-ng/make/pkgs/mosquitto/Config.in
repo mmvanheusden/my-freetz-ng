@@ -1,0 +1,75 @@
+config FREETZ_PACKAGE_MOSQUITTO
+	bool "Mosquitto 1.6.15"
+	default n
+	select FREETZ_PACKAGE_MOSQUITTO_BROKER if (!FREETZ_PACKAGE_MOSQUITTO_CLIENT_PUB && !FREETZ_PACKAGE_MOSQUITTO_CLIENT_SUB && !FREETZ_PACKAGE_MOSQUITTO_PASSWD)
+	help
+		Eclipse Mosquitto™ is an open source (EPL/EDL licensed) message broker that implements
+		the MQTT protocol versions 5.0, 3.1.1 and 3.1. MQTT provides a lightweight method of
+		carrying out messaging using a publish/subscribe model. This makes it suitable
+		for "Internet of Things" messaging such as with low power sensors or mobile devices
+		such as phones, embedded computers or microcontrollers like the Arduino.
+
+if FREETZ_PACKAGE_MOSQUITTO
+
+	config FREETZ_PACKAGE_MOSQUITTO_BROKER
+		bool "include broker server"
+		select FREETZ_LIB_libdl  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+		select FREETZ_LIB_libm   if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+		select FREETZ_LIB_librt  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+		default y
+		help
+			Adds the mosquitto broker to the image
+
+	config FREETZ_PACKAGE_MOSQUITTO_CLIENTS
+		bool # "libmosquitto"
+		select FREETZ_LIB_librt       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+		select FREETZ_LIB_libpthread  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+		depends on FREETZ_PACKAGE_MOSQUITTO_CLIENT_PUB || FREETZ_PACKAGE_MOSQUITTO_CLIENT_SUB
+		default y
+
+	config FREETZ_PACKAGE_MOSQUITTO_CLIENT_PUB
+		bool "include publish client"
+		default n
+		help
+			Adds the mosquitto publish client to the image
+
+	config FREETZ_PACKAGE_MOSQUITTO_CLIENT_SUB
+		bool "include subscribe client"
+		default n
+		help
+			Adds the mosquitto subscribe client to the image
+
+	comment "passwd binary not available, needs OpenSSL 1.0 or newer"
+		depends on !FREETZ_OPENSSL_VERSION_1_MIN
+
+	config FREETZ_PACKAGE_MOSQUITTO_PASSWD
+		bool "include passwd binary"
+		depends on FREETZ_OPENSSL_VERSION_1_MIN
+		select FREETZ_PACKAGE_MOSQUITTO_WITH_SSL
+		default n
+		help
+			Adds the mosquitto_passwd utility to the image
+
+	config FREETZ_PACKAGE_MOSQUITTO_WITH_UUID
+		bool "enable uuid support in mosquitto"
+		depends on FREETZ_PACKAGE_MOSQUITTO_CLIENTS
+		select FREETZ_LIB_libuuid
+		default y
+		help
+			Build using libuuid for clientid generation.
+
+	comment "SSL support not available, needs OpenSSL 1.0 or newer"
+		depends on !FREETZ_OPENSSL_VERSION_1_MIN
+
+	config FREETZ_PACKAGE_MOSQUITTO_WITH_SSL
+		bool "build with SSL support"
+		depends on FREETZ_OPENSSL_VERSION_1_MIN
+		select FREETZ_LIB_libcrypto
+		select FREETZ_LIB_libcrypto_WITH_EC
+		select FREETZ_LIB_libssl
+		default n
+		help
+			This option enables SSL support for mosquitto.
+
+endif # FREETZ_PACKAGE_MOSQUITTO
+

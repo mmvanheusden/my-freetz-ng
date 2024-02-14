@@ -1,0 +1,22 @@
+--- src/collectd.h
++++ src/collectd.h
+@@ -256,7 +256,7 @@
+ #endif
+ 
+ #ifndef PLUGINDIR
+-#define PLUGINDIR PREFIX "/lib/" PACKAGE_NAME
++#error "Freetz: PLUGINDIR is expected to be set externally, see PLUGINDIR.patch for details."
+ #endif
+ 
+ #ifndef PKGDATADIR
+--- src/Makefile.in
++++ src/Makefile.in
+@@ -1896,7 +1896,7 @@
+ 	-DCONFIGFILE='"${sysconfdir}/${PACKAGE_NAME}.conf"' \
+ 	-DLOCALSTATEDIR='"${localstatedir}"' \
+ 	-DPKGLOCALSTATEDIR='"${localstatedir}/lib/${PACKAGE_NAME}"' \
+-	$(am__append_3) -DPLUGINDIR='"${pkglibdir}"' \
++	$(am__append_3) -DPLUGINDIR='"$(FREETZ_LIBRARY_DIR)/collectd"' \
+ 	-DPKGDATADIR='"${pkgdatadir}"'
+ collectd_SOURCES = collectd.c collectd.h \
+ 		   common.c common.h \

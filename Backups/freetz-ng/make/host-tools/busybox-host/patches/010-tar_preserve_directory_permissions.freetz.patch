@@ -1,0 +1,19 @@
+--- archival/libarchive/data_extract_all.c
++++ archival/libarchive/data_extract_all.c
+@@ -156,6 +156,7 @@
+ 			free(dst_nameN);
+ 		}
+ #endif
++		res = 0;
+ 		break;
+ 	}
+ 	case S_IFDIR:
+@@ -214,7 +215,7 @@
+ 		bb_simple_error_msg_and_die("unrecognized file type");
+ 	}
+ 
+-	if (!S_ISLNK(file_header->mode)) {
++	if (res == 0 && !S_ISLNK(file_header->mode)) {
+ 		if (!(archive_handle->ah_flags & ARCHIVE_DONT_RESTORE_OWNER)) {
+ 			uid_t uid = file_header->uid;
+ 			gid_t gid = file_header->gid;

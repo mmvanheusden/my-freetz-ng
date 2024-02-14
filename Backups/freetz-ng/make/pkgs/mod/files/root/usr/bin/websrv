@@ -1,0 +1,11 @@
+#!/bin/sh
+
+. /var/env.mod.daemon
+
+DAEMON=websrv
+DAEMON_BIN=httpd-$DAEMON
+DAEMON_ENV="PATH=$PATH WEBIF=avm"
+
+
+#redirect of stderr is needed to prevent corrupted html headers:
+exec env - $DAEMON_ENV $DAEMON_BIN "$@" -p 80 -h /usr/www/all/ 2>/dev/null

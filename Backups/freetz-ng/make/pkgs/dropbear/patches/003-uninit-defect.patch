@@ -1,0 +1,37 @@
+If sha256_done doesn't return CRYPT_OK then hs may be uninitialized in
+sign_key_sha256_fingerprint().
+
+It is unlikely, but listensocks may not have all of its fds filled in.
+Setting them to 0 early on makes sure that there is at least a known
+quantity there.
+
+From: Erik Hovland <erik@hovland.org>
+
+---
+
+ signkey.c  |    3 ++-
+ svr-main.c |    1 +
+ 2 files changed, 3 insertions(+), 1 deletions(-)
+
+--- signkey.c
++++ signkey.c
+@@ -557,7 +557,8 @@
+ 
+ 	sha256_init(&hs);
+ 	sha256_process(&hs, keyblob, keybloblen);
+-	sha256_done(&hs, hash);
++	if (sha256_done(&hs, hash) != CRYPT_OK)
++		return NULL;
+ 
+ 	/* eg "SHA256:P9szN0L2ls6KxkVv7Bppv3asnZCn03rY7Msm/c8+ZgA"
+ 	 * 256/6 = 42.66 => 43 base64 chars. OpenSSH discards
+--- svr-main.c
++++ svr-main.c
+@@ -143,6 +143,7 @@
+ 	(void)argv;
+ 	(void)multipath;
+ 
++	memset(listensocks, 0, sizeof(listensocks));
+ 	/* Note: commonsetup() must happen before we daemon()ise. Otherwise
+ 	   daemon() will chdir("/"), and we won't be able to find local-dir
+ 	   hostkeys. */

@@ -1,0 +1,125 @@
+--- linux-4.19/brcm_sdk/bcmdrivers/Kconfig.autogen
++++ linux-4.19/brcm_sdk/bcmdrivers/Kconfig.autogen
+@@ -3,98 +3,98 @@
+ 
+ 
+ menu "SPIDEV_REV2"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/char/bcmspidev/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/char/bcmspidev/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "SPIDEV_VOICE"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/char/bcmspivoice/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/char/bcmspivoice/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BOOTSTATE"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/char/bcm_bootstate/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/char/bcm_bootstate/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "CRYPTODEV"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/char/cryptodev/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/char/cryptodev/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "MCAST"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/char/mcast/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/char/mcast/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "SOTP"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/sotp/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/sotp/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BUTTON"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/button/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/button/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "COMMON_CLK"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/clk/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/clk/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BCA_LEGACY_LED_API"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/bca_legacy_led/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/bca_legacy_led/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BCA_EXTINTR"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/bca_extintr/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/bca_extintr/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "CPUFREQ"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/cpufreq/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/cpufreq/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BCA_PINCTRL"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/bca_pinctrl/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/bca_pinctrl/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "PON_WAN_TYPE_AUTO_DETECT"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/wantypedet/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/wantypedet/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BCA_LED"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/bca_led_ctrl/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/bca_led_ctrl/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BCA_VREG_SYNC"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/vregsync/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/vregsync/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BCA_GPIO"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/bca_gpio/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/bca_gpio/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "PMC "
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/pmc/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/pmc/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "RESET_BUTTON"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/reset_button/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/reset_button/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "VOICE_DECT_RESET"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/voice/dect/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/voice/dect/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "VOICE_PARAMS"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/voice/board_params/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/voice/board_params/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "VOICE_RELAY"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/voice/relay/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/voice/relay/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "SOUND"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/sound/codecs/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/sound/codecs/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "SOUND"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/misc/sound/asoc/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/misc/sound/asoc/Kconfig.autodetect"
+ endmenu 
+ 
+ menu "BCA_USB"
+-source "/GU/KERNEL_brcma9_build/src/main/linux/brcm_sdk/bcmdrivers/opensource/bus/usb/Kconfig.autodetect"
++source "brcm_sdk/bcmdrivers/opensource/bus/usb/Kconfig.autodetect"
+ endmenu 
+ 

@@ -1,0 +1,124 @@
+--- avm/config-ipq40xx-1200_07.14
++++ freetz/config-ipq40xx-1200_07.14
+@@ -1312,7 +1312,9 @@
+ # CONFIG_BLK_DEV_DAC960 is not set
+ # CONFIG_BLK_DEV_UMEM is not set
+ # CONFIG_BLK_DEV_COW_COMMON is not set
+-# CONFIG_BLK_DEV_LOOP is not set
++CONFIG_BLK_DEV_LOOP=m
++CONFIG_BLK_DEV_LOOP_MIN_COUNT=8
++# CONFIG_BLK_DEV_CRYPTOLOOP is not set
+ # CONFIG_BLK_DEV_DRBD is not set
+ # CONFIG_BLK_DEV_NBD is not set
+ # CONFIG_BLK_DEV_SX8 is not set
+@@ -1447,7 +1449,28 @@
+ # CONFIG_SCSI_DH is not set
+ # CONFIG_SCSI_OSD_INITIATOR is not set
+ # CONFIG_ATA is not set
+-# CONFIG_MD is not set
++CONFIG_MD=y
++# CONFIG_BLK_DEV_MD is not set
++# CONFIG_BCACHE is not set
++CONFIG_BLK_DEV_DM_BUILTIN=y
++CONFIG_BLK_DEV_DM=m
++# CONFIG_DM_MQ_DEFAULT is not set
++# CONFIG_DM_DEBUG is not set
++CONFIG_DM_CRYPT=m
++# CONFIG_DM_SNAPSHOT is not set
++# CONFIG_DM_THIN_PROVISIONING is not set
++# CONFIG_DM_CACHE is not set
++# CONFIG_DM_ERA is not set
++# CONFIG_DM_MIRROR is not set
++# CONFIG_DM_RAID is not set
++# CONFIG_DM_ZERO is not set
++# CONFIG_DM_MULTIPATH is not set
++# CONFIG_DM_DELAY is not set
++# CONFIG_DM_UEVENT is not set
++# CONFIG_DM_FLAKEY is not set
++# CONFIG_DM_VERITY is not set
++# CONFIG_DM_SWITCH is not set
++# CONFIG_DM_LOG_WRITES is not set
+ # CONFIG_TARGET_CORE is not set
+ # CONFIG_FUSION is not set
+ 
+@@ -1472,7 +1495,7 @@
+ # CONFIG_NETCONSOLE is not set
+ # CONFIG_NETPOLL is not set
+ # CONFIG_NET_POLL_CONTROLLER is not set
+-CONFIG_TUN=y
++CONFIG_TUN=m
+ # CONFIG_TUN_VNET_CROSS_LE is not set
+ # CONFIG_VETH is not set
+ # CONFIG_NLMON is not set
+@@ -3617,6 +3640,7 @@
+ # CONFIG_F2FS_FS is not set
+ # CONFIG_YAFFS_FS is not set
+ # CONFIG_FS_POSIX_ACL is not set
++CONFIG_EXPORTFS=m
+ CONFIG_FILE_LOCKING=y
+ CONFIG_DIRECT_IO=y
+ CONFIG_FSNOTIFY=y
+@@ -3626,7 +3650,7 @@
+ # CONFIG_FANOTIFY is not set
+ # CONFIG_QUOTA is not set
+ # CONFIG_QUOTACTL is not set
+-# CONFIG_AUTOFS4_FS is not set
++CONFIG_AUTOFS4_FS=m
+ CONFIG_FUSE_FS=y
+ # CONFIG_CUSE is not set
+ # CONFIG_OVERLAY_FS is not set
+@@ -3728,7 +3752,35 @@
+ # CONFIG_PSTORE is not set
+ # CONFIG_SYSV_FS is not set
+ # CONFIG_UFS_FS is not set
+-# CONFIG_NETWORK_FILESYSTEMS is not set
++CONFIG_NETWORK_FILESYSTEMS=y
++CONFIG_NFS_FS=m
++CONFIG_NFS_V2=m
++CONFIG_NFS_V3=m
++# CONFIG_NFS_V3_ACL is not set
++# CONFIG_NFS_V4 is not set
++# CONFIG_NFS_SWAP is not set
++CONFIG_NFSD=m
++# CONFIG_NFSD_V3 is not set
++# CONFIG_NFSD_V4 is not set
++CONFIG_GRACE_PERIOD=m
++CONFIG_LOCKD=m
++CONFIG_LOCKD_V4=y
++CONFIG_NFS_COMMON=y
++CONFIG_SUNRPC=m
++# CONFIG_SUNRPC_DEBUG is not set
++# CONFIG_CEPH_FS is not set
++CONFIG_CIFS=m
++# CONFIG_CIFS_STATS is not set
++# CONFIG_CIFS_WEAK_PW_HASH is not set
++# CONFIG_CIFS_UPCALL is not set
++# CONFIG_CIFS_XATTR is not set
++# CONFIG_CIFS_DEBUG is not set
++# CONFIG_CIFS_DEBUG2 is not set
++# CONFIG_CIFS_DFS_UPCALL is not set
++# CONFIG_CIFS_SMB2 is not set
++# CONFIG_NCP_FS is not set
++# CONFIG_CODA_FS is not set
++# CONFIG_AFS_FS is not set
+ CONFIG_NLS=y
+ CONFIG_NLS_DEFAULT="iso8859-15"
+ CONFIG_NLS_CODEPAGE_437=y
+@@ -4005,7 +4057,7 @@
+ #
+ # Hash modes
+ #
+-# CONFIG_CRYPTO_CMAC is not set
++CONFIG_CRYPTO_CMAC=m
+ CONFIG_CRYPTO_HMAC=y
+ # CONFIG_CRYPTO_XCBC is not set
+ # CONFIG_CRYPTO_VMAC is not set
+@@ -4018,7 +4070,7 @@
+ # CONFIG_CRYPTO_CRCT10DIF is not set
+ CONFIG_CRYPTO_GHASH=y
+ # CONFIG_CRYPTO_POLY1305 is not set
+-# CONFIG_CRYPTO_MD4 is not set
++CONFIG_CRYPTO_MD4=m
+ CONFIG_CRYPTO_MD5=m
+ # CONFIG_CRYPTO_MICHAEL_MIC is not set
+ # CONFIG_CRYPTO_RMD128 is not set

@@ -1,0 +1,390 @@
+#!/bin/sh
+[ -z "$LIGHTTPD_DOCROOT" ] && exit 1
+
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+encloseWithHTTPHost() {
+#$1 space- or tab-separated list of virtual hosts or regular expression (with no space or tab in it)
+#$2 configuration string
+#$3 optional: the character for the equality check (you can only provide "=" or "!" here; default is "=")
+if [ -n "$1" ]; then
+	eq=$3
+	[ -z "$eq" ] && eq="="
+	old_IFS=$IFS
+	IFS=" 	"
+	for i in $1; do
+		regexp="~"
+		[ -z "$(echo $i | sed 's/[A-Za-z0-9\.]//g')" ] && regexp="="
+		echo "\$HTTP[\"host\"] $eq$regexp \"$i\" {"
+		echo -e "$2"
+		echo "}"
+	done
+	IFS=$old_IFS
+fi
+}
+
+virthost_conf() {
+#$1, $2 and $3 are the same as in encloseWithHTTPHost
+if [ -n "$1" -a "$LIGHTTPD_VIRTHOST" = "yes" ]; then
+	encloseWithHTTPHost "$@"
+else
+	echo -e "$2"
+fi
+}
+
+cat << EOF
+server.modules += ( "mod_access" )
+index-file.names = ( "index.cgi", "index.html", "index.htm", "default.htm", "index.php", "index.rb" )
+mimetype.assign = (
+".pdf" => "application/pdf",
+".sig" => "application/pgp-signature",
+".spl" => "application/futuresplash",
+".class" => "application/octet-stream",
+".ps" => "application/postscript",
+".torrent" => "application/x-bittorrent",
+".dvi" => "application/x-dvi",
+".gz" => "application/x-gzip",
+".pac" => "application/x-ns-proxy-autoconfig",
+".swf" => "application/x-shockwave-flash",
+".tar.gz" => "application/x-tgz",
+".tgz" => "application/x-tgz",
+".tar" => "application/x-tar",
+".zip" => "application/zip",
+".mp3" => "audio/mpeg",
+".m3u" => "audio/x-mpegurl",
+".wma" => "audio/x-ms-wma",
+".wax" => "audio/x-ms-wax",
+".ogg" => "application/ogg",
+".wav" => "audio/x-wav",
+".gif" => "image/gif",
+".jar" => "application/x-java-archive",
+".jpg" => "image/jpeg",
+".jpeg" => "image/jpeg",
+".png" => "image/png",
+".xbm" => "image/x-xbitmap",
+".xpm" => "image/x-xpixmap",
+".xwd" => "image/x-xwindowdump",
+".css" => "text/css",
+".html" => "text/html",
+".htm" => "text/html",
+".js" => "text/javascript",
+".asc" => "text/plain",
+".c" => "text/plain",
+".cpp" => "text/plain",
+".log" => "text/plain",
+".conf" => "text/plain",
+".text" => "text/plain",
+".txt" => "text/plain",
+".dtd" => "text/xml",
+".xml" => "text/xml",
+".mpeg" => "video/mpeg",
+".mpg" => "video/mpeg",
+".mov" => "video/quicktime",
+".qt" => "video/quicktime",
+".avi" => "video/x-msvideo",
+".asf" => "video/x-ms-asf",
+".asx" => "video/x-ms-asf",
+".wmv" => "video/x-ms-wmv",
+".bz2" => "application/x-bzip",
+".tbz" => "application/x-bzip-compressed-tar",
+".tar.bz2" => "application/x-bzip-compressed-tar",
+"" => "application/octet-stream",
+)
+url.access-deny = ( "~", ".inc" )
+static-file.exclude-extensions = ( ".php", ".pl", ".fcgi", ".rb", ".cgi" )
+server.port = $LIGHTTPD_PORT
+server.pid-file = "/var/run/lighttpd.pid"
+server.username = "wwwrun"
+server.groupname = "wwwrun"
+EOF
+
+[ "$LIGHTTPD_IPV6_SUPPORT" == "yes" ] && echo 'server.use-ipv6 = "enable"'
+
+[ "$LIGHTTPD_HTTP2_ENABLED" == "yes" ] && echo 'server.feature-flags += ("server.h2proto" => "enable", "server.h2c" => "enable")'
+
+out="connection.kbytes-per-second = $LIGHTTPD_LIMITCONN\nserver.kbytes-per-second = $LIGHTTPD_LIMITSRV"
+virthost_conf "$LIGHTTPD_LIMITVIRT" "$out"
+
+if [ "$LIGHTTPD_CHROOT" = "yes" ]; then
+cat << EOF
+server.chroot = "$LIGHTTPD_DOCROOT"
+EOF
+mkdir -p "$LIGHTTPD_DOCROOT/dev"
+[ -c "$LIGHTTPD_DOCROOT/dev/null" ] || mknod -m 666 "$LIGHTTPD_DOCROOT/dev/null" c 1 3
+[ -c "$LIGHTTPD_DOCROOT/dev/urandom" ] || mknod -m 666 "$LIGHTTPD_DOCROOT/dev/urandom" c 1 9
+fi
+
+if [ "$FREETZ_PACKAGE_LIGHTTPD_MOD_DIRLISTING" = "y" ]; then
+out="dir-listing.activate = \"$LIGHTTPD_DIRLISTING\"\ndir-listing.encoding = \"$LIGHTTPD_DIRLISTINGENC\""
+virthost_conf "$LIGHTTPD_DIRLISTINGVIRT" "$out"
+fi
+
+enable_ssl() {
+cat << EOF
+ssl.engine = "$LIGHTTPD_SSLENABLE"
+ssl.pemfile = "/tmp/flash/lighttpd/crt.pem"
+#ssl.use-compression = "disable"
+EOF
+if [ -n "$LIGHTTPD_SSLCIPHER" ]; then
+	echo 'ssl.honor-cipher-order = "enable"'
+	echo "ssl.cipher-list = \"$LIGHTTPD_SSLCIPHER\""
+fi
+if [ -r "/tmp/flash/lighttpd/dh.pem" -a "$FREETZ_LIB_libcrypto_WITH_EC" = "y" ]; then
+	if grep -q "BEGIN DH PARAMETERS" /tmp/flash/lighttpd/dh.pem; then
+		echo 'ssl.dh-file = "/tmp/flash/lighttpd/dh.pem"'
+		echo 'ssl.ec-curve = "secp384r1"'
+	fi
+fi
+if [ -r "/tmp/flash/lighttpd/ca.pem" ]; then
+	if grep -q "BEGIN CERTIFICATE" /tmp/flash/lighttpd/ca.pem; then
+cat << EOF
+ssl.ca-file = "/tmp/flash/lighttpd/ca.pem"
+EOF
+	fi
+fi
+}
+
+if [ "$FREETZ_PACKAGE_LIGHTTPD_MOD_OPENSSL" = "y" ]; then
+if [ "$LIGHTTPD_SSLENABLE" = "enable" ]; then
+	[ "$LIGHTTPD_SSLENABLE" == "enable" ] && echo 'server.modules += ( "mod_openssl" )'
+	if [ "$LIGHTTPD_SSLADDITIONAL" = "yes" ]; then
+		virtsrv=""
+		if [ "$LIGHTTPD_VIRTHOST" = "yes" ]; then
+			virtsrv=${LIGHTTPD_SSLVIRT// /|}
+		fi
+		echo "\$SERVER[\"socket\"] == \":$LIGHTTPD_SSLPORT\" {"
+		[ "$LIGHTTPD_IPV6_SUPPORT" == "yes" ] && echo 'server.use-ipv6 = "enable"'
+		enable_ssl
+		[ -n "$virtsrv" ] && virthost_conf "$virtsrv" "url.access-deny = ( \"\" )" "!"
+		echo "}"
+		out=""
+		[ -n "$virtsrv" ] && out="url.access-deny = ( \"\" )"
+		if [ "$LIGHTTPD_SSLREDIRECT" = "yes" ]; then
+			echo 'server.modules += ( "mod_redirect" )'
+			[ "$LIGHTTPD_SSLPORT" != "443" ] && REDIRECT_PORT_SUFFIX=":$LIGHTTPD_SSLPORT" || REDIRECT_PORT_SUFFIX=""
+			out="url.redirect = ( \"^/(.*)\" => \"https://%1${REDIRECT_PORT_SUFFIX}/\$1\" )"
+		fi
+		if [ -n "$out" ]; then
+			echo "\$SERVER[\"socket\"] == \":$LIGHTTPD_PORT\" {"
+			[ "$LIGHTTPD_IPV6_SUPPORT" == "yes" ] && echo 'server.use-ipv6 = "enable"'
+			if [ -n "$virtsrv" ]; then
+				virthost_conf "($virtsrv)" "$out"
+			else
+				encloseWithHTTPHost '^([^:]*)(\:[0-9]+)?$' "$out"
+			fi
+			echo "}"
+		fi
+	else
+		enable_ssl
+	fi
+fi
+fi
+
+gendir() {
+	dir=$1
+	[ "$LIGHTTPD_CHROOT" = "yes" ] && dir="$LIGHTTPD_DOCROOT/$dir"
+	mkdir -p "$dir"
+	chown wwwrun:wwwrun "$dir"
+	chmod 700 "$dir"
+}
+
+if [ "$LIGHTTPD_LOGGING" = "yes" ]; then
+	if [ "$LIGHTTPD_LOGGING_ERROR_FILE" = "yes" ]; then
+		gendir "$(dirname $LIGHTTPD_LOGGING_ERROR)"
+cat << EOF
+server.errorlog = "$LIGHTTPD_LOGGING_ERROR"
+EOF
+	else
+cat << EOF
+server.errorlog-use-syslog = "enable"
+EOF
+	fi
+	if [ "$FREETZ_PACKAGE_LIGHTTPD_MOD_ACCESSLOG" = "y" ]; then
+cat << EOF
+server.modules += ( "mod_accesslog" )
+EOF
+		if [ "$LIGHTTPD_LOGGING_ACCESS_FILE" = "yes" ]; then
+			gendir "$(dirname $LIGHTTPD_LOGGING_ACCESS)"
+cat << EOF
+accesslog.filename = "$LIGHTTPD_LOGGING_ACCESS"
+EOF
+		else
+cat << EOF
+accesslog.use-syslog = "enable"
+EOF
+		fi
+	fi
+fi
+
+if [ "$FREETZ_PACKAGE_LIGHTTPD_MOD_CGI" = "y" -a "$LIGHTTPD_MODCGI" = "yes" ]; then
+cat << EOF
+server.modules += ( "mod_cgi" )
+EOF
+	out="cgi.assign = ( \".cgi\" => \"\", \"/cgi-bin/\" => \"\" )"
+	virthost_conf "$LIGHTTPD_MODCGIVIRT" "$out"
+fi
+
+if [ "$FREETZ_PACKAGE_LIGHTTPD_MOD_DEFLATE" = "y" -a "$LIGHTTPD_MODDEFLATE" = "yes" ]; then
+cat << EOF
+server.modules += ( "mod_deflate" )
+EOF
+	gendir "$LIGHTTPD_MODDEFLATEDIR"
+	out="deflate.cache-dir = \"$LIGHTTPD_MODDEFLATEDIR\"\ndeflate.mimetypes = (\"text/\")\ndeflate.allowed-encodings = ( \"gzip\", \"deflate\" )"
+	virthost_conf "$LIGHTTPD_MODDEFLATEVIRT" "$out"
+fi
+
+if [ "$LIGHTTPD_ERROR" = "yes" ]; then
+	out="server.errorfile-prefix = \"$LIGHTTPD_ERRORFILE\""
+	virthost_conf "$LIGHTTPD_ERRORVIRT" "$out"
+fi
+
+getfiles() {
+	dir=$(dirname $1)
+	mkdir -p "$LIGHTTPD_DOCROOT/$dir"
+	cp -Lrpf "$1" "$LIGHTTPD_DOCROOT/$dir"
+}
+
+if [ "$FREETZ_PACKAGE_LIGHTTPD_MOD_AUTH" = "y" -a "$LIGHTTPD_AUTH" = "yes" ]; then
+cat << EOF
+server.modules += ( "mod_auth" )
+auth.backend = "htdigest"
+auth.backend.htdigest.userfile = "/tmp/flash/lighttpd/htdigest.user"
+EOF
+[ "$LIGHTTPD_CHROOT" = "yes" ] && getfiles "/tmp/flash/lighttpd/htdigest.user"
+
+IFS="
+"
+authrequire=$(cat /tmp/flash/lighttpd/rights.user)
+virthost_auth=""
+out=""
+for i in $authrequire; do
+	if [ "$(echo $i | cut -c1)" = "[" ]; then
+		[ -n "$out" ] && virthost_conf "$virthost_auth" "auth.require = ( $out )"
+		out=""
+		virthost_auth=$(echo $i | sed 's/^\[//' | sed 's/\]$//')
+		continue
+	fi
+	dir=$(echo $i | cut -d\" -f 2)
+	user=$(echo $i | cut -d\" -f 4)
+	out="$out \"$dir\" => ( \"method\" => \"$LIGHTTPD_AUTHMETH\", \"realm\" => \"lighttpd\", \"require\" => \"$user\" ),"
+done
+virthost_conf "$virthost_auth" "auth.require = ( $out )"
+fi
+
+if [ "$FREETZ_PACKAGE_LIGHTTPD_MOD_STATUS" = "y" -a "$LIGHTTPD_MODSTATUS" = "yes" ]; then
+cat << EOF
+server.modules += ( "mod_status" )
+status.enable-sort = "$LIGHTTPD_MODSTATUSSORT"
+EOF
+	out=""
+	if [ -n "$LIGHTTPD_MODSTATUSCONFIG" ]; then
+		out="status.config-url = \"$LIGHTTPD_MODSTATUSCONFIG\"\n"
+	fi
+	if [ -n "$LIGHTTPD_MODSTATUSSTATISTIC" ]; then
+		out="$out status.statistics-url = \"$LIGHTTPD_MODSTATUSSTATISTIC\"\n"
+	fi
+	if [ -n "$LIGHTTPD_MODSTATUSSTATUS" ]; then
+		out="$out status.status-url = \"$LIGHTTPD_MODSTATUSSTATUS\""
+	fi
+	[ -n "$out" ] && virthost_conf "$LIGHTTPD_MODSTATUSVIRT" "$out"
+fi
+
+socketdir="/var/run/lighttpd"
+gendir "$socketdir"
+[ "$LIGHTTPD_CHROOT" = "yes" ] && gendir "/var/tmp"
+
+genchroot() {
+#$1 prog
+#$2 chroot dir
+	[ "$LIGHTTPD_CHROOT" = "yes" ] || return
+	[ -x "$(which ldd)" ] || return
+	[ -f "$1" ] || return
+	[ -d "$2" ] || return
+	dir=$(dirname $1)
+	mkdir -p "$2/$dir"
+	cp -pf "/$1" "$2/$dir"
+	ldd $1 2>/dev/null | while read -r ln; do
+		genchroot "$(echo $ln | awk '{print $3}')" "$2"
+	done
+}
+
+# $1 phpEnabled as true/false
+# $2 rubyEnabled as true/false
+genFastcgiServer() {
+	echo "fastcgi.server = ("
+	$1 && echo "\t\".php\" => (( \"socket\" => \"$socketdir/php-fastcgi.socket\", \"bin-path\" => \"$LIGHTTPD_MODFASTCGIPHPPATH\", \"max-procs\" => $LIGHTTPD_MODFASTCGIPHPMAXPROC ))"
+	$1 && $2 && echo "\t,"
+	$2 && echo "\t\".rb\" => (( \"socket\" => \"$socketdir/ruby-fastcgi.socket\", \"bin-path\" => \"$LIGHTTPD_MODFASTCGIRUBYPATH\", \"max-procs\" => $LIGHTTPD_MODFASTCGIRUBYMAXPROC ))"
+	echo ")"
+}
+
+uniqTokens() { echo $@ | tr " " "\n" | sort -u; }
+appendToList() { echo $@; }
+
+[ "$LIGHTTPD_MODFASTCGIPHP" = "yes" ] && _php=true || _php=false
+[ "$LIGHTTPD_MODFASTCGIRUBY" = "yes" ] && _ruby=true || _ruby=false
+if $_php || $_ruby ; then
+cat << EOF
+server.modules += ( "mod_fastcgi" )
+EOF
+
+$_php  && phpTokens=$(uniqTokens $LIGHTTPD_MODFASTCGIPHPVIRT)
+$_ruby && rubyTokens=$(uniqTokens $LIGHTTPD_MODFASTCGIRUBYVIRT)
+if [ -z "$phpTokens" -a -z "$rubyTokens" ]; then
+	virthost_conf "" "$(genFastcgiServer "$_php" "$_ruby")"
+else
+	$_php  && [ -z "$phpTokens" ]  && virthost_conf "" "$(genFastcgiServer "true" "false")"
+	$_ruby && [ -z "$rubyTokens" ] && virthost_conf "" "$(genFastcgiServer "false" "true")"
+	for i in $(uniqTokens $LIGHTTPD_MODFASTCGIPHPVIRT $LIGHTTPD_MODFASTCGIRUBYVIRT); do
+		(echo "$phpTokens" | grep -q "^${i}$" >/dev/null 2>&1) && inphp="true" || inphp="false"
+		(echo "$rubyTokens" | grep -q "^${i}$" >/dev/null 2>&1) && inruby="true" || inruby="false"
+		if $inphp && $inruby ; then
+			bothvirt=$(appendToList "$bothvirt" "$i")
+		elif $inphp; then
+			phpvirt=$(appendToList "$phpvirt" "$i")
+		elif $inruby; then
+			rubyvirt=$(appendToList "$rubyvirt" "$i")
+		fi
+	done
+	[ -n "$bothvirt" ] && virthost_conf "$bothvirt" "$(genFastcgiServer "true"  "true")"
+	[ -n "$phpvirt"  ] && virthost_conf "$phpvirt"  "$(genFastcgiServer "true"  "false")"
+	[ -n "$rubyvirt" ] && virthost_conf "$rubyvirt" "$(genFastcgiServer "false" "true")"
+fi
+
+if $_php ; then
+genchroot "$LIGHTTPD_MODFASTCGIPHPPATH" "$LIGHTTPD_DOCROOT"
+[ "$LIGHTTPD_CHROOT" = "yes" ] && getfiles "/tmp/flash/php.ini"
+[ "$LIGHTTPD_CHROOT" = "yes" ] && getfiles "/tmp/flash/php"
+fi
+if $_ruby ; then
+genchroot "$LIGHTTPD_MODFASTCGIRUBYPATH" "$LIGHTTPD_DOCROOT"
+fi
+
+fi
+
+docroot=$LIGHTTPD_DOCROOT
+if [ "$LIGHTTPD_CHROOT" = "yes" ]; then
+	docroot="/websites"
+	[ "$LIGHTTPD_VIRTHOST" = "yes" ] && mkdir -p "$LIGHTTPD_DOCROOT/websites/default"
+fi
+if [ "$LIGHTTPD_VIRTHOST" = "yes" ]; then
+cat << EOF
+server.modules += ( "mod_evhost" )
+evhost.path-pattern = "$docroot/$LIGHTTPD_VIRTHOSTTYPE/"
+server.document-root = "$docroot/default"
+EOF
+else
+cat << EOF
+server.document-root = "$docroot"
+EOF
+fi
+
+#just to be on the safe side
+if [ "$LIGHTTPD_CHROOT" = "yes" ]; then
+	mkdir -p $LIGHTTPD_DOCROOT/tmp
+	chmod 1777 $LIGHTTPD_DOCROOT/tmp
+	mkdir -p $LIGHTTPD_DOCROOT/etc
+	cp /etc/hosts $LIGHTTPD_DOCROOT/etc
+fi
+
+[ -f /tmp/flash/lighttpd/add ] && cat /tmp/flash/lighttpd/add

@@ -1,0 +1,94 @@
+config FREETZ_PACKAGE_BIND
+	bool "BIND 9.11.37/9.16.48"
+	select FREETZ_LIB_libpthread if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libcrypto          if !FREETZ_PACKAGE_BIND_VERSION_ABANDON
+	select FREETZ_LIB_libcrypto_WITH_EC  if !FREETZ_PACKAGE_BIND_VERSION_ABANDON
+	select FREETZ_LIB_libssl             if !FREETZ_PACKAGE_BIND_VERSION_ABANDON
+	select FREETZ_LIB_libuv              if !FREETZ_PACKAGE_BIND_VERSION_ABANDON
+	select FREETZ_LIB_libatomic          if !FREETZ_PACKAGE_BIND_VERSION_ABANDON
+	default n
+	help
+		BIND is a suite of software for interacting with the Domain Name System (DNS).
+		The name BIND stands for "Berkeley Internet Name Daemon".
+
+if FREETZ_PACKAGE_BIND
+
+	choice
+		prompt "Version"
+			default FREETZ_PACKAGE_BIND_VERSION_CURRENT
+			help
+				 - libatomic needs uclibc >0.9.29
+				 - libcap needs gcc 4.8+
+				 - libuv needs gcc 5+
+
+		config FREETZ_PACKAGE_BIND_VERSION_ABANDON
+			bool "9.11.37"
+			depends on !(FREETZ_TARGET_GCC_5_MIN && !(FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29))
+
+		config FREETZ_PACKAGE_BIND_VERSION_CURRENT
+			bool "9.16.48"
+			depends on  (FREETZ_TARGET_GCC_5_MIN && !(FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29))
+
+	endchoice
+
+	config FREETZ_PACKAGE_BIND_NAMED
+		bool "named"
+		default y
+		select FREETZ_LIB_libcap     if !FREETZ_PACKAGE_BIND_VERSION_ABANDON
+		help
+			named is a DNS server, part of the BIND 9 distribution.
+			You have to provide the config and needed zone files yourself.
+			This file needs about 3,5 MB uncompressed.
+
+		comment "HINT: Don't forget to enable the DNS server."
+		depends on FREETZ_PACKAGE_BIND_NAMED && \
+			FREETZ_AVMDAEMON_DISABLE_DNS
+
+		config FREETZ_PACKAGE_BIND_NAMED_DISABLE_DNS
+			bool "Disable multid's DNS"
+			depends on FREETZ_PACKAGE_BIND_NAMED
+			depends on FREETZ_AVM_HAS_AVMMULTID_PRELOAD
+			select FREETZ_AVMDAEMON_DISABLE_MULTIDPORTS
+			select FREETZ_AVMDAEMON_DISABLE_DNS
+			select FREETZ_AVMDAEMON_DISABLE_LLMNR
+			default y
+			help
+				This selects the remapping of multid's DNS (and LLMNR) ports.
+
+	config FREETZ_PACKAGE_BIND_RNDC
+		bool "rndc (binary only)"
+		default n
+		help
+			rndc allows you to use command line statements to administer the named daemon.
+			This file needs about 0,5 MB uncompressed.
+
+	config FREETZ_PACKAGE_BIND_NSUPDATE
+		bool "nsupdate (binary only)"
+		default n
+		help
+			nsupdate is used to submit Dynamic DNS Update requests to a name server.
+			This file needs about 2,8 MB uncompressed.
+
+	config FREETZ_PACKAGE_BIND_DIG
+		bool "dig (binary only)"
+		default n
+		help
+			dig is a flexible tool for interrogating DNS name servers.
+			This file needs about 2,8 MB uncompressed.
+
+	config FREETZ_PACKAGE_BIND_HOST
+		bool "host (binary only)"
+		default n
+		help
+			host is a simple utility for performing DNS lookups.
+			This file needs about 2,8 MB uncompressed.
+
+	config FREETZ_PACKAGE_BIND_NSLOOKUP
+		bool "nslookup (binary only)"
+		default n
+		help
+			nslookup is a program to query Internet domain name servers.
+			This file needs about 2,8 MB uncompressed.
+
+endif # FREETZ_PACKAGE_BIND
+

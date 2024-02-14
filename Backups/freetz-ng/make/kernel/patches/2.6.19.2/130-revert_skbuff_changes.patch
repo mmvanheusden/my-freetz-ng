@@ -1,0 +1,25 @@
+--- linux-2.6.19/net/core/skbuff.c
++++ linux-2.6.19/net/core/skbuff.c
+@@ -422,18 +422,14 @@
+ 
+ void __kfree_skb(struct sk_buff *skb)
+ {   
+-    WARN_ON(in_irq() || irqs_disabled());
+-
+-	if (skb->destructor) {
+-        /* WARN_ON(in_irq()); */
+-		skb->destructor(skb);
+-	}
+-
+ 	dst_release(skb->dst);
+-	skb->dst = 0;
+ #ifdef CONFIG_XFRM
+ 	secpath_put(skb->sp);
+ #endif
++	if (skb->destructor) {
++		WARN_ON(in_irq());
++		skb->destructor(skb);
++	}
+ #ifdef CONFIG_NETFILTER
+ 	nf_conntrack_put(skb->nfct);
+ #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)

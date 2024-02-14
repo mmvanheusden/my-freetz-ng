@@ -1,0 +1,5 @@
+
+pkg_post_save() {
+	/mod/etc/default.tinc/default-config.sh
+}
+

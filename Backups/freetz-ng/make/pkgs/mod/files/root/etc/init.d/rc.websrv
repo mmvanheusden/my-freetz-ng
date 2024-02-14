@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# rc.mod has to "load" before rc.net is allowed to "start"/"stop"
+[ ! -e /tmp/.websrvload -a -n "$1" -a "$1" != "load" ] && exit
+
+DAEMON=websrv
+DAEMON_BIN=httpd-$DAEMON
+DAEMON_LONG_NAME="AVM-$DAEMON"
+PID_FILE=/var/run/websrv.pid
+CONF_NAME=avm
+CONF_ENABLED=AVM_WEBSRV
+. /etc/init.d/modlibrc
+
+. /bin/env.mod.rcconf
+
+start() {
+	modlib_startdaemon $DAEMON -P "$PID_FILE"
+}
+
+case $1 in
+	""|load)
+		touch /tmp/.websrvload
+
+		modlib_add_httpd_symlink $DAEMON
+		modreg pkg $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon -p avm $DAEMON
+
+		modlib_start $AVM_WEBSRV
+		;;
+	unload)
+		modunreg daemon avm $DAEMON
+		modunreg pkg $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop|kill)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

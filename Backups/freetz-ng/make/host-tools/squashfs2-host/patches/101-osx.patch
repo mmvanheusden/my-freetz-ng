@@ -1,0 +1,35 @@
+--- squashfs-tools/mksquashfs.c
++++ squashfs-tools/mksquashfs.c
+@@ -34,7 +34,13 @@
+ #include <dirent.h>
+ #include <string.h>
+ #include <zlib.h>
+-#include <endian.h>
++#ifndef linux
++	#include <machine/endian.h>
++	#define __BYTE_ORDER BYTE_ORDER
++	#define __BIG_ENDIAN BIG_ENDIAN
++#else
++	#include <endian.h>
++#endif
+ #include <stdlib.h>
+ #include <signal.h>
+ #include <setjmp.h>
+--- squashfs-tools/read_fs.c
++++ squashfs-tools/read_fs.c
+@@ -34,8 +34,13 @@
+ #include <string.h>
+ #include <zlib.h>
+ #include <sys/mman.h>
+-#include <endian.h>
+-
++#ifndef linux
++	#include <machine/endian.h>
++	#define __BYTE_ORDER BYTE_ORDER
++	#define __BIG_ENDIAN BIG_ENDIAN
++#else
++	#include <endian.h>
++#endif
+ #include <squashfs_fs.h>
+ #include "read_fs.h"
+ #include "global.h"

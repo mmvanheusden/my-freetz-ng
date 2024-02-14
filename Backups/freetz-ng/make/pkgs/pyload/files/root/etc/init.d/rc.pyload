@@ -1,0 +1,70 @@
+#!/bin/sh
+
+DAEMON=pyload
+DAEMON_LONG_NAME="pyLoad"
+. /etc/init.d/modlibrc
+
+DAEMON_BINARY="/opt/pyLoad/pyLoadCore.py"
+
+
+config() {
+	rm -rf /mod/pyload
+	ln -s "$PYLOAD_CONFIGDIR" /mod/pyload
+	mkdir "$PYLOAD_CONFIGDIR" 2>/dev/null
+}
+
+start() {
+	if [ ! -e "$PYLOAD_CONFIGDIR/pyload.conf" ]; then
+		echo "$DAEMON_LONG_NAME is not configured, failed."
+		return 1
+	fi
+	modlib_startdaemon start-stop-daemon -S -q -b -x $DAEMON_BINARY -p $PID_FILE -m
+}
+
+stop() {
+	$DAEMON_BINARY -p $PID_FILE -q >/dev/null
+}
+
+case $1 in
+	""|load)
+		config
+
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+
+		modlib_start $PYLOAD_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	setup)
+		modlib_check_running && modlib_stop
+		config
+		$DAEMON_BINARY -s
+		;;
+	user)
+		modlib_check_running || config
+		$DAEMON_BINARY -u
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status|setup|user]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

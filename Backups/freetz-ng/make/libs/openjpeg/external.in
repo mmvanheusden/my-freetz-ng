@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libopenjpeg
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libopenjpeg
+	bool "libopenjpeg"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libopenjpeg.so.1.5.2
+

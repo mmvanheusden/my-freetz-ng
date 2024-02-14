@@ -1,0 +1,59 @@
+--- src/mount_davfs.c
++++ src/mount_davfs.c
+@@ -686,7 +686,7 @@
+ 
+     while ((ft = getfsent()) != NULL) {
+         if (ft->fs_file) {
+-            char *mp = mcanonicalize_file_name(ft->fs_file);
++            char *mp = realpath(ft->fs_file);
+             if (mp) {
+                 if (strcmp(mp, mpoint) == 0) {
+                     free(mp);
+@@ -967,7 +967,7 @@
+             url = ne_strdup(argv[i]);
+         }
+         i++;
+-        mpoint = mcanonicalize_file_name(argv[i]);
++        mpoint = realpath(argv[i], NULL);
+         if (!mpoint)
+             ERR(_("can't evaluate path of mount point %s"), mpoint);
+         break;
+@@ -2164,7 +2164,7 @@
+             if (*parmv[0] != '[' || *(parmv[0] + strlen(parmv[0]) - 1) != ']')
+                 ERR_AT_LINE(filename, lineno, _("malformed line"));
+             *(parmv[0] + strlen(parmv[0]) - 1) = '\0';
+-            char *mp = mcanonicalize_file_name(parmv[0] + 1);
++            char *mp = realpath(parmv[0] + 1, NULL);
+             if (mp) {
+                 applies = (strcmp(mp, mpoint) == 0);
+                 free(mp);
+@@ -2414,7 +2414,7 @@
+             if (scheme && !port)
+                 port = ne_uri_defaultport(scheme);
+ 
+-            char *mp = mcanonicalize_file_name(parmv[0]);
++            char *mp = realpath(parmv[0], NULL);
+ 
+             char *ccert = NULL;
+             if (args->clicert) {
+--- src/umount_davfs.c
++++ src/umount_davfs.c
+@@ -24,6 +24,9 @@
+ #ifdef HAVE_LIBINTL_H
+ #include <libintl.h>
+ #endif
++#ifdef HAVE_LIMITS_H
++#include <limits.h>
++#endif
+ #ifdef HAVE_LOCALE_H
+ #include <locale.h>
+ #endif
+@@ -123,7 +126,7 @@
+     if (optind < (argc - 1))
+         ERR(_("too many arguments"));
+ 
+-    char *mpoint = mcanonicalize_file_name(argv[optind]);
++    char *mpoint = realpath(argv[optind], NULL);
+ 
+     char *umount_command = NULL;
+     if (mpoint) {

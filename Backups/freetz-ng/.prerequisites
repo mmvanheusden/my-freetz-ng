@@ -1,0 +1,65 @@
+program     bash
+program     bc                     FREETZ_AVM_VERSION_07_1X_MIN
+program     bison
+program     bunzip2
+program     bzip2
+program     cpio                   FREETZ_AVM_PROP_INNER_FILESYSTEM_TYPE_CPIO
+program     dd                     FREETZ_PACKAGE_SUNDTEK
+program     depmod                 FREETZ_AVM_VERSION_07_2X_MIN
+program     file
+program     filterdiff             FREETZ_SHOW_DEVELOPER
+program     find
+program     flex
+program     g++
+program     gawk
+program     gcc
+program     gettext
+program     git
+program     glib-genmarshal        FREETZ_LIB_libglib_2
+program     grep
+program     hexdump                FREETZ_TYPE_FIRMWARE_DETECT_LATEST
+program     inkscape           and FREETZ_TAGGING_ENABLED FREETZ_AVM_VERSION_06_5X_MIN FREETZ_AVM_VERSION_07_0X_MAX
+program     ecj                    FREETZ_PACKAGE_CLASSPATH
+program     ldconfig
+program     libtool
+program     libtoolize             FREETZ_PACKAGE_GNTPSEND
+program     lsdiff                 FREETZ_SHOW_DEVELOPER
+program     md5sum
+program     mktemp
+program     nc                     FREETZ_TYPE_FIRMWARE_DETECT_LATEST
+program     openssl             or FREETZ_FWMOD_VALIDATE FREETZ_FWMOD_SIGN
+program     patch
+program     perl
+program     pkg-config
+program     readlink
+program     realpath
+program     rpcgen                 FREETZ_PACKAGE_NFS_UTILS FREETZ_PACKAGE_AUTOFS
+program     rsync                  FREETZ_AVM_VERSION_07_2X_MIN
+program     sed
+program     sha256sum
+program     sort
+program     svn
+program     tar
+program     uudecode               FREETZ_PACKAGE_ASTERISK_GUI
+program     unxz
+program     unzip
+program     xml2-config            FREETZ_PACKAGE_GNTPSEND FREETZ_PACKAGE_ASTERISK
+program     xz
+program     zip                    FREETZ_PACKAGE_PYTHON
+binary      /bin/bash
+binary      /bin/sh
+binary      /usr/bin/env
+
+header      libelf.h               FREETZ_HOSTTOOLS_BUILD
+header      ncurses.h
+header      zlib.h
+header      sys/acl.h
+header      sys/capability.h
+header      uuid/uuid.h            FREETZ_AVM_HAS_FWLAYOUT_5 FREETZ_HOSTTOOLS_BUILD
+header      openssl/evp.h          FREETZ_AVM_HAS_FWLAYOUT_5 FREETZ_HOSTTOOLS_BUILD
+header      gnutls/gnutls.h        FREETZ_AVM_HAS_FWLAYOUT_5 FREETZ_HOSTTOOLS_BUILD
+header      readline/readline.h    FREETZ_PACKAGE_GDB_HOST
+header      sqlite3.h              FREETZ_ROOTEMU_PSEUDO
+lib         libsqlite3.so          FREETZ_ROOTEMU_PSEUDO
+pkgconf     libzstd.pc             FREETZ_TOOLCHAIN_CCACHE
+

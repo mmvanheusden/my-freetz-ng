@@ -1,0 +1,20 @@
+--- sslh-main.c
++++ sslh-main.c
+@@ -261,13 +261,10 @@
+ #endif
+ 
+    if (!cfg.foreground) {
+-       if (fork() > 0) exit(0); /* Detach */
+-
+-       /* New session -- become group leader */
+-       if (getuid() == 0) {
+-           res = setsid();
+-           CHECK_RES_DIE(res, "setsid: already process leader");
+-       }
++      if (daemon(0,0) < 0) {
++         fprintf(stderr, "Failed to daemonize: %s\n", strerror(errno));
++         exit(1);
++      }
+    }
+ 
+    setup_signals();

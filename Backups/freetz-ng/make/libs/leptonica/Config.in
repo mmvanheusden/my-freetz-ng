@@ -1,0 +1,11 @@
+config FREETZ_LIB_liblept
+	bool "leptonica (liblept.so)"
+	select FREETZ_LIB_libm if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libjpeg
+	select FREETZ_LIB_libpng16
+	select FREETZ_LIB_libtiff
+	select FREETZ_LIB_libz
+	default n
+	help
+		A library for efficient image processing and image analysis operations.
+

@@ -1,0 +1,871 @@
+#! /usr/bin/env bash
+
+# removes dependencies for (deleted) supervisor service "$1.service"
+supervisor_remove_dependency() {
+	local service="${1%.service}.service"
+	for file in $(grep -lP "(=| )${service}( |$)" ${FILESYSTEM_MOD_DIR}/lib/systemd/system/* 2>/dev/null); do
+		modsed -r "s/([= ])${service}( |$)/\1/g" "$file"
+		modsed '/^[Bb]efore= *$/d;/^[Aa]fter= *$/d' "$file"
+	done
+}
+
+# deletes file of supervisor service "$1.service" & dependencies
+supervisor_delete_service() {
+	local service="${1%.service}.service"
+	rm_files "${FILESYSTEM_MOD_DIR}/lib/systemd/system/${service}"
+	supervisor_remove_dependency "${service}"
+}
+
+
+#linkbox_remove <menu-name>
+#removes links within a box on the left
+linkbox_remove() {
+	[ -e "${HTML_LANG_MOD_DIR}/templates/menu_page_head.html" ] || return
+	# replaces "if menu.show_additional_menu("$menuname") then" with "if false and ... then"
+	modsed -r \
+	  "s,(menu[.]show_additional_menu[(]([\"'])$1\2[)]),false and \1," \
+	  "${HTML_LANG_MOD_DIR}/templates/menu_page_head.html"
+}
+
+#quickstart_remove <target-link>
+#removes links within quickstart.html (top menu)
+quickstart_remove() {
+	for file in \
+	  usr/www/all/templates/quickstart.html \
+	  usr/www.myfritz/all/home/fritzinfo.lua \
+	  usr/www.myfritz/all/home/fritzinfo_mobile.lua \
+	  ; do
+		[ ! -e "${FILESYSTEM_MOD_DIR}/$file" ] && continue
+		modsed \
+		  "/^box.out.*m_link_bold.*href.get.*'[\/]*$1[\/]*'.*box.tohtml.*/d" \
+		  "${FILESYSTEM_MOD_DIR}/$file"
+	done
+}
+
+#modern_remove <menu-item>
+#removes liks within menu_data.lua (left menu, responsive)
+modern_remove() {
+	[ "$FREETZ_AVM_VERSION_06_5X_MIN" != "y" ] && return
+	modsed "s/pageData\[\"$1\"\] and /&false and /" "${MENU_DATA_LUA}"
+}
+
+#menulua_remove <page-link>
+#removes links within menu_data.lua (left menu)
+menulua_remove() {
+	local file="${MENU_DATA_LUA}"
+	if [ "$FREETZ_AVM_HAS_LUA_SCALABLE" == "y" ]; then
+		# find ["lua"] line
+		local pattern='\["lua"\] = "[^"]*'"$1"'.lua"'
+		local matchLine=$(cat "$file" | get_line_number_of_1st_match "${pattern}")
+		[ -z "${matchLine}" ] && error 1 "menulua_remove: no matches for '${pattern}' found"
+		# the  ["show"] line is either one or two lines before
+		modsed -r \
+		  "$((${matchLine}-2)),$((${matchLine}-1))"' {
+		      s!^(\["show"\] = ).+,$!\1false,!
+		  }' \
+		  "$file"
+	else
+		modsed \
+		  "/{* *page = \".*\/$1.lua\",/d" \
+		  "$file"
+	fi
+}
+
+#menu2html_remove <menu-name>
+#removes links within menu2_home.html (left menu, pre lua)
+menu2html_remove() {
+	modsed \
+	  "/LMenuitemTop/{N;N;/^<li class=.LMenuitemTop.>\n<a href=.javascript:jslGoTo.'$1','.*'..>.*<.a>\n<.li>$/d}" \
+	  "${HTML_SPEC_MOD_DIR}/menus/menu2_home.html"
+}
+
+#replace_lua_function <lua_file_name> <function_name> [optional return_statement]
+#easily replace function $2 within file $1 by returning $3, if $3 is omitted the function is assumed to return void
+replace_lua_function() {
+	local lua_file_name="$1"
+	local function_name="$2"
+	local return_statement="${3:+return }${3}"
+	modsed -r \
+	  "s/^(((local )?function $function_name)([(][^)]*[)]))$/\1\n${return_statement}\nend\n\2_\4/" \
+	  "$lua_file_name" \
+	  " $function_name_("
+}
+#homelua_disable <function-name> [optional return value]
+#easily disable function $1 within "home.lua" by returning $2, if $2 is omitted the function is assumed to return void
+homelua_disable() {
+	replace_lua_function "${HTML_LANG_MOD_DIR}/home/home.lua" "$1" "$2"
+}
+homelua_disable_wrapper() {
+	if [ "$FREETZ_AVM_HAS_LUA_SCALABLE" == "y" ]; then
+		homelua_disable "add_$1" "false"
+	else
+		homelua_disable "tr_$1" "''"
+	fi
+}
+
+#enable_page <page>
+#enabled hidden/disabled menu entries in menu_show.lua
+enable_page() {
+	[ -e "${HTML_LANG_MOD_DIR}/menus/menu_show.lua" ] || return
+	modsed \
+ 	  "s/${1}.lua\"] =/& true ; dummy =/g" \
+	  "${HTML_LANG_MOD_DIR}/menus/menu_show.lua"
+}
+
+#decrip_file [-force] <file>
+#decripples css/html/lua text file
+decrip_file() {
+	local force='n'
+	[ "$1" == '-force' ] && force='y' && shift
+	[ -e "$1" ] || return 1
+	local lines="$(wc -l "$1" | sed 's/ .*//')"
+	[ "$force" != 'y' ] && [ "$lines" -gt 1 ] && return 1
+	echo2 "decrippling file $1"
+	if [ "$force" == 'y' ]; then
+		modsed 's/></>\n</g;s/,/,\n/g;s/;/;\n/g' "$1"
+	else
+		modsed 's/></>\n</g;s/{/ {\n/g;s/}/\n}\n/g;s/;/;\n/g' "$1"
+	fi
+}
+
+# -------------------------------------------------------------------
+# isFreetzType
+# -------------------------------------------------------------------
+# Author: Alexander Kriegisch (http://scrum-master.de)
+# -------------------------------------------------------------------
+# Simplify logical OR comparisons with Freetz box types or types of
+# lab firmwares etc.
+#
+# Example: The following construct...
+#
+# if [ "$FREETZ_TYPE_5010" == "y" ] || \
+#     [ "$FREETZ_TYPE_5050" == "y" ] || \
+#     [ "$FREETZ_TYPE_7050" == "y" ] || \
+#     [ "$FREETZ_TYPE_7140" == "y" ] || \
+#     [ "$FREETZ_TYPE_7141" == "y" ] || \
+#     [ "$FREETZ_TYPE_7150" == "y" ] || \
+#     [ "$FREETZ_TYPE_7170" == "y" ]
+# then
+#
+# ... can now be abbreviated by:
+#
+# if isFreetzType 5010 5050 7050 7140 7141 7150 7170; then
+#
+# This is also possible:
+#
+# if isFreetzType 7170 7240 7270 && isFreetzType LABOR_AIO; then
+# -------------------------------------------------------------------
+
+isFreetzType() {
+	for i; do
+		eval [ \"\$FREETZ_TYPE_$i\" == y ] && return 0
+	done
+	return 1
+}
+
+# little helper function used by many patches (maybe this should be sourced out)
+rm_files() {
+	for file in "$@"; do
+		echo2 "rm -rf $file"
+		rm -rf $file
+	done
+}
+
+#modsed <sed-expression> <file> [grep-expression-to-verify-sed]
+#should be used instead of sed -i -e in patch scripts
+modsed() {
+	local extended_regexp=""
+	if [ "$1" == "-r" ]; then
+		extended_regexp="$1"
+		shift
+	fi
+
+	[ $# -le 1 ] && error 1 "modsed failed, not enough parameters."
+	case $2 in
+		#since firmware 05.55 HTML_SPEC_MOD_DIR does not exist anymore
+		*/doesnotexist/*) return ;;
+	esac
+
+	local c=0
+	for f in $2; do
+		echo2 "patching $f"
+		[ ! -f "$f" ] && continue || let c++
+		sed -i $extended_regexp -e "$1" "$f" || error 1 "modsed failed editing $f (bad sed syntax?)"
+		if [ $# -ge 3 ]; then
+			grep -q "$3" "$f" || error 1 "modsed failed editing $f"
+		fi
+	done
+
+	if [ "$c" == "0" ]; then
+		if [ $# -lt 3 ]; then
+			warn3 "$2 not found, skipping."
+		else
+			error 1 "$2 not found, aborting."
+		fi
+	fi
+}
+
+# Input:
+#  stdin - file content
+#  $1 - regexp pattern
+#  $2 - optional range start line (useful for something like "find first occurrence of the pattern starting from the line $2")
+# Output:
+#  returns line number of the 1st pattern match or empty if the pattern doesn't match any line
+get_line_number_of_1st_match() {
+	sed -n -e "${2:+${2},$}"'{ /'"$1"'/ {=;q} }'
+}
+
+# Usage:
+#   mod_del_area <start-line-pattern> <start-line-offset> [end-line-pattern] <end-line-offset> <file>
+#
+# Removes all lines of the file starting from the 1st line matching the start-line-pattern
+# until the 1st line following the start one and matching the end-line-pattern.
+#
+# If the end-line-pattern is omitted the end line is equal to the start one.
+#
+# Both start and end lines could be fine adjusted by a positive or a negative offset.
+mod_del_area() {
+	# read parameters
+	[ $# -ne 4 -a $# -ne 5 ] && error 1 "mod_del_area: wrong parameter count"
+	for i in 1 2 3 4 5; do
+		case $i in
+			1) local startPattern="$1" ;;
+			2) local startOffset="$1" ;;
+			3) [ $# -gt 2 ] && local endPattern="$1" || continue ;;
+			4) local endOffset="$1" ;;
+			5) local file="$1" ;;
+		esac
+		shift
+	done
+
+	# check file exists
+	if [ ! -f "$file" ]; then
+		[ "${file/\/doesnotexist\//}" == "$file" ] && warn2 "mod_del_area: file '$file' does not exist"
+		return
+	fi
+
+	# determine start-pattern line
+	local startLine=$(cat "$file" | get_line_number_of_1st_match "${startPattern}")
+	if [ -z "$startLine" ]; then
+		warn2 "mod_del_area: start row not found in '$file'"
+		return
+	fi
+
+	# determine end-pattern line
+	if [ -z "$endPattern" ]; then
+		local endLine=$startLine
+	else
+		local endLine=$(cat "$file" | get_line_number_of_1st_match "${endPattern}" "$(($startLine + 1))")
+		if [ -z "$endLine" ]; then
+			warn2 "mod_del_area: end row not found in '$file'"
+			return
+		fi
+	fi
+
+	# add offsets
+	startLine="$((startLine + startOffset))"
+	endLine="$((endLine + endOffset))"
+
+	# remove lines
+	echo1 "patching ${file##*/}: removing lines ${startLine} - ${endLine}"
+	sed -i -e "${startLine},${endLine}d" "$file"
+	[ $? -ne 0 ] && error 1 "mod_del_area: error in sed expression"
+}
+
+# General printing (info messages, warnings and errors)
+echoX() {
+	# If an error occurs because a parameter starting with "-" (but none of the
+	# predefined letters below) is detected, we heuristically stop option parsing,
+	# assuming the caller wants to print a string like "----" or "-blah",
+	# accidentally starting with a dash/hyphen. In most cases this will work, but
+	# there are a few exceptions: Parameters with additional arguments (here "-i"
+	# and "-p", see below) will lead to conflicts. E.g. if the caller wants to
+	# print "-index" it will be interpreted as "-i ndex" ("ndex" will be used as
+	# an indentation string). If you want to print something like this you have
+	# to play by getopts's rules, i.e. you can use an additional separator "--"
+	# in between real paramaters and function arguments, like this:
+	#     echoX -bc -- "-index"
+	#     echo2 -c -p "NOTE: " -- "-print this"
+
+	local indent no_indent prefix no_newline bold unbold colour uncolour
+	OPTIND=0
+	# Leading colon means: silent error handling, no getopts errors on console
+	while getopts :i:p:lnbhc opt; do
+		case $opt in
+			i) indent="$OPTARG" ;;
+			l) no_indent=1 ;;
+			p) prefix="$OPTARG" ;;
+			n) no_newline=-n ;;
+			b) bold='\033[1m'; unbold='\033[0m' ;;
+			h) [ "$FREETZ_VERBOSITY_LEVEL" -ge 2 ] && colour='\033[94m' && uncolour='\033[m' ;;
+			c) colour='\033[33m'; uncolour='\033[m' ;; # ANSI brown/yellow
+			?) break ;; # unknown parameter -> stop option parsing
+		esac
+	done
+	shift $((OPTIND-1))
+
+	[ $no_indent ] && indent=
+	[ "$FREETZ_VERBOSITY_LEVEL" -ge 2 -a "$STEP" == "2" -a -z "$indent" -a -z "$bold" -a -z "$colour" ] && colour='\033[94m' && uncolour='\033[m' # ANSI blue
+	echo -e $no_newline "${indent}${bold}${colour}${prefix}$*${uncolour}${unbold}"
+}
+
+# If the verbosity level is undefined, probably this script has been called
+# directly by a professional user, so let's give him all the details.
+: ${FREETZ_VERBOSITY_LEVEL:=2}
+
+# Two spaces per indentation level seems to be a sensible default
+[ -z "$L1" ] && L1="  "
+L0=""
+L1="$L0$L1"
+L2="$L1$L1"
+L3="$L2$L1"
+
+# Verbosity-level-dependent, indented printing
+echo0() { [ "$FREETZ_VERBOSITY_LEVEL" -ge 0 ] && echoX -i "$L0" "$@"; }
+echo1() { [ "$FREETZ_VERBOSITY_LEVEL" -ge 1 ] && echoX -i "$L1" "$@"; }
+echo2() { [ "$FREETZ_VERBOSITY_LEVEL" -ge 2 ] && echoX -i "$L2" "$@"; }
+echo3() { [ "$FREETZ_VERBOSITY_LEVEL" -ge 3 ] && echoX -i "$L3" "$@"; }
+
+# Warning message
+warn() { echoX -c -p "WARNING: " "$@" >&2; }
+warn0() { [ "$FREETZ_VERBOSITY_LEVEL" -ge 0 ] && warn "$@"; }
+warn1() { [ "$FREETZ_VERBOSITY_LEVEL" -ge 1 ] && warn "$@"; }
+warn2() { [ "$FREETZ_VERBOSITY_LEVEL" -ge 2 ] && warn "$@"; }
+warn3() { [ "$FREETZ_VERBOSITY_LEVEL" -ge 3 ] && warn "$@"; }
+
+
+# Error message + exit with specified error code
+error() {
+	local err_no=$1
+	[ $err_no -eq 0 ] && return
+	shift
+	# Coloured (can be combined with bold)
+	echoX -c -p "ERROR: " "$@" >&2
+	exit $err_no
+}
+
+modunext2() {
+	dd if="$2" of="$2.ext2" bs=256 skip=1 conv=sync >/dev/null 2>&1 \
+	&& { mkdir -p "$1"; echo "rdump / $1" | "$DEBUGFS" "$2.ext2" >"$1.debugfs-rdump.log" 2>&1; }
+
+	if [ $? -gt 0 ]; then
+		error 1 "modunext2: Error in $2"
+	fi
+}
+
+modunsqfs() {
+	local STATUS
+	if [ "$FREETZ_VERBOSITY_LEVEL" -ge 2 ]; then
+		"$UNSQUASHFS" $UNSQUASHFS_OPTIONS -dest "$1" "$2" 2>&1 | grep -v "^$" | sed -e "s/^/${L2}/g"
+		STATUS=${PIPESTATUS[0]}
+	else
+		"$UNSQUASHFS" $UNSQUASHFS_OPTIONS -dest "$1" "$2" > /dev/null
+		STATUS=$?
+	fi
+	if [ $STATUS -gt 0 ]; then
+		error 1 "modunsqfs: Error in $2"
+	fi
+}
+
+moduncpio() {
+	mkdir -p "$1"
+	cat "$2" | gunzip | cpio -mid --quiet -D "$1" 2>&1
+	
+	if [ $? -gt 0 ]; then
+		error 1 "moduncpio: Error in $2"
+	fi
+}
+
+modunpack_autodetect_fs() {
+	if $BLKID -O 256 "$2" 2>/dev/null | grep -q 'TYPE="ext2"'; then
+		modunext2 "$@"
+	elif $BLKID -O 0 "$2" 2>/dev/null | grep -q 'TYPE="squashfs"'; then
+		modunsqfs "$@"
+	elif cat "$2" | gunzip 2>/dev/null | file - | grep -q 'cpio archive'; then
+		moduncpio "$@"
+	else
+		error 1 "modunpack_autodetect_fs: failed to detect file system type of '$2'"
+	fi
+}
+
+
+modlangsubst() {
+	# modlangsubst <lang> <file>
+	#   Substitutes all $(lang de:"Deutscher Text" en:"English text" ...) occurrences
+	#   in <file> with <text> of the corresponding <lang>:"<text>" section.
+
+	s='[\t\r\n\\ ]'
+	val='\(\([^"\\]*\(\\.\)*\)*\)'
+	entry="\w\+:\"${val}\""
+
+	LC_ALL="" LC_CTYPE=C sed -i -e "
+		:a
+		s/\$(lang\(${s}\+${entry}\)*${s}\+${1}:\"${val}\"\(${s}\+${entry}\)*${s}*)/\$(lang:\"\5\")/g
+		s/\$(lang\(${s}\+${entry}\)*${s}*)/*** error: language[${1}] not available ***/g
+		:n
+		s/\$(lang:\"\(\([^\"\\]\+\)\|[\\]\(.\)\)${val}\")/\2\3\$(lang:\"\4\")/g
+		tn
+		s/\$(lang:\"\")//g
+		/\$(lang\(${s}\|\$\)/ {N; ba}
+		" "$2"
+}
+
+modlangconf() {
+	# modlangconf <key> <file>
+	#   Get <content> of a <key> { <content> } section in <file>
+
+	s='[\t\r\n ]'
+
+	sed -n -e ":n;N;\$!bn;s/^.*${1}${s}\+{${s}*\([^}]*\)${s}*}.*$/\1/p" "$2"
+}
+
+modlang() {
+	# modlang <conffile> <dir>
+
+	[ "$FREETZ_LANG_STRING" == "xx" ] && return
+
+	case $1 in
+		/*) conffile=$1 ;;
+		*)  conffile="$PWD/$1" ;;
+	esac
+
+	avail="$(modlangconf "languages" "$conffile")"
+	default="$FREETZ_LANG_STRING $(modlangconf "default" "$conffile") en de $avail"
+	lang=""
+
+	for i in $default; do
+		for j in $avail; do
+			if [ "$i" == "$j" ]; then
+				lang="$j"
+				break 2
+			fi
+		done
+	done
+
+	if [ -z "$lang" ]; then
+		error 1 "no language available"
+	fi
+
+	[ "$lang" == "$FREETZ_LANG_STRING" ] || \
+		echo "NOTICE: language $FREETZ_LANG_STRING not available; $lang chosen." 1>&2
+
+	(
+		if ! cd "${2}"; then
+			warn "modlang: $2 does not exist"
+			return
+		fi
+		local dot_exclude="$(echo $FREETZ_BASE_DIR/$1 | sed 's/language$/exclude/')"
+		for i in $(modlangconf "files" "$conffile"); do
+			if [ -e "${i}" ]; then
+				modlangsubst "$lang" "${i}"
+			else
+				do_excluded=n
+				do_asterisk=n
+				while read l; do
+					echo $i | grep -q $l && do_excluded=y
+				done 2>/dev/null < "$dot_exclude"
+				[ "${i}" != "${i/*/}" ] && do_asterisk=y
+				[ "$do_excluded" != "y" -a "$do_asterisk" != "y" ] && warn "modlang: ${2}/${i} not found"
+			fi
+		done
+	)
+}
+
+
+# list of static packages, sorted by start level
+static_packages() {
+	sort $PACKAGES_LIST_FILE | cut -d ' ' -f 2,3 | sed 's/ /-/'
+}
+
+static_addons() {
+	cat $STATIC_ADDON_FILES 2>/dev/null \
+	  | sed -e 's/^[\ \t]*//' -e 's/[\ \t]*$//' \
+	  | grep -v '^#' | grep -v '^$'
+}
+
+#
+# returns package name with the version number stripped
+#
+real_pkg_name() {
+	echo "$1" | sed -r -e 's/-(alpha|beta|rc|(un)?stable|.)[0-9]*$//i' -e 's/-[0-9a-f]{7}([0-9a-f]{3}([0-9a-f]{30})?)?$//' -e 's/-v?[0-9][^-]*$//' -e 's/-v?[0-9][^-]*$//'
+}
+
+#
+# returns package name the with version number and special suffixes (e.g. -cgi) stripped
+#
+pkg_name() {
+	real_pkg_name "$1" | sed -r -e 's/(-v2)?-cgi$//'
+}
+
+#
+# $1 .. * - pkgname1 pkgname2 ...
+#
+pkg_menuconfig_symbol_name() {
+	echo "$@" | sed -r -e 's,-,_,g' -e 's,([^ \t]*),FREETZ_PACKAGE_\U\1,g'
+}
+
+#
+# $1 .. * - pkgname1 pkgname-pkgver2 ...
+#
+# Each parameter is expected to be either just
+#   - the package name (pkgname), or
+#   - the package name followed by the package version (pkgname-pkgversion)
+#
+# requires GNU tar because of the '--null' option (not supported by busybox tar)
+#
+collect_pkg_files() {
+	local p=, pkg=, pkg_dir=, pkg_menuconfig_symbol=
+	for p in "$@"; do
+		pkg=$(real_pkg_name "${p}")
+
+		pkg_menuconfig_symbol=$(pkg_menuconfig_symbol_name ${pkg})
+		[ "$(eval echo \$${pkg_menuconfig_symbol})" != y ] && continue
+
+		if [ "${p}" == "${pkg}" ]; then
+			# p is pkgname
+			[ ! -f "${PACKAGES_DIR}/.${pkg}" ] && error 1 "Package ${pkg} is selected but no ${PACKAGES_DIR}/.${pkg} file is available."
+			pkg_dir="${pkg}-$(cat "${PACKAGES_DIR}/.${pkg}")"
+		else
+			# p is (assumed to be) pkgname-pkgver
+			pkg_dir="${p}"
+		fi
+
+		(
+			cd "${PACKAGES_DIR}/${pkg_dir}/root/"
+			find . -type f -print0 | tar -cv $(find "../" -maxdepth 1 -type f -name ".exclude*" -printf '--exclude-from=%p ') --null -T - -f /dev/null
+		)
+	done | sed -r -e 's,^[.],,' -e 's,^([^/]),/\1,'
+}
+
+#
+# checks if (.)fwmod_custom scripts exists, have correct syntax, and invokes them
+# with exactly the same parameters as those passed to invoke_fwmod_custom itself
+#
+invoke_fwmod_custom() {
+	echo0 "invoking custom scripts"
+	for file in fwmod_custom .fwmod_custom; do
+		[ -x "${BASE_DIR}/$file" ] || continue
+
+		# syntax check
+		$SHELL -n "${BASE_DIR}/$file" || error 1 "syntax error in $file script"
+
+		echo1 "$file"
+		(
+		  AVM_FW_MAJOR="$AVM_FW_MAJOR" \
+		  AVM_FW_VERSION="$AVM_FW_VERSION" \
+		  TOOLS_DIR="$TOOLS_DIR" \
+		  FILESYSTEM_MOD_DIR="$FILESYSTEM_MOD_DIR" \
+		  PATCHES_COND_DIR="$PATCHES_COND_DIR" \
+		  ./$file "$@"
+		) || error 1 "$file script returned error $?"
+	done
+}
+
+#
+# Returns "(NEEDED)"-entries for all binaries/libraries supplied
+#
+getNeededEntries() {
+	"${FREETZ_BASE_DIR}"/toolchain/target/bin/${FREETZ_TARGET_CROSS}readelf -d "$@" 2>/dev/null \
+	| grep "(NEEDED)" | sed -r -e 's,^[^[]* [[]([^]]*)[]].*$,\1,' | sort -u
+}
+
+#
+# Returns if $1 is a "(NEEDED)"-entry of one of the binaries/libraries supplied after $1
+# $1 might also be an extended grep-pattern, e.g. (libcapi|libfax)
+#
+isNeededEntry() {
+	[ $# -lt 2 ] && error 1 "isNeededEntry failed, not enough parameters."
+	local neededPattern="$1"; shift
+	local neededEntries=$(getNeededEntries "$@")
+	grep -E -q "$neededPattern" 2>/dev/null <<< "$neededEntries"
+}
+
+#
+# Strips trailing slash if provided
+#
+stripTrailingSlash() {
+	local path="$1"
+	[ -n "${path}" -a "${path: -1: 1}" == "/" ] && path="${path: 0: -1}"
+	echo -n "$path"
+}
+
+#
+# Adds trailing slash if missing
+#
+addTrailingSlash() {
+	local path="$1"
+	[ -n "${path}" -a "${path: -1: 1}" != "/" ] && path="$path/"
+	echo -n "$path"
+}
+
+#
+# Converts absolute symlinks to relative ones. See USAGE below for details.
+#
+# Dependencies: readlink, realpath, bash (uses bash specific functions).
+#
+symlinks-abs2rel() {
+	local USAGE="$(
+		echo -e "Usage:\t${FUNCNAME} [-v|-verbose] [-r|-recursive] TARGET_FS_ROOT DIR [MASK], where"
+		echo -e "\t\tTARGET_FS_ROOT is the directory pointing to the root directory of the target filesystem"
+		echo -e "\t\tDIR is the directory within the target filesystem symlinks to be corrected within (absolute path is expected)"
+		echo -e "\t\tMASK optional filename mask, default *"
+	)"
+
+	local VERBOSE="echo2"
+	local DEPTH="-maxdepth 1"
+	while [ -n "$1" -a "${1:0:1}" == "-" ]; do
+		case "$1" in
+			-v|-verbose|--verbose)
+				VERBOSE="echo0"
+				shift
+				;;
+			-r|-recursive|--recursive)
+				DEPTH=""
+				shift
+				;;
+			--)
+				shift
+				break
+				;;
+			*)
+				error 1 "$USAGE"
+				;;
+		esac
+	done
+	local TARGET_FS_ROOT=$(realpath "$1")
+	TARGET_FS_ROOT=$(stripTrailingSlash "$TARGET_FS_ROOT")
+	local DIR=$(addTrailingSlash "$2")
+	local MASK="$3"; [ -z "$MASK" ] && MASK="*"
+	if [ -z "$TARGET_FS_ROOT" -o ! -d "$TARGET_FS_ROOT" -o -z "$DIR" -o "${DIR:0:1}" != "/" ]; then
+		error 1 "$USAGE"
+	fi
+
+	local LINK LINK_DIR TARGET TARGET_CANONICAL TARGET_RELATIVE
+	for LINK in $(find "${TARGET_FS_ROOT}${DIR}" ${DEPTH} -type l -lname "/*" -name "$MASK"); do
+		LINK_DIR=$(dirname "${LINK#${TARGET_FS_ROOT}}")
+		LINK_DIR=$(addTrailingSlash "$LINK_DIR")
+		TARGET=$(readlink --no-newline "$LINK")
+
+		if [ $? -ne 0 ]; then
+			warn0 "${FUNCNAME}: failed to read symlink from '${LINK#${TARGET_FS_ROOT}}'"
+			continue
+		fi
+
+		TARGET_CANONICAL="$(realpath ${TARGET_FS_ROOT}${TARGET} | sed "s,^${TARGET_FS_ROOT},,")"
+		if [ $? -ne 0 ]; then
+			warn0 "${FUNCNAME}: failed to determine canonical name of '${LINK#${TARGET_FS_ROOT}}' -> '$TARGET'"
+			continue
+		fi
+
+		# First try to create the shortest symlink possible. This is possible
+		# if TARGET_CANONICAL points to some target located under LINK_DIR,
+		# i.e. TARGET_CANONICAL starts with LINK_DIR.
+		TARGET_RELATIVE="${TARGET_CANONICAL#${LINK_DIR}}"
+		if [ "$TARGET_CANONICAL" == "$TARGET_RELATIVE" ]; then
+			# TARGET_CANONICAL does NOT point to some target under LINK_DIR.
+			# Create relative symlink by prepending target with mutiple "../"
+			local temp="${LINK#${TARGET_FS_ROOT}/}"
+			TARGET_RELATIVE="${TARGET_CANONICAL:1}"
+			while [ "${temp#*/}" != "$temp" ]; do
+				temp="${temp#*/}"
+				TARGET_RELATIVE="../${TARGET_RELATIVE}"
+			done
+		fi
+
+		$VERBOSE "Converting symlink '${LINK#${TARGET_FS_ROOT}}' from '$TARGET' to '$TARGET_RELATIVE'"
+		if ! ln -sf "$TARGET_RELATIVE" "$LINK"; then
+			error 1 "${FUNCNAME}: failed to convert symlink '${LINK#${TARGET_FS_ROOT}}' from '$TARGET' to '$TARGET_RELATIVE'"
+		fi
+	done
+}
+
+# joins all arguments starting from the 2nd one together using the 1st character of $1 as delimiter
+# i.e. converts $1 $2 $3 ... to $2${DELIMITER}$3${DELIMITER}$4${DELIMITER}... whereas DELIMITER=${1:0:1}
+join() {
+	(IFS="$1"; shift; echo -n "$*")
+}
+# $1 - file to wrap
+# $2 $3 ... - libraries to preload
+create_LD_PRELOAD_wrapper() {
+	local file_to_wrap="$1"; shift
+	[ -f "${FILESYSTEM_MOD_DIR}${file_to_wrap}" -a -x "${FILESYSTEM_MOD_DIR}${file_to_wrap}" ] || error 1 "${FUNCNAME}: ${file_to_wrap} is expected to exist and be executable"
+	local libraries_to_preload=$(join ':' "$@")
+	[ -z "${libraries_to_preload}" ] && return 2
+	[ -n "${libraries_to_preload}" ] || error 1 "${FUNCNAME}(${file_to_wrap}): no LD_PRELOAD library specified"
+
+	local bname=$(basename "$file_to_wrap")
+	local dname=$(dirname "$file_to_wrap")/avm
+
+	mkdir -p "${FILESYSTEM_MOD_DIR}${dname}"
+	mv "${FILESYSTEM_MOD_DIR}${file_to_wrap}" "${FILESYSTEM_MOD_DIR}${dname}/"
+
+	cat <<- EOF >> "${FILESYSTEM_MOD_DIR}${file_to_wrap}"
+		#!/bin/sh
+		export LD_PRELOAD="${libraries_to_preload}\${LD_PRELOAD:+:}\${LD_PRELOAD}"
+		exec ${dname}/${bname} "\$@"
+	EOF
+
+	chmod 755 "${FILESYSTEM_MOD_DIR}${file_to_wrap}"
+}
+
+
+# create preloading environment file
+# $1 - target file
+# $2 - preload lib
+create_service_environment() {
+	[ -n "$2" ] && echo "LD_PRELOAD=$2" > "$1" || echo -n > "$1"
+}
+
+
+# use preloading environment file
+# $1 - avm service file
+# $2 - environment file
+alter_service__use_own_env_file() {
+	modsed -r \
+	  "s/^(EnvironmentFile)=.*/\1=${2//\//\\/}/" \
+	  "$1" \
+	  "=${2}$"
+}
+
+# change daemon file to avm bianry
+# $1 - avm service file
+# $2 - avm daemon name
+alter_service__dont_use_wrapper() {
+	modsed \
+	  "s,^ExecStart=.*/,&avm/," \
+	  "$1" \
+	  "/avm/$2"
+}
+
+# add argument to daemon binary
+# $1 - avm service file
+# $2 - daemon arguments
+alter_service__add_daemon_arg() {
+	modsed -r \
+	  "s,^ExecStart=.*,& $2," \
+	  "$1" \
+	  " $2$"
+}
+
+
+# change daemon file to avm bianry
+# $1 - avm service file
+# $2 - avm daemon name
+# $3 - new wrapper path
+alter_service__use_old_wrap_sh() {
+	modsed -r \
+	  "s,^(ExecStart *=).*/($2.*)$,\1${3//\//\\/}/\2," \
+	  "$1" \
+	  "=$3/$2"
+}
+
+
+# $1 - number (or mathematical expression) in bytes
+byte_to_mb() {
+	echo $(($1)) | awk '{ printf "%.1f MB", $1 /1024/1024 }'
+}
+
+# $1 - tarball filename
+is_valid_tarball() {
+	# integrity check by listing the content
+	[ -s "$1" ] && tar -tf "$1"    >/dev/null 2>&1
+
+	# integrity check by decompressing to stdout
+#	[ -s "$1" ] && tar -xf "$1" -O >/dev/null 2>&1
+}
+
+# copy timestamps from (all in) $1 to $2 - if item (in) $1 exists, otherwise sets $SOURCE_DATE_EPOCH or 1970
+# $1 - required - destination file or directory
+# $2 - optional - source file or directory
+sync_timestamps() {
+	local dst_dir="$1"
+	local src_dir="$2"
+	local dst_itm
+	local src_itm
+
+	find "$dst_dir" | while read -r dst_itm; do
+		src_itm="$src_dir${dst_itm#$dst_dir}"
+		if [ ! -e "$src_itm" -a ! -L "$src_itm" ]; then
+			touch -h -c -d "@${SOURCE_DATE_EPOCH:-0}" "$dst_itm"
+		else
+			touch -h -c -r "$src_itm" "$dst_itm"
+		fi
+	done
+}
+
+# avm image details
+# Requires	$FILESYSTEM_DIR
+# Requires	$FIRMWARE_DIR
+# Optional	$FREETZ_TYPE_LANG_IT
+# Optional	$FREETZ_TYPE_LANG_A_CH
+# Returns	$SOURCE_IMAGE_DETAILS
+image_details() {
+	local AVM_FW_PRODUCT
+	local AVM_FW_LANGUAGE
+	#AVM_FW_MAJOR
+	#AVM_FW_VERSION
+	local AVM_FW_LABOR
+	#AVM_FW_REVISION
+	local AVM_FW_DATE
+	local AVM_FW_CYCLE
+	local AVM_FM_REGION
+	#SOURCE_IMAGE_DETAILS
+	#
+	AVM_FW_PRODUCT="$(sed -rn 's/Annex./Annex/;s/export CONFIG_PRODUKT_NAME=".*([0-9]{3}[0-9V].*)"/\1/p' ${FILESYSTEM_DIR}/etc/init.d/rc.conf | head -n1)" # 4-digits in /etc/init.d/rc.conf
+	[ -z "${AVM_FW_PRODUCT}" ] && AVM_FW_PRODUCT="$(sed -rn 's/export CONFIG_PRODUKT_NAME="(FRITZ!Box|Speedport|Sinus|Eumex) ([^"]+)"/\2/p' ${FILESYSTEM_DIR}/etc/init.d/rc.conf | head -n1 | tr ' ' '-')" # symbolic name in /etc/init.d/rc.conf
+	if [ -e "${FILESYSTEM_DIR}/etc/init.d/rc.init" ]; then
+		# /etc/init.d/rc.init is not available in all firmwares
+		[ -z "${AVM_FW_PRODUCT}" ] && AVM_FW_PRODUCT="$(sed -rn 's/^HW=[0-9]* OEM=all _PRODUKT_NAME=(FRITZ!Box|Speedport|Sinus|Eumex)#//p' ${FILESYSTEM_DIR}/etc/init.d/rc.init | head -n1 | sed 's/#//g;s/Annex.//;s/WLAN/-&/g;s/^-[A-Z]*//g;s/^$/FritzBox/g')" # symbolic name in /etc/init.d/rc.init
+		[ -z "${AVM_FW_PRODUCT}" ] && AVM_FW_PRODUCT="$(sed -rn 's/^HW=[0-9]* OEM=all _PRODUKT_NAME=([0-9A-Z\#]{4,6}).*/\1/p' ${FILESYSTEM_DIR}/etc/init.d/rc.init)" # 4-digits in /etc/init.d/rc.init
+	fi
+	[ -z "${AVM_FW_PRODUCT}" ] && AVM_FW_PRODUCT="$(sed -rn 's/export CONFIG_PRODUKT_NAME=.*(Repeater|Powerline|Smart) (.*)"/\2/p' ${FILESYSTEM_DIR}/etc/init.d/rc.conf)" # Repeater like 'DVB-C'
+	[ -z "${AVM_FW_PRODUCT}" ] && warn "Failed to determine AVM_FW_PRODUCT, even though this is a cosmetic bug only please report it to the Freetz developers and provide your .config"
+	AVM_FW_PRODUCT="${AVM_FW_PRODUCT%% Edition*}"
+	AVM_FW_PRODUCT="${AVM_FW_PRODUCT% }"
+	AVM_FW_LANGUAGE="$(sed -n 's/^language /_/p' ${FILESYSTEM_DIR}/etc/default.language)" #primary language
+	AVM_FW_LANGUAGE="${AVM_FW_LANGUAGE}$(for x in $(ls ${FILESYSTEM_DIR}/etc/htmltext_??.db 2>/dev/null| sed 's/.*_//g;s/\.db//g'); do [ "_$x" != "${AVM_FW_LANGUAGE}" ] && echo -en "-$x"; done; echo)" # other languages
+	AVM_FW_MAJOR="$(sed -rn 's/^export CONFIG_VERSION_MAJOR="(.*)"/\1/p' ${FILESYSTEM_DIR}/etc/init.d/rc.conf | tail -n1)" # newer firmware
+	[ -z "${AVM_FW_MAJOR}" ] && AVM_FW_MAJOR="$(sed -n 's/^HW=[0-9].*VERSION_MAJOR=//p' ${FILESYSTEM_DIR}/etc/init.d/rc.init)" # older firmware
+	AVM_FW_VERSION="$(sed -n 's/^export FIRMWARE_VERSION=.*}[.]//p' ${FILESYSTEM_DIR}/etc/version)" # older firmware
+	[ -z "$AVM_FW_VERSION" ] && AVM_FW_VERSION="$(sed -rn 's/^export CONFIG_VERSION=\"?([^\"]*)\"?/\1/p' ${FILESYSTEM_DIR}/etc/init.d/rc.conf)" # newer firmware
+	AVM_FW_LABOR="$(sed -rn 's/^export CONFIG_LABOR_ID_NAME="(.*)"/-\1/p' ${FILESYSTEM_DIR}/etc/init.d/rc.conf)"
+	AVM_FW_REVISION="$(sed -n '/--project)$/{N;s/.*echo //p}' ${FILESYSTEM_DIR}/etc/version)" # older firmware
+	[ -z "$AVM_FW_REVISION" ] && AVM_FW_REVISION="$(sed -rn 's/^export CONFIG_SUBVERSION=\"?-?([^\"]*)\"?/\1/p' ${FILESYSTEM_DIR}/etc/init.d/rc.conf)" # newer firmware
+	[ -z "$AVM_FW_REVISION" ] && AVM_FW_REVISION="$(sed -rn 's/^export CONFIG_BUILDNUMBER=\"([^\"]*)\"/\1/p' ${FILESYSTEM_DIR}/etc/init.d/rc.conf)" # latest firmware
+	AVM_FW_DATE="$(sed -rn 's/^export FIRMWARE_DATE="(.*)"/\1/p' ${FILESYSTEM_DIR}/etc/version)" # older firmware
+	stat "${FILESYSTEM_DIR}/etc/version" --printf="%Y\n%W\n" | sort -u | wc -l | grep -q '^1$' && \
+	 AVM_FW_DATE="$(date -d"$(stat -c '%y' "${FIRMWARE_DIR}/var/content" 2>/dev/null)" "+%d.%m.%Y %H:%M:%S" 2>/dev/null)" # cpio packed fs
+	[ -z "$AVM_FW_DATE" ] && AVM_FW_DATE="$(date -d"$(stat -c '%y' ${FILESYSTEM_DIR}/etc/version)" "+%d.%m.%Y %H:%M:%S")" # newer firmware
+	AVM_FW_CYCLE="$(sed -rn 's/^Releasecycle=//p' "${FIRMWARE_DIR}/var/content" 2>/dev/null)"
+	[ -n "$AVM_FW_CYCLE" ] && AVM_FW_CYCLE=" [$AVM_FW_CYCLE]"
+	[ -d ${FILESYSTEM_DIR}/etc/default.*/avm/ ]                                              && AVM_FM_REGION='GER'
+	[ -d ${FILESYSTEM_DIR}/etc/default.*/avme/ ]                                             && AVM_FM_REGION='INT'
+	[ -d ${FILESYSTEM_DIR}/etc/default.*/avme/ -a -d ${FILESYSTEM_DIR}/etc/default.*/avm/ ]  && AVM_FM_REGION='ALL'
+	[ "$FREETZ_TYPE_LANG_IT" == "y" ]                                                        && AVM_FM_REGION='ITA'
+	[ "$FREETZ_TYPE_LANG_A_CH" == "y" ]                                                      && AVM_FM_REGION='ACH'
+	#
+	SOURCE_IMAGE_DETAILS="${AVM_FW_PRODUCT/ /-}${AVM_FW_LANGUAGE} ${AVM_FW_MAJOR}.${AVM_FW_VERSION}${AVM_FW_LABOR} rev${AVM_FW_REVISION} {${AVM_FM_REGION}}${AVM_FW_CYCLE} (${AVM_FW_DATE})"
+}
+
+#
+# get supported brandings by listing directories under /etc/default.${CONFIG_PRODUKT}
+#
+# shamelessly stolen from modfs project
+#
+supported_brandings() {
+	local etc_default_PRODUKT_path brandings
+	etc_default_PRODUKT_path=$(find "${FILESYSTEM_MOD_DIR}/etc" -type d -name "default.*" | sed -e "\|${FILESYSTEM_MOD_DIR}/etc/default.[0-9]*$|d")
+	brandings=$(find "${etc_default_PRODUKT_path}" -maxdepth 1 -type d | sed -n -e "s|${etc_default_PRODUKT_path}[/]*||p" | sed -e "/^$/d" | sort -u)
+	echo $brandings
+}
+firmware_version() {
+	local varname oem supported_brandings="$@"
+	for oem in ${supported_brandings}; do
+		varname="FREETZ_ENFORCE_BRANDING_$oem"
+		[ "${!varname}" != "y" ] && continue
+		echo "$oem"
+		return 0
+	done
+	return 1
+}
+

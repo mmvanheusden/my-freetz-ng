@@ -1,0 +1,9 @@
+#!/bin/sh
+
+script=${0##*/}
+prefix=${script%%_conf}
+
+. /mod/etc/conf/${prefix}.cfg
+
+echo "$OPENVPN_CONF" > ${1-"/mod/etc/${prefix}.conf"}
+

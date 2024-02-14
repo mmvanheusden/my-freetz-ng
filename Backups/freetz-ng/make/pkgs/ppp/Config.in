@@ -1,0 +1,10 @@
+comment "Point-to-Point (not available, needs kernel modules)"
+	depends on !FREETZ_REPLACE_MODULE_AVAILABLE
+
+comment "Point-to-Point (not available, needs replace kernel)"
+	depends on FREETZ_KERNEL_VERSION_2_6_28 && !FREETZ_REPLACE_KERNEL
+
+config FREETZ_PACKAGE_PPP
+	bool "Point-to-Point"
+	depends on (FREETZ_REPLACE_MODULE_AVAILABLE && !FREETZ_KERNEL_VERSION_2_6_28) || FREETZ_REPLACE_KERNEL
+

@@ -1,0 +1,72 @@
+#!/bin/sh
+
+DAEMON=nzbget
+DAEMON_LONG_NAME="NZBGet"
+. /etc/init.d/modlibrc
+
+config() {
+	ln -sf "$NZBGET_CONFIGDIR/nzbget.conf" /mod/etc/nzbget.conf
+	mkdir "$NZBGET_CONFIGDIR" 2>/dev/null
+	if [ -d "$NZBGET_CONFIGDIR" -a ! -f "$NZBGET_CONFIGDIR/nzbget.conf" ]; then
+		cat /usr/share/nzbget/nzbget.conf > "$NZBGET_CONFIGDIR/nzbget.conf"
+	fi
+	if [ -f "$NZBGET_CONFIGDIR/nzbget.conf" ]; then
+		[ -r /etc/options.cfg ] && . /etc/options.cfg
+		if [ "$FREETZ_PACKAGE_NZBGET_DISABLE_PAR_CHECK" == "y" ]; then
+			sed -r 's/^(ParCheck)=.*/\1=manual/' -i "$NZBGET_CONFIGDIR/nzbget.conf"
+			sed -r 's/^(ParRename)=.*/\1=no/' -i "$NZBGET_CONFIGDIR/nzbget.conf"
+		fi
+		sed -r "s!^(MainDir)=.*!\1=${NZBGET_CONFIGDIR}!" -i "$NZBGET_CONFIGDIR/nzbget.conf"
+		sed -r 's!^(ScriptDir=\$\{MainDir\}/scripts).*!\1;/usr/share/nzbget/scripts!' -i "$NZBGET_CONFIGDIR/nzbget.conf"
+	fi
+}
+
+start() {
+	modlib_startdaemon $DAEMON_BIN -D
+}
+
+stop() {
+	$DAEMON_BIN -Q >/dev/null
+}
+
+stop_post() {
+	local cnt=0
+	while pidof $DAEMON_BIN >/dev/null; do
+		let cnt++
+		[ $cnt -gt 17 ] && return 1
+		sleep 1
+	done
+}
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+
+		modlib_start $NZBGET_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

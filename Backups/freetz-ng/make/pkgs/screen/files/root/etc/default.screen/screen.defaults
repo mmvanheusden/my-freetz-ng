@@ -1,0 +1,8 @@
+vbell off
+startup_message off
+defscrollback 10000
+
+hardstatus on
+hardstatus alwayslastline
+hardstatus string '%{= kG}[%{y} %H %{r}--%{B} %l %{g}][%= %{= kw}%?%-Lw%? %{= mw} %n*%f%t%?(%u)%? %{= kG} %{w}%?%+Lw%?%?%= %{g}][%{B} %D, %d. %M %Y %{r}--%{y} %c:%s %{g}]'
+

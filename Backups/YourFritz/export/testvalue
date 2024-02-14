@@ -1,0 +1,65 @@
+#! /bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# replace AVM's "testvalue" binary (which reads 1-, 2- or 4-byte values from a
+# given file and writes the decimal result to stdout) with a version based on
+# the "dd" and "base64" command only, this command is present in newer firmware
+# versions to dump the TFFS content for "extended support data" output
+#
+# AVM's syntax is:
+#
+# testvalue <filename> <type> <offset> [<value>]
+# type: 1,2,4
+#
+# and we'll implement the same to be exchangeable
+#
+_getvalue()
+{
+	local file="$1" type="$2" offset="$3" input i=0 f=0 v=0 c l=0
+	input=$(dd if="$1" bs=1 skip="$offset" count="$type" 2>/dev/null | base64 | sed -e 's/+/_/g')
+	[ ${#input} -eq 0 ] && return 1
+	while [ ${#input} -gt $i ]; do
+		[ ${input:$i:1} != = ] \
+		&& v=$(( ( v << 6 ) + $(( $(expr index "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_/" "${input:$i:1}") - 1 )) ))\
+		|| let f+=1
+		let i+=1
+	done
+	v=$(( v >> ( f * 2 ) ))
+	[ $(( ( i - f ) * 6 / 8 )) -ne $type ] && return 1 # short read
+	printf "%u" $v
+}
+_swap_endianess()
+{
+	local val="$1" type="$2" temp res
+	temp=$(printf "%0$(( type * 2 ))x" $val)
+	while [ ${#temp} -gt 0 ]; do
+		res=${temp:0:2}$res
+		temp=${temp:2}
+	done
+	temp=$res
+	res=0
+	while [ ${#temp} -gt 0 ]; do
+		res=$(( ( res << 8 ) + 0x${temp:0:2} ))
+		temp=${temp:2}
+	done
+	printf "%lu" $res
+}
+[ -z "$1" ] && exit 1
+file="$1"
+[ ! -f "$file" ] && exit 1
+[ -z "$2" ] && exit 1
+chk="${2/[124]/}"
+[ ${#chk} -ne 0 ] && exit 1
+type="$2"
+[ -z "$3" ] && exit 1
+chk="${3//[0-9]/}"
+[ ${#chk} -ne 0 ] && exit 1
+offset="$3"
+[ ! -z "$4" ] && chk="${4//[0-9]/}" || unset chk
+[ ${#chk} -ne 0 ] && exit 1
+comp="$4"
+val=$(_getvalue "$file" "$type" "$offset")
+[ $? -ne 0 ] && exit 1
+[ $type -gt 1 ] && [ "$(dd if=/proc/self/exe bs=1 skip=5 count=1 2>/dev/null | base64)" == "AQ==" ] && val=$(_swap_endianess $val $type)
+[ ${#comp} -eq 0 ] && echo $val && exit
+[ $val -eq $comp ] && exit 0 || exit 1

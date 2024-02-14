@@ -1,0 +1,14 @@
+--- stubby/src/configfile.c
++++ stubby/src/configfile.c
+@@ -272,11 +272,6 @@
+                          strstr(fn, ".yaml") != NULL,
+ 			 config_log_level);
+         free(config_file);
+-        if (r == GETDNS_RETURN_GOOD
+-	&&  (          log_level <= GETDNS_LOG_DEBUG
+-	    || *config_log_level >= GETDNS_LOG_DEBUG))
+-                stubby_log(NULL,GETDNS_LOG_UPSTREAM_STATS, GETDNS_LOG_DEBUG,
+-                           "Read config from file %s", fn);
+         return r;
+ }
+ 

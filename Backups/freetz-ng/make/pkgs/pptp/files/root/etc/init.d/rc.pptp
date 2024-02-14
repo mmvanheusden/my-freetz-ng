@@ -1,0 +1,134 @@
+#!/bin/sh
+
+DAEMON=pptp
+DAEMON_BIN=pppd
+. /etc/init.d/modlibrc
+
+start() {
+	if pidof pptp >/dev/null; then
+		echo 'pptp is already running'
+		exit 1
+	fi
+	echo -n 'Starting pptp ... '
+	set -o noglob
+
+	rm -f /mod/etc/ppp/peers/pptp
+	rm -f /mod/etc/ppp/ip-up
+	rm -f /mod/etc/ppp/ip-down
+	[ -x /tmp/flash/ppp/peers/pptp_peer ] && /tmp/flash/ppp/peers/pptp_peer > /mod/etc/ppp/peers/pptp
+	[ ! -e /mod/etc/ppp/peers/pptp ] && /mod/etc/default.${DAEMON}/pptp_peer > /mod/etc/ppp/peers/pptp
+	[ -x /tmp/flash/ppp/pppd_ip-up ] && /tmp/flash/ppp/pppd_ip-up > /mod/etc/ppp/ip-up
+	[ ! -e /mod/etc/ppp/ip-up ] && /mod/etc/default.pppd/pppd_ip-up > /mod/etc/ppp/ip-up
+	[ -x /tmp/flash/ppp/pppd_ip-down ] && /tmp/flash/ppp/pppd_ip-down > /mod/etc/ppp/ip-down
+	[ ! -e /mod/etc/ppp/ip-down ] && /mod/etc/default.pppd/pppd_ip-down > /mod/etc/ppp/ip-down
+	chmod 755 /mod/etc/ppp/ip-up
+	chmod 755 /mod/etc/ppp/ip-down
+
+	kver="$(uname -r)"
+	modprobe arc4
+	[ "${kver:4:2}" -lt 28 ] && modprobe sha1 || modprobe sha1_generic
+	modprobe ppp_generic
+	modprobe ppp_async
+	modprobe ppp_deflate
+	modprobe ppp_mppe_mppc
+
+	if [ -n "$PPTP_PRECONN" ]; then
+		echo "$PPTP_PRECONN" > /tmp/pptp_preconn
+		chmod +x /tmp/pptp_preconn
+		/tmp/pptp_preconn
+		rm /tmp/pptp_preconn
+	fi
+
+	$DAEMON_BIN call pptp $PPTP_OPTIONS
+	sleep 3
+	if pidof pptp >/dev/null; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		if [ "$PPTP_RESTART" == "yes" -a -z "$(pidof pptp_restart)" ]; then
+			echo -n 'Starting restart script ... '
+			if [ -x /var/tmp/flash/ppp/pptp_restart ]; then
+				/var/tmp/flash/ppp/pptp_restart &
+			else
+				/mod/etc/default.pptp/pptp_restart &
+			fi
+			exitval=$?
+			if [ "$exitval" -eq 0 ]; then
+				echo 'done.'
+			else
+				echo 'failed.'
+				exit $exitval
+			fi
+		fi
+	fi
+}
+
+stop() {
+	echo -n 'Stopping pptp ... '
+
+	killall $DAEMON > /dev/null 2>&1
+	exitval=$?
+	if [ "$exitval" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+	fi
+	sleep 3
+	if pidof pptp_restart >/dev/null; then
+		echo -n 'Stopping restart script ... '
+		killall pptp_restart > /dev/null 2>&1
+		exitrest=$?
+		if [ "$exitrest" -eq 0 ]; then
+			echo 'done.'
+		else
+			echo 'failed.'
+		fi
+	fi
+	rm -f /mod/etc/ppp/peers/pptp
+}
+
+case $1 in
+	""|load)
+		[ ! -d /tmp/flash/ppp ] && mkdir -p /tmp/flash/ppp
+		[ ! -d /mod/etc/ppp/peers ] && mkdir -p /mod/etc/ppp/peers
+
+		[ ! -e /tmp/flash/ppp/options.pptp ] && /mod/etc/default.${DAEMON}/pptp_options > /tmp/flash/ppp/options.pptp
+		[ -e /tmp/flash/ppp/options.pptp -a ! -e /mod/etc/ppp/options.pptp ] && ln -s /tmp/flash/ppp/options.pptp /mod/etc/ppp/options.pptp
+
+		modreg cgi 'pptp' 'PPTP'
+		modreg daemon $DAEMON
+		modreg file pptp options 'options.pptp' 0 "pptp_options"
+
+		modlib_start $PPTP_ENABLED
+		;;
+	unload)
+		modunreg file pptp
+		modunreg daemon $DAEMON
+		modunreg cgi pptp
+		stop
+		;;
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		sleep 1
+		start
+		;;
+	status)
+		if pidof "$DAEMON" pptp_restart >/dev/null; then
+			echo 'running'
+		else
+			echo 'stopped'
+		fi
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

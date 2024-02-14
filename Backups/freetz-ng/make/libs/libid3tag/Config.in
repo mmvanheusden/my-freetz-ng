@@ -1,0 +1,7 @@
+config FREETZ_LIB_libid3tag
+	bool "libid3tag (libid3tag.so)"
+	select FREETZ_LIB_libz
+	default n
+	help
+		ID3 tag manipulation library
+

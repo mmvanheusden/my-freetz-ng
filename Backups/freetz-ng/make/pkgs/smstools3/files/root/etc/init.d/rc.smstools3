@@ -1,0 +1,121 @@
+#!/bin/sh
+
+DAEMON=smstools3
+DAEMON_BIN=smsd
+DAEMON_LONG_NAME=SMStools3
+. /etc/init.d/modlibrc
+
+
+config() {
+	if [ ! -c "$SMSTOOLS3_DEVICE" ]; then
+		echo -n "device is not ready, "
+		return 1
+	fi
+
+	if [ -z "$SMSTOOLS3_DIR" ]; then
+		echo -n "data directory not configured, "
+		return 1
+	fi
+
+	modlib_config
+
+	local _DIR="${SMSTOOLS3_DIR%/}"
+	rm -rf /var/spool/sms  2>/dev/null
+	mkdir "$_DIR/"         2>/dev/null
+	mkdir "$_DIR/checked"  2>/dev/null
+	mkdir "$_DIR/incoming" 2>/dev/null
+	mkdir "$_DIR/outgoing" 2>/dev/null
+	mkdir "$_DIR/conveyed" 2>/dev/null
+	mkdir -p /var/spool
+	ln -s "$_DIR" /var/spool/sms
+
+	if [ ! -d "$_DIR" ]; then
+		echo -n "data directory not available, "
+		return 1
+	fi
+}
+
+start() {
+	modlib_startdaemon $DAEMON_BIN -c /mod/etc/smstools3.conf
+}
+
+stop_post() {
+	if [ "${SMSTOOLS3_DIR#/tmp/flash}" != "$SMSTOOLS3_DIR" ]; then
+		echo -n "saving ... "
+		modsave flash >/dev/null
+	fi
+}
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+		modreg status $DAEMON "$DAEMON_LONG_NAME"
+
+		modlib_start $SMSTOOLS3_ENABLED
+		;;
+	unload)
+		modunreg status $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	sendsms)
+		if ! modlib_check_running; then
+			modlib_start || exit 1
+		fi
+		echo -n "$DAEMON_LONG_NAME is sending SMS ... "
+		if [ $# -le 2 ];then
+			echo "not enough parameters, failed."
+			exit 1
+		fi
+
+		shift
+		if [ "$1" == "flash" ]; then
+			FLASH=flash
+			shift
+		fi
+		NUMBER=$1
+		shift
+
+		tempfile="/var/spool/sms/conveyed/GSM.$(date -Iseconds | sed 's/\:/-/g;s/\+.*//g;s/T/_/g')"
+		echo "To: $NUMBER" > $tempfile
+		[ "$FLASH" == "flash" ] && echo "Flash: yes" >> $tempfile
+		echo "" >> $tempfile
+		echo "$*" >> $tempfile
+		if [ "${SMSTOOLS3_DIR#/tmp/flash}" != "$SMSTOOLS3_DIR" ]; then
+			echo -n "saving ... "
+			modsave flash >/dev/null
+		fi
+		cp $tempfile /var/spool/sms/outgoing/
+
+		echo "done."
+		;;
+	listsms)
+		[ $# -ge 2 ] && FOLDER=$2 || FOLDER=incoming
+		for sms in $(ls -t /var/spool/sms/$FOLDER/ 2>/dev/null); do
+			echo -e "\n<b>${sms#GSM.}</b>"
+			grep -E "^To:|^From:|^Sent:|^Received:" /var/spool/sms/$FOLDER/$sms | sed 's/From: /From: \+/'
+			echo "\"$(cat /var/spool/sms/$FOLDER/$sms | sed -n '/^$/,$p' | grep -v ^$)\""
+		done
+		echo
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status|listsms [incoming|outgoing|checked|conveyed]|sendsms [flash] +<nbr> <msg>]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

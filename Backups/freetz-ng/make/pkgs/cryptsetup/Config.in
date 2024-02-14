@@ -1,0 +1,36 @@
+comment "cryptsetup (not available, needs replace kernel)"
+	depends on FREETZ_KERNEL_VERSION_2_6_13_MAX && !FREETZ_REPLACE_KERNEL
+
+comment "cryptsetup (not available, needs kernel modules)"
+	depends on FREETZ_KERNEL_VERSION_2_6_19_MIN && !FREETZ_REPLACE_MODULE_AVAILABLE
+
+config FREETZ_PACKAGE_CRYPTSETUP
+	bool "cryptsetup 1.7.5 (binary only)"
+	depends on \
+		(FREETZ_KERNEL_VERSION_2_6_13_MAX && FREETZ_REPLACE_KERNEL) || \
+		(FREETZ_KERNEL_VERSION_2_6_19_MIN && FREETZ_REPLACE_MODULE_AVAILABLE)
+	select FREETZ_AUTOMOUNT_LUKS if FREETZ_USBSTORAGE_AUTOMOUNT
+	select FREETZ_LIB_libdevmapper
+	select FREETZ_LIB_libgcrypt
+	select FREETZ_LIB_libpopt
+	select FREETZ_LIB_libuuid
+	select FREETZ_MODULE_dm_crypt        if !FREETZ_AVM_HAS_DM_CRYPT_BUILTIN
+	select FREETZ_MODULE_aes             if !FREETZ_AVM_HAS_CRYPTO_AES_BUILTIN      &&  FREETZ_KERNEL_VERSION_2_6_13
+	select FREETZ_MODULE_sha256          if !FREETZ_AVM_HAS_CRYPTO_SHA256_BUILTIN   &&  FREETZ_KERNEL_VERSION_2_6_19_MAX
+	select FREETZ_MODULE_sha256_generic  if !FREETZ_AVM_HAS_CRYPTO_SHA256_BUILTIN   &&  FREETZ_KERNEL_VERSION_2_6_28_MIN && !FREETZ_KERNEL_VERSION_2_6_39
+	select FREETZ_MODULE_cbc             if !FREETZ_AVM_HAS_CRYPTO_CBC_BUILTIN      && (FREETZ_KERNEL_VERSION_2_6_19 || FREETZ_KERNEL_VERSION_2_6_32_MIN)
+	select FREETZ_MODULE_cryptomgr       if !FREETZ_AVM_HAS_CRYPTO_MANAGER_BUILTIN  &&  FREETZ_KERNEL_VERSION_2_6_19
+	default n 
+	help
+		cryptsetup is used to conveniently setup dm-crypt managed
+		block devices under Linux.
+		Hint: Don't forget to insmod all selected modules.
+
+config FREETZ_CRYPTSETUP_LOOP
+	bool "support for container files"
+	depends on FREETZ_PACKAGE_CRYPTSETUP
+	select FREETZ_MODULE_loop if !FREETZ_AVM_HAS_BLK_DEV_LOOP_BUILTIN
+	select FREETZ_BUSYBOX_LOSETUP
+	help
+		This is required to mount container *files*.
+

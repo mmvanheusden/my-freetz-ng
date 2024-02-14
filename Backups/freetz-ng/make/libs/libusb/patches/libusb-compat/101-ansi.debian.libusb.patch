@@ -1,0 +1,10 @@
+--- libusb/usb.h
++++ libusb/usb.h
+@@ -31,6 +31,7 @@
+ #include <stdint.h>
+ #include <limits.h>
+ 
++#include <sys/param.h>
+ #include <dirent.h>
+ 
+ #ifdef interface

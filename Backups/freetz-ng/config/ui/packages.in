@@ -1,0 +1,4 @@
+menu "Packages"
+	source "make/pkgs/Config.in.generated"
+endmenu
+

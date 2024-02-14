@@ -1,0 +1,21 @@
+http://www.ip-phone-forum.de/showthread.php?t=249293
+kernel: [cpmac] [cpmac_main_ioctl] Error! Unknown ioctl 35143 (not priv: 0)
+--
+--- agent/mibgroup/if-mib/data_access/interface_linux.c
++++ agent/mibgroup/if-mib/data_access/interface_linux.c
+@@ -1044,15 +1044,7 @@
+     strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+     data[0] = 0;
+     
+-    /*
+-     * SIOCGMIIPHY has been defined since at least kernel 2.4.10 (Sept 2001).
+-     * It's probably safe to drop the interim SIOCDEVPRIVATE handling now!
+-     */
+-    if (ioctl(fd, SIOCGMIIPHY, &ifr) < 0) {
+-        DEBUGMSGTL(("mibII/interfaces", "SIOCGMIIPHY on %s failed\n",
+-                    ifr.ifr_name));
+         return retspeed;
+-    }
+ 
+     /* Begin getting mii register values */
+     phy_id = data[0];

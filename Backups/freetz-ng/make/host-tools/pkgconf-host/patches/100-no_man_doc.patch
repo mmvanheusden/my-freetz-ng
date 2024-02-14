@@ -1,0 +1,11 @@
+--- Makefile.in
++++ Makefile.in
+@@ -1473,7 +1473,7 @@
+ 
+ info-am:
+ 
+-install-data-am: install-dist_docDATA install-m4dataDATA install-man \
++install-data-am:                      install-m4dataDATA             \
+ 	install-nobase_pkgincludeHEADERS install-nodist_pkgconfigDATA
+ 
+ install-dvi: install-dvi-am

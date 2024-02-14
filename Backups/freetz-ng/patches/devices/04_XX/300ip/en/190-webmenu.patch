@@ -1,0 +1,72 @@
+--- usr/www/all/en/html/en/menus/menu2_fon.html
++++ usr/www/all/en/html/en/menus/menu2_fon.html
+@@ -62,5 +62,6 @@
+ <? if eq $var:isWizz 1 `
+ <li class="LMenuitem" style="margin-top:24px"><img src="<? echo '$var:pfeil' ?>"> <a href="javascript:jslGoTo('first','direkt')">$var:menuAssistent</a></li>
+ ` ?>
++<li class="LMenuitem" style="margin-top:24px"><img src="<? echo $var:pfeil ?>"> <a href="/cgi-bin/freetz_status" target="_blank"><? echo $var:menuFreetz ?></a></li>
+ <li class="LMenubottom"></li>
+ </ul>
+--- usr/www/all/en/html/en/menus/menu2_homehome.html
++++ usr/www/all/en/html/en/menus/menu2_homehome.html
+@@ -43,5 +43,6 @@
+ <? if eq $var:isWizz 1 `
+ <li class="LMenuitem" style="margin-top:24px"><img src="<? echo '$var:pfeil' ?>"> <a href="javascript:jslGoTo('first','direkt')">$var:menuAssistent</a></li>
+ ` ?>
++<li class="LMenuitem" style="margin-top:24px"><img src="<? echo $var:pfeil ?>"> <a href="/cgi-bin/freetz_status" target="_blank"><? echo $var:menuFreetz ?></a></li>
+ <li class="LMenubottom"></li>
+ </ul>
+--- usr/www/all/en/html/en/menus/menu2_homekonfig.html
++++ usr/www/all/en/html/en/menus/menu2_homekonfig.html
+@@ -11,5 +11,6 @@
+ <? if eq $var:isWizz 1 `
+ <li class="LMenuitem" style="margin-top:24px"><img src="<? echo '$var:pfeil' ?>"> <a href="javascript:jslGoTo('first','direkt')">$var:menuAssistent</a></li>
+ ` ?>
++<li class="LMenuitem" style="margin-top:24px"><img src="<? echo $var:pfeil ?>"> <a href="/cgi-bin/freetz_status" target="_blank"><? echo $var:menuFreetz ?></a></li>
+ <li class="LMenubottom"></li>
+ </ul>
+--- usr/www/all/en/html/en/menus/menu2.inc
++++ usr/www/all/en/html/en/menus/menu2.inc
+@@ -9,6 +9,7 @@
+ <? setvariable var:menuSystem "System" ?>
+ <? setvariable var:menuSoftware "Programs" ?>
+ <? setvariable var:menuHilfe "Help" ?>
++<? setvariable var:menuFreetz "Freetz" ?>
+ <? setvariable var:evtxt01 "Call List" ?>
+ <? setvariable var:evtxt02 "Telephone Book" ?>
+ <? setvariable var:evtxt03 "Child Protection" ?>
+--- usr/www/all/en/html/en/menus/menu2_internet.html
++++ usr/www/all/en/html/en/menus/menu2_internet.html
+@@ -81,4 +81,5 @@
+ <? if eq $var:isWizz 1 `
+ <li class="LMenuitem" style="margin-top:24px"><img src="<? echo '$var:pfeil' ?>"> <a href="javascript:jslGoTo('first','direkt')">$var:menuAssistent</a></li>
+ ` ?>
++	<li class="LMenuitem" style="margin-top:24px"><img src="<? echo $var:pfeil ?>"> <a href="/cgi-bin/freetz_status" target="_blank"><? echo $var:menuFreetz ?></a></li>
+ </ul>
+--- usr/www/all/en/html/en/menus/menu2_software.html
++++ usr/www/all/en/html/en/menus/menu2_software.html
+@@ -11,5 +11,6 @@
+ <? if eq $var:isWizz 1 `
+ <li class="LMenuitem" style="margin-top:24px"><img src="<? echo '$var:pfeil' ?>"> <a href="javascript:jslGoTo('first','direkt')">$var:menuAssistent</a></li>
+ ` ?>
++<li class="LMenuitem" style="margin-top:24px"><img src="<? echo $var:pfeil ?>"> <a href="/cgi-bin/freetz_status" target="_blank"><? echo $var:menuFreetz ?></a></li>
+ <li class="LMenubottom"></li>
+ </ul>
+--- usr/www/all/en/html/en/menus/menu2_system.html
++++ usr/www/all/en/html/en/menus/menu2_system.html
+@@ -89,5 +89,6 @@
+ <? if eq $var:isWizz 1 `
+ <li class="LMenuitem" style="margin-top:24px"><img src="<? echo '$var:pfeil' ?>"> <a href="javascript:jslGoTo('first','direkt')">$var:menuAssistent</a></li>
+ ` ?>
++<li class="LMenuitem" style="margin-top:24px"><img src="<? echo $var:pfeil ?>"> <a href="/cgi-bin/freetz_status" target="_blank"><? echo $var:menuFreetz ?></a></li>
+ <li class="LMenubottom"></li>
+ </ul>
+--- usr/www/all/en/html/en/menus/menu2_usb.html
++++ usr/www/all/en/html/en/menus/menu2_usb.html
+@@ -17,5 +17,6 @@
+ <? if eq $var:isWizz 1 `
+ <li class="LMenuitem" style="margin-top:24px"><img src="<? echo '$var:pfeil' ?>"> <a href="javascript:jslGoTo('first','direkt')">$var:menuAssistent</a></li>
+ ` ?>
++<li class="LMenuitem" style="margin-top:24px"><img src="<? echo $var:pfeil ?>"> <a href="/cgi-bin/freetz_status" target="_blank"><? echo $var:menuFreetz ?></a></li>
+ <li class="LMenubottom"></li>
+ </ul>

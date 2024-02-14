@@ -1,0 +1,8 @@
+CAPTION="Stubby: $(lang de:"Aktuelle Konfiguration" en:"Current configuration")"
+
+CONFIG_CMD='stubby -i 2>/dev/null'
+CONFIG_SAVE='false'
+CONFIG_TYPE='text'
+
+TEXT_ROWS=40
+

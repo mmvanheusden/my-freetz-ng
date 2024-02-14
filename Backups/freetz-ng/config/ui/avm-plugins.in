@@ -1,0 +1,77 @@
+menuconfig FREETZ_AVMPLUGINS_INTEGRATE
+	bool "Integrate AVM Plugins into the image"
+	depends on FREETZ_AVM_HAS_PLUGINS_UPDATE
+	default n
+	help
+		This feature disables AVM's plugin download and handling.
+		You could integrate the plugins directly into the firmware image by
+		selecting them below. This saves some resources because plugins are
+		neither copied to the RAM nor mounted with loop-devices.
+		Unselected plugins will NOT be available!
+
+if FREETZ_AVMPLUGINS_INTEGRATE
+
+	config FREETZ_AVMPLUGINS_MEDIASRV
+		bool "MEDIASRV"
+		depends on FREETZ_AVM_HAS_PLUGIN_MEDIASRV
+		default y
+		help
+			Integrates UPNP Mediaserver
+
+	config FREETZ_AVMPLUGINS_MINI
+		bool "MINI"
+		depends on FREETZ_AVM_HAS_PLUGIN_MINI
+		default y
+		help
+			Integrates FRITZ! Mini support
+
+	config FREETZ_AVMPLUGINS_NTFS
+		bool "NTFS"
+		depends on FREETZ_AVM_HAS_PLUGIN_NTFS
+		default y
+		help
+			Integrates NTFS filesystem support
+			Not recommended if you are using Freetz-NTFS!
+
+	config FREETZ_AVMPLUGINS_ONLINEPB
+		bool "Online Phone Book"
+		depends on FREETZ_AVM_HAS_PLUGIN_ONLINEPB
+		default y
+		help
+			Integrates Online Phone Book support
+
+	config FREETZ_AVMPLUGINS_SAMBA
+		bool "SAMBA"
+		depends on FREETZ_AVM_HAS_PLUGIN_SAMBA
+		depends on ! FREETZ_PACKAGE_SAMBA_SMBD
+		default y
+		help
+			Integrates AVM's Samba Fileserver
+
+	config FREETZ_AVMPLUGINS_TAM
+		bool "TAM"
+		depends on FREETZ_AVM_HAS_PLUGIN_TAM
+		default y
+		help
+			Integrates Telephone Answering Machine (TAM)
+
+	config FREETZ_AVMPLUGINS_WEBCM_INTERPRETER
+		bool "WebCM Interpreter"
+		depends on FREETZ_AVM_HAS_PLUGIN_WEBCM_INTERPRETER
+		default y
+
+	config FREETZ_AVMPLUGINS_WEBDAV
+		bool "WEBDAV"
+		depends on FREETZ_AVM_HAS_PLUGIN_WEBDAV
+		depends on ! FREETZ_PACKAGE_DAVFS2 && ! FREETZ_REMOVE_WEBDAV
+		default y
+		help
+			Integrates AVM's webdav
+
+	config FREETZ_AVMPLUGINS_WLAN
+		bool "WLAN"
+		depends on FREETZ_AVM_HAS_PLUGIN_WLAN
+		default y
+
+endif
+

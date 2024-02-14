@@ -1,0 +1,26 @@
+--- configure
++++ configure
+@@ -28802,23 +28802,6 @@
+ fi
+ 
+ 
+-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking in" >&5
+-$as_echo_n "checking in... " >&6; }
+-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: and out again" >&5
+-$as_echo "and out again" >&6; }
+-
+-echo $ECHO_N "ordering CD from https://tobi.oetiker.ch/wish $ECHO_C" 1>&6
+-sleep 1
+-echo $ECHO_N ".$ECHO_C" 1>&6
+-sleep 1
+-echo $ECHO_N ".$ECHO_C" 1>&6
+-sleep 1
+-echo $ECHO_N ".$ECHO_C" 1>&6
+-sleep 1
+-echo $ECHO_N ".$ECHO_C" 1>&6
+-sleep 1
+-{ $as_echo "$as_me:${as_lineno-$LINENO}: result:  just kidding ;-)" >&5
+-$as_echo " just kidding ;-)" >&6; }
+ echo
+ echo "----------------------------------------------------------------"
+ echo "Config is DONE!"

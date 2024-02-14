@@ -1,0 +1,12 @@
+--- Makefile
++++ Makefile
+@@ -332,9 +332,6 @@
+ TESTS_PYLIBFDT += maybe_pylibfdt
+ endif
+ 
+-ifneq ($(MAKECMDGOALS),libfdt)
+-include tests/Makefile.tests
+-endif
+ 
+ #
+ # Clean rules

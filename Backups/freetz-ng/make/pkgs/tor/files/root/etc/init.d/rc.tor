@@ -1,0 +1,107 @@
+#!/bin/sh
+
+DAEMON=tor
+DAEMON_LONG_NAME="Tor Onion Router"
+DAEMON_CONFIG=/mod/etc/$DAEMON/torrc
+PID_FILE=/var/run/$DAEMON/$DAEMON.pid
+. /etc/init.d/modlibrc
+
+DAEMON_STORAGE=/tmp/flash/$DAEMON
+
+config() {
+	[ -d "$DAEMON_STORAGE" ] || mkdir -p $DAEMON_STORAGE
+	chown $DAEMON:$DAEMON "$DAEMON_STORAGE"
+
+	if [ ! -d "$TOR_DATADIRECTORY" ]; then
+		mkdir "$TOR_DATADIRECTORY" 2>/dev/null
+		if [ ! -d "$TOR_DATADIRECTORY" ]; then
+			echo "Could not create $TOR_DATADIRECTORY, failed."
+			exit $exitval
+		fi
+		chown $DAEMON:$DAEMON "$TOR_DATADIRECTORY"
+		chmod 700 "$TOR_DATADIRECTORY"
+	fi
+
+	if [ "$TOR_RELAY_ENABLED" = "yes" ] && [ -e "$DAEMON_STORAGE/secret_id_key" ] && [ ! -e "$TOR_DATADIRECTORY/keys/secret_id_key" ]; then
+		mkdir -p $TOR_DATADIRECTORY/keys 2>/dev/null
+		ln -s $DAEMON_STORAGE/secret_id_key $TOR_DATADIRECTORY/keys/secret_id_key
+		chown $DAEMON:$DAEMON "$TOR_DATADIRECTORY/keys" -R
+	fi
+
+	mkdir -p /mod/etc/$DAEMON
+
+	modlib_config
+}
+
+start() {
+	echo -n "Starting ${DAEMON_LONG_NAME} ... "
+	config
+	[ -f $DAEMON_STORAGE/secret_id_key ] && savetimer=no
+	[ "$TOR_SOFTLIMIT" != "0" ] && SOFTLIMIT_PRE="nice softlimit -m $TOR_SOFTLIMIT" && SOFTLIMIT_POST="-maxmeminqueues $(($TOR_SOFTLIMIT * 2 / 3))"
+	$SOFTLIMIT_PRE $DAEMON_BIN $SOFTLIMIT_POST --runasdaemon 1 >/dev/null 2>&1
+	exitval=$?
+	if [ "$exitval" -eq 0 ]; then
+		if [ "$savetimer" != "no" -a "$TOR_RELAY_ENABLED" == "yes" ]; then
+			count=0
+			while [ ! -f $TOR_DATADIRECTORY/keys/secret_id_key ]; do
+				sleep 1
+				echo -n "."
+				let count++
+				[ $count -gt 99 ] && break
+			done
+			if [ $count -le 99 ]; then
+				cp $TOR_DATADIRECTORY/keys/secret_id_key $DAEMON_STORAGE/secret_id_key
+				echo -n "secret id_key saved ... "
+				modsave flash >/dev/null
+			else
+				echo -n "secret id_key not found ... "
+			fi
+		fi
+		echo "done."
+	else
+		echo "failed."
+		exit $exitval
+	fi
+}
+
+stop_post() {
+	[ "$TOR_DATADIRPERSISTENT" == "no" ] && rm -rf $TOR_DATADIRECTORY 2>/dev/null
+}
+
+case $1 in
+	""|load)
+		modlib_add_user_and_group $DAEMON
+		mkdir -p ${PID_FILE%/*}
+		chown $DAEMON:$DAEMON ${PID_FILE%/*}
+
+		modreg cgi "$DAEMON" "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+		modreg file tor secret_id_key 'Secret ID Key' 0 "secret_id_key"
+
+		modlib_start $TOR_ENABLED
+		;;
+	unload)
+		modunreg file tor
+		modunreg daemon $DAEMON
+		modunreg cgi "$DAEMON"
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

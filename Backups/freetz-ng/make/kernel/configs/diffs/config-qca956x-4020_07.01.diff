@@ -1,0 +1,18 @@
+--- avm/config-qca956x-4020_07.01
++++ freetz/config-qca956x-4020_07.01
+@@ -1580,6 +1580,7 @@
+ CONFIG_AVM_LED_EVENTS=y
+ CONFIG_AVM_PAGE_TRACE=y
+ CONFIG_AVM_NET_EVENT=y
++CONFIG_AVM_KPI=y
+ CONFIG_AVM_NET_TRACE=y
+ 
+ #
+@@ -2141,7 +2142,6 @@
+ # CONFIG_USB_MDC800 is not set
+ # CONFIG_USB_MICROTEK is not set
+ # CONFIG_USBIP_CORE is not set
+-# CONFIG_USB_MUSB_HDRC is not set
+ # CONFIG_USB_DWC3 is not set
+ # CONFIG_USB_DWC2 is not set
+ # CONFIG_USB_CHIPIDEA is not set

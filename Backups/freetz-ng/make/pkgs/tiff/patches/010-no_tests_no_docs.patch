@@ -1,0 +1,20 @@
+--- Makefile.in
++++ Makefile.in
+@@ -436,7 +436,7 @@
+ 	nmake.opt
+ 
+ dist_doc_DATA = $(docfiles)
+-SUBDIRS = port libtiff tools build contrib test man html
++SUBDIRS = port libtiff tools build
+ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = libtiff-4.pc
+ 
+@@ -890,7 +890,7 @@
+ 
+ info-am:
+ 
+-install-data-am: install-dist_docDATA install-pkgconfigDATA
++install-data-am:                      install-pkgconfigDATA
+ 
+ install-dvi: install-dvi-recursive
+ 

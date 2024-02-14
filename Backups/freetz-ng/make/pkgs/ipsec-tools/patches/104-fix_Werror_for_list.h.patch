@@ -1,0 +1,11 @@
+--- configure.orig	2009-04-21 16:41:45.000000000 +0200
++++ configure	2010-08-05 17:46:44.560429818 +0200
+@@ -11963,7 +11963,7 @@
+ 
+ 
+ 
+-CFLAGS_ADD="$CFLAGS_ADD -Wall -Werror -Wno-unused"
++CFLAGS_ADD="$CFLAGS_ADD -Wall -Wno-unused"
+ 
+ case $host in
+ *netbsd*)

@@ -1,0 +1,44 @@
+config FREETZ_PACKAGE_HAPROXY
+	bool "HAProxy 2.6.15"
+	select FREETZ_LIB_libcrypt if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_BUSYBOX_START_STOP_DAEMON
+	default n
+	help
+		HAProxy is a free, very fast and reliable solution offering high
+		availability, load balancing, and proxying for TCP and HTTP-based
+		applications.
+
+if FREETZ_PACKAGE_HAPROXY
+
+	config FREETZ_PACKAGE_HAPROXY_WITH_OPENSSL
+		bool "With OpenSSL support"
+		select FREETZ_LIB_libcrypto
+		select FREETZ_LIB_libssl
+		default n
+		help
+			This option enables SSL support in HAProxy.
+
+	config FREETZ_PACKAGE_HAPROXY_WITH_PCRE
+		bool "With regex support"
+		default n
+		help
+			This option enables regex support in HAProxy.
+
+		choice
+			prompt "PCRE"
+				default FREETZ_PACKAGE_HAPROXY_WITH_PCRE2
+				depends on FREETZ_PACKAGE_HAPROXY_WITH_PCRE
+
+			config FREETZ_PACKAGE_HAPROXY_WITH_PCRE1
+				bool "v1"
+				select FREETZ_LIB_libpcre
+
+			config FREETZ_PACKAGE_HAPROXY_WITH_PCRE2
+				bool "v2"
+				select FREETZ_LIB_libpcre2
+				select FREETZ_LIB_libpcre2_posix
+
+		endchoice
+
+endif # FREETZ_PACKAGE_HAPROXY
+

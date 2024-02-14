@@ -1,0 +1,92 @@
+menu "Build system options"
+	visible if FREETZ_SHOW_EXPERT
+
+	config FREETZ_ANCIENT_SYSTEM
+		bool "My linux got not updates since many years"
+		default n
+		help
+			Your linux system is older than your turtle? You like ancient
+			software very much? With many well known bugs and even more
+			security problems? You don't have a system with installed
+			gcc7? Because the current version 12 is just a number?
+			Then select this option to get a taste of the last century
+			and get rid of some achievements of the last decade.
+
+	config FREETZ_MENUCONFIG_REVISION
+		bool "Show revision info in menuconfig"
+		default y
+		help
+			Show revision info in menuconfig
+
+	choice
+		prompt "Verbosity level"
+		default FREETZ_VERBOSITY_LEVEL_2
+		help
+			Verbosity level of the fwmod script and tar.
+			0 is the least and 2 the most information.
+
+		config FREETZ_VERBOSITY_LEVEL_0
+			bool "0 - quiet"
+
+		config FREETZ_VERBOSITY_LEVEL_1
+			bool "1 - basics"
+
+		config FREETZ_VERBOSITY_LEVEL_2
+			bool "2 - verbose"
+
+		config FREETZ_VERBOSITY_LEVEL_3
+			bool "3 - DEVELOPER"
+			depends on FREETZ_SHOW_DEVELOPER
+			help
+				buggy and confusing
+
+	endchoice # "Verbosity level"
+
+	config FREETZ_VERBOSITY_LEVEL
+		int
+		default 0 if FREETZ_VERBOSITY_LEVEL_0
+		default 1 if FREETZ_VERBOSITY_LEVEL_1
+		default 2 if FREETZ_VERBOSITY_LEVEL_2
+		default 3 if FREETZ_VERBOSITY_LEVEL_3
+
+	config FREETZ_SIZEINFO_COMPRESSED
+		bool "Show compressed sizes during build"
+		default y
+		help
+			Show compressed sizes of libs, packages & modules during build
+
+	config FREETZ_SIZEINFO_UNCOMPRESSED
+		bool "Show uncompressed sizes too"
+		depends on FREETZ_SIZEINFO_COMPRESSED
+		default n
+		help
+			Show uncompressed sizes of libs, packages & modules too
+
+	config FREETZ_JLEVEL
+		int "Number of jobs to run simultaneously"
+		default 0
+		help
+			Number of jobs make runs simultanesouly.
+			Use 0 for automatic detection (nproc+1).
+
+	config FREETZ_CHECK_CHANGED
+		bool "Force package clean if it has changed"
+		default y
+		help
+			If this is activated, all packages are checked for changes
+			in make/pkgs/<pkg>/files and make/pkgs/<pkg>/patches. If
+			so, the package will be recreated.
+
+	config FREETZ_REPRODUCIBLE
+		bool "Enable reproducible build - DEVELOPER"
+		depends on FREETZ_SHOW_DEVELOPER
+		default n
+		help
+			Creates a reproducible image, hopefully.
+			 - Replace kernel is not tested
+			 - Only a few packages are tested
+			 - Squashfs is reproducible since 4.4,
+			   so v2+v3+v4.3 needs to be backported
+
+endmenu # "Build system options" #
+

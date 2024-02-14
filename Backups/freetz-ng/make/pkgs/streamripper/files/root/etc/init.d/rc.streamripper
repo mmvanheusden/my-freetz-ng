@@ -1,0 +1,85 @@
+#!/bin/sh
+
+DAEMON=streamripper
+DAEMON_CHECK=streamripper
+. /etc/init.d/modlibrc
+
+STREAMRIPPER_FLASH_DIR=/tmp/flash/$DAEMON
+
+start() {
+	echo "Starting streamripper ..."
+	exitval=0
+	haverip=0
+	for i in 1 2 3 4 5 ; do
+		eval STREAMRIPPER_SERVER=\$STREAMRIPPER_SERVER$i
+		[ -z "$STREAMRIPPER_SERVER" ] && continue
+
+		eval STREAMRIPPER_SERVER_ENABLED=\$STREAMRIPPER_SERVER${i}_ENABLED
+		[ "$STREAMRIPPER_SERVER_ENABLED" != "yes" ] && continue
+		eval STREAMRIPPER_NAME=\$STREAMRIPPER_NAME$i
+		[ -z "$STREAMRIPPER_NAME" ] && STREAMRIPPER_NAME=$STREAMRIPPER_SERVER   # in case Name is not set
+		haverip=1
+
+		echo "Connecting to $STREAMRIPPER_NAME ..."
+		OPTIONS="$STREAMRIPPER_SERVER $STREAMRIPPER_STARTOPTIONS -d $STREAMRIPPER_MUSICDIR"
+		[ -s $STREAMRIPPER_FLASH_DIR/filter ] && FILTER="-w  $STREAMRIPPER_FLASH_DIR/filter"
+		start-stop-daemon -S -b -q -m -p $PID_FILE$i -n $DAEMON$i -a $DAEMON -- $OPTIONS $FILTER
+		[ "$?" != "0" ] && exitval=$?
+	done
+
+	if [ "$exitval" -eq 0 -a "$haverip" -ne 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		exit $exitval
+	fi
+}
+
+stop() {
+	local kills=0
+	while pidof $DAEMON >/dev/null; do
+		let kills++
+		[ $kills -gt 10 ] && local sigkill="-9"
+		killall $sigkill $DAEMON > /dev/null 2>&1
+		sleep 1
+	done
+}
+
+case "$1" in
+	""|load)
+		mkdir -p $STREAMRIPPER_FLASH_DIR
+
+		modreg cgi $DAEMON Streamripper
+		modreg daemon $DAEMON
+		modreg file $DAEMON filter 'Filter' 1 "filter"
+		modreg extra $DAEMON "$(lang de:"Liste gerippter Dateien" en:"List of ripped files")" 2 "log"
+
+		modlib_start $STREAMRIPPER_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modunreg file $DAEMON filter
+		modunreg extra $DAEMON log
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0
+

@@ -1,0 +1,20 @@
+--- utils/nfsd/nfssvc.c
++++ utils/nfsd/nfssvc.c
+@@ -223,7 +223,7 @@
+ 		}
+ 
+ 		snprintf(buf, sizeof(buf), "%d\n", sockfd); 
+-		if (write(fd, buf, strlen(buf)) != (ssize_t)strlen(buf)) {
++		if (write(fd, buf, strlen(buf)) < 0 ) {
+ 			/*
+ 			 * this error may be common on older kernels that don't
+ 			 * support IPv6, so turn into a debug message.
+@@ -359,7 +359,7 @@
+ 	}
+ 	xlog(D_GENERAL, "Writing version string to kernel: %s", buf);
+ 	snprintf(ptr+off, sizeof(buf) - off, "\n");
+-	if (write(fd, buf, strlen(buf)) != (ssize_t)strlen(buf))
++	if (write(fd, buf, strlen(buf)) < 0)
+ 		xlog(L_ERROR, "Setting version failed: errno %d (%m)", errno);
+ 
+ 	close(fd);

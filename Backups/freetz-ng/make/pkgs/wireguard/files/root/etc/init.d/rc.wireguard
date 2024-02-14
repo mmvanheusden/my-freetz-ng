@@ -1,0 +1,77 @@
+#!/bin/sh
+
+DAEMON=wireguard
+DAEMON_LONG_NAME="WireGuard"
+
+. /etc/init.d/modlibrc
+
+start() {
+	echo -n "Starting ${DAEMON_LONG_NAME} ... "
+	[ -n "$WIREGUARD_PRE_UP" ] && eval "$WIREGUARD_PRE_UP"
+	modprobe wireguard
+	ip link add dev $WIREGUARD_INTERFACE type wireguard
+	ip address add $WIREGUARD_IP dev $WIREGUARD_INTERFACE
+	if [ -n "$WIREGUARD_IP6" ]; then
+		sysctl -w net.ipv6.conf.$WIREGUARD_INTERFACE.disable_ipv6=0
+		ip -6 address add $WIREGUARD_IP6 dev $WIREGUARD_INTERFACE
+	fi
+	wg setconf $WIREGUARD_INTERFACE /tmp/flash/wireguard/wireguard.conf
+	grep "^wg-crypt-$WIREGUARD_INTERFACE$" /proc/*/comm | sed 's,^/proc/,,;s,/.*,,' > $PID_FILE
+	if [ -n "$WIREGUARD_MTU" ]; then
+		ip link set mtu "$WIREGUARD_MTU" up dev $WIREGUARD_INTERFACE
+	else
+		ip link set $WIREGUARD_INTERFACE up
+	fi
+	wg show $WIREGUARD_INTERFACE allowed-ips | while read peer ip; do for i in $ip; do [ "$i" != "0.0.0.0/0" ] && ip route add $i dev $WIREGUARD_INTERFACE ; done ; done
+	[ -n "$WIREGUARD_POST_UP" ] && eval "$WIREGUARD_POST_UP"
+	modreg status $DAEMON $DAEMON_LONG_NAME peers
+	echo 'done.'
+}
+
+stop() {
+	modunreg status $DAEMON peers
+	[ -n "$WIREGUARD_PRE_DOWN" ] && eval "$WIREGUARD_PRE_DOWN"
+	wg show $WIREGUARD_INTERFACE allowed-ips | while read peer ip; do for i in $ip; do [ "$i" != "0.0.0.0/0" ] && ip route del $i dev $WIREGUARD_INTERFACE ; done ; done
+	ip link set $WIREGUARD_INTERFACE down
+	ip link delete dev $WIREGUARD_INTERFACE type wireguard
+	[ -n "$WIREGUARD_POST_DOWN" ] && eval "$WIREGUARD_POST_DOWN"
+	return
+}
+
+case $1 in
+	""|load)
+		modlib_defaults
+
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg file $DAEMON wireguard "$(lang de:"Konfiguration" en:"Configuration")" 1 wireguard
+		modreg daemon $DAEMON
+
+		modlib_start $WIREGUARD_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg file $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+
+esac
+
+exit 0
+

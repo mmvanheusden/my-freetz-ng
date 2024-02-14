@@ -1,0 +1,9 @@
+config EXTERNAL_FREETZ_PACKAGE_SQUASHFS3
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_SQUASHFS3
+	bool "squashfs3-tools"
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/mksquashfs3-multi
+		 /usr/bin/unsquashfs3-multi
+

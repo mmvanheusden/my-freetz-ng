@@ -1,0 +1,9 @@
+config EXTERNAL_FREETZ_PACKAGE_PSL
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_PSL
+	bool "psl"
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/psl
+		 /usr/share/psl/public_suffix_list.dat
+

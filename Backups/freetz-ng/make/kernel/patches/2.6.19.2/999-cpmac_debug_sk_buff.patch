@@ -1,0 +1,11 @@
+--- linux-2.6.19/drivers/net/avm_cpmac/cpphy_entry.c
++++ linux-2.6.19/drivers/net/avm_cpmac/cpphy_entry.c
+@@ -86,6 +86,8 @@
+     /* Print driver version */
+     DEB_ERR("Version: %s\n", AVM_CPMAC_VERSION);
+ 
++    printk(KERN_INFO "cpmac: compiled with sizeof(struct sk_buff) = %d\n", sizeof(struct sk_buff));
++
+     /* Initialize administrative array */
+     for(instance = 0; instance < CPMAC_MAX_PHY; instance++) {
+         cpmac_global.cpphy[instance].is_used = 0;

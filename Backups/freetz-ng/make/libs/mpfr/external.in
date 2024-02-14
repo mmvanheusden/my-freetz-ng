@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libmpfr
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libmpfr
+	bool "libmpfr"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libmpfr.so.4.1.6
+

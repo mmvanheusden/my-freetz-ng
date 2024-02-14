@@ -1,0 +1,231 @@
+###
+### AVM firmware version/series
+###
+
+config FREETZ_AVM_VERSION_04_XX
+	bool
+
+config FREETZ_AVM_VERSION_05_2X
+	bool
+
+config FREETZ_AVM_VERSION_05_5X
+	bool
+
+config FREETZ_AVM_VERSION_06_0X
+	bool
+
+config FREETZ_AVM_VERSION_06_2X
+	bool
+
+config FREETZ_AVM_VERSION_06_5X
+	bool
+
+config FREETZ_AVM_VERSION_06_8X
+	bool
+
+config FREETZ_AVM_VERSION_06_9X
+	bool
+
+config FREETZ_AVM_VERSION_07_0X
+	bool
+
+config FREETZ_AVM_VERSION_07_1X
+	bool
+
+config FREETZ_AVM_VERSION_07_2X
+	bool
+
+config FREETZ_AVM_VERSION_07_5X
+	bool
+
+config FREETZ_AVM_VERSION_07_8X
+	bool
+
+###
+### FREETZ_AVM_VERSION_xx_xx_MIN
+###
+
+config FREETZ_AVM_VERSION_04_XX_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_04_XX || \
+		FREETZ_AVM_VERSION_05_2X_MIN
+
+config FREETZ_AVM_VERSION_05_2X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_05_2X || \
+		FREETZ_AVM_VERSION_05_5X_MIN
+
+config FREETZ_AVM_VERSION_05_5X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_05_5X || \
+		FREETZ_AVM_VERSION_06_0X_MIN
+
+config FREETZ_AVM_VERSION_06_0X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_0X || \
+		FREETZ_AVM_VERSION_06_2X_MIN
+
+config FREETZ_AVM_VERSION_06_2X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_2X || \
+		FREETZ_AVM_VERSION_06_5X_MIN
+
+config FREETZ_AVM_VERSION_06_5X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_5X || \
+		FREETZ_AVM_VERSION_06_8X_MIN
+
+config FREETZ_AVM_VERSION_06_8X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_8X || \
+		FREETZ_AVM_VERSION_06_9X_MIN
+
+config FREETZ_AVM_VERSION_06_9X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_9X || \
+		FREETZ_AVM_VERSION_07_0X_MIN
+
+config FREETZ_AVM_VERSION_07_0X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_0X || \
+		FREETZ_AVM_VERSION_07_1X_MIN
+
+config FREETZ_AVM_VERSION_07_1X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_1X || \
+		FREETZ_AVM_VERSION_07_2X_MIN
+
+config FREETZ_AVM_VERSION_07_2X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_2X || \
+		FREETZ_AVM_VERSION_07_5X_MIN
+
+config FREETZ_AVM_VERSION_07_5X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_5X || \
+		FREETZ_AVM_VERSION_07_8X_MIN
+
+config FREETZ_AVM_VERSION_07_8X_MIN
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_8X
+
+###
+### FREETZ_AVM_VERSION_xx_xx_MAX
+###
+
+config FREETZ_AVM_VERSION_04_XX_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_04_XX
+
+config FREETZ_AVM_VERSION_05_2X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_04_XX_MAX || \
+		FREETZ_AVM_VERSION_05_2X
+
+config FREETZ_AVM_VERSION_05_5X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_05_2X_MAX || \
+		FREETZ_AVM_VERSION_05_5X
+
+config FREETZ_AVM_VERSION_06_0X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_05_5X_MAX || \
+		FREETZ_AVM_VERSION_06_0X
+
+config FREETZ_AVM_VERSION_06_2X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_0X_MAX || \
+		FREETZ_AVM_VERSION_06_2X
+
+config FREETZ_AVM_VERSION_06_5X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_2X_MAX || \
+		FREETZ_AVM_VERSION_06_5X
+
+config FREETZ_AVM_VERSION_06_8X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_5X_MAX || \
+		FREETZ_AVM_VERSION_06_8X
+
+config FREETZ_AVM_VERSION_06_9X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_8X_MAX || \
+		FREETZ_AVM_VERSION_06_9X
+
+config FREETZ_AVM_VERSION_07_0X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_06_9X_MAX || \
+		FREETZ_AVM_VERSION_07_0X
+
+config FREETZ_AVM_VERSION_07_1X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_0X_MAX || \
+		FREETZ_AVM_VERSION_07_1X
+
+config FREETZ_AVM_VERSION_07_2X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_1X_MAX || \
+		FREETZ_AVM_VERSION_07_2X
+
+config FREETZ_AVM_VERSION_07_5X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_2X_MAX || \
+		FREETZ_AVM_VERSION_07_5X
+
+config FREETZ_AVM_VERSION_07_8X_MAX
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_5X_MAX || \
+		FREETZ_AVM_VERSION_07_8X
+

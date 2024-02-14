@@ -1,0 +1,38 @@
+#!/bin/sh
+
+DAEMON=screen
+DAEMON_LONG_NAME="Screen"
+DAEMON_CFGFILE=/tmp/flash/screen/screenrc
+. /etc/init.d/modlibrc
+
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON $DAEMON_LONG_NAME 2>/dev/null
+		modreg daemon --hide $DAEMON
+		modreg file $DAEMON screenrc "screenrc" 0 screenrc
+
+		echo -n "Setting up $DAEMON_LONG_NAME ... "
+		modlib_defaults $DAEMON_CFGFILE
+		echo "done."
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		;;
+	start)
+		;;
+	stop)
+		;;
+	restart)
+		;;
+	status)
+		;;
+	*)
+		echo "Usage: $0 [load|unload]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

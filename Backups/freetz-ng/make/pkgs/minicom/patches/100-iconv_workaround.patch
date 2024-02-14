@@ -1,0 +1,11 @@
+--- src/Makefile.in
++++ src/Makefile.in
+@@ -463,7 +463,7 @@
+ 
+ minicom$(EXEEXT): $(minicom_OBJECTS) $(minicom_DEPENDENCIES) $(EXTRA_minicom_DEPENDENCIES) 
+ 	@rm -f minicom$(EXEEXT)
+-	$(AM_V_CCLD)$(LINK) $(minicom_OBJECTS) $(minicom_LDADD) $(LIBS)
++	$(AM_V_CCLD)$(LINK) $(minicom_OBJECTS) $(minicom_LDADD) $(LIBS) $(ICONVLIB)
+ 
+ minicom.keyserv$(EXEEXT): $(minicom_keyserv_OBJECTS) $(minicom_keyserv_DEPENDENCIES) $(EXTRA_minicom_keyserv_DEPENDENCIES) 
+ 	@rm -f minicom.keyserv$(EXEEXT)

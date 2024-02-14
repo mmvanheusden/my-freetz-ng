@@ -1,0 +1,60 @@
+--- avm/config-qca956x-2400_07.27
++++ freetz/config-qca956x-2400_07.27
+@@ -713,6 +713,7 @@
+ CONFIG_AVM_PA_MAX_SESSION=256
+ # CONFIG_AVM_PA_TX_NAPI is not set
+ CONFIG_AVM_PA_SCH_LLQ=m
++# CONFIG_AVM_PA_SCH_TACK is not set
+ CONFIG_PACKET=y
+ # CONFIG_PACKET_DIAG is not set
+ CONFIG_UNIX=y
+@@ -1448,6 +1449,7 @@
+ #
+ # CONFIG_WAN is not set
+ # CONFIG_VMXNET3 is not set
++CONFIG_AVM_NET_LINK_AUDIO=m
+ CONFIG_NET_VENDOR_AVM=y
+ CONFIG_AVM_NETWORK_ENHANCEMENTS=y
+ CONFIG_AVM_CPMAC=y
+@@ -1489,6 +1491,11 @@
+ CONFIG_CAPI_CODEC_VAD=y
+ CONFIG_CAPI_CODEC_CNG=y
+ # CONFIG_CAPI_CODEC_FAX is not set
++
++#
++# AVM DECT Stack
++#
++# CONFIG_AVM_DECT is not set
+ CONFIG_CAPI_TRACE=y
+ # CONFIG_ISDN_CAPI_CAPI20 is not set
+ 
+@@ -1536,6 +1543,11 @@
+ #
+ 
+ #
++# AVM DECT_IO
++#
++# CONFIG_AVM_DECT_IO is not set
++
++#
+ # AVM Powermanagment
+ #
+ CONFIG_AVM_POWER=y
+@@ -1569,11 +1581,17 @@
+ CONFIG_AVM_NET_TRACE=y
+ 
+ #
++# AVM Piglet (no emif)
++#
++# CONFIG_AVM_PIGLET_NOEMIF is not set
++
++#
+ # AVM PCMLINK driver for PCM-Routing
+ #
+ CONFIG_UBIK2=m
+ CONFIG_UBIK2_DEVELOPMENT_SUPPORT=0
+ CONFIG_UBIK2_MSEC_PER_IRQ=8
++CONFIG_UBIK2_ISDNSTACK_ON_CPU=1
+ 
+ #
+ # TFFS

@@ -1,0 +1,747 @@
+#!/bin/sh
+
+# initial by ramik, extended by cuma
+
+[ ! -r /mod/etc/conf/rrdstats.cfg ] && exit 1
+. /mod/etc/conf/rrdstats.cfg
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+RRDTOOL="rrdtool-freetz"
+_NICE=$(which nice)
+_SENSOR_CNF=/tmp/flash/rrdstats/digitemp.conf
+_SENSOR_HEX=$(grep "^ROM " $_SENSOR_CNF 2>/dev/null | sed 's/^ROM [0-9]*//g;s/ 0x//g')
+[ "$RRDSTATS_DIGITEMP_C" = yes ] && _SENSOR_UOM=C || _SENSOR_UOM=F
+
+detect_wget() {
+	# detect installed wget version, in case of wget-gnu, don't wait forever:
+	wget-gnu --version >/dev/null 2>&1 && echo "wget-gnu -t 1" || echo "wget"
+}
+
+collect_cpu() {
+	NAMEPREFIX=cpu_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:user:COUNTER:600:0:100 \
+			DS:nice:COUNTER:600:0:100 \
+			DS:syst:COUNTER:600:0:100 \
+			DS:wait:COUNTER:600:0:100 \
+			DS:idle:COUNTER:600:0:100 \
+			RRA:AVERAGE:0.5:1:576 \
+			RRA:AVERAGE:0.5:6:672 \
+			RRA:AVERAGE:0.5:24:732 \
+			RRA:AVERAGE:0.5:144:1460 \
+			RRA:AVERAGE:0.5:360:2920
+	fi
+	cpudata=$(grep '^cpu ' /proc/stat 2>/dev/null | awk '{print "N:"$2":"$3":"$4":"$6+$7":"$5;}')
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $cpudata --template user:nice:syst:wait:idle
+}
+
+collect_mem() {
+	NAMEPREFIX=mem_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:used:GAUGE:600:0:5000000000 \
+			DS:free:GAUGE:600:0:5000000000 \
+			DS:buff:GAUGE:600:0:5000000000 \
+			DS:cached:GAUGE:600:0:5000000000 \
+			DS:swap:GAUGE:600:0:5000000000 \
+			DS:swaptotal:GAUGE:600:0:5000000000 \
+			DS:swapfree:GAUGE:600:0:5000000000 \
+			RRA:AVERAGE:0.5:1:576 \
+			RRA:AVERAGE:0.5:6:672 \
+			RRA:AVERAGE:0.5:24:732 \
+			RRA:AVERAGE:0.5:144:1460 \
+			RRA:AVERAGE:0.5:360:2920
+	fi
+	memdata=$(awk '
+		/^MemTotal:/ {total=$2*1024}
+		/^MemFree:/ {free=$2*1024}
+		/^Buffers:/ {buff=$2*1024}
+		/^Cached:/ {cached=$2*1024}
+		/^SwapTotal:/ {swaptotal=$2*1024}
+		/^SwapFree:/ {swapfree=$2*1024}
+		END {
+			used=total-(free+buff+cached)
+			swap=swaptotal-swapfree
+		print "N:" used ":" free ":" buff ":" cached ":" swap ":" swaptotal ":" swapfree}' /proc/meminfo)
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $memdata --template used:free:buff:cached:swap:swaptotal:swapfree
+}
+
+collect_upt() {
+	NAMEPREFIX=upt_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:uptime:GAUGE:600:0:99999 \
+			RRA:MAX:0.1:1:576 \
+			RRA:MAX:0.1:6:672 \
+			RRA:MAX:0.1:24:732 \
+			RRA:MAX:0.1:144:1460 \
+			RRA:MAX:0.1:360:2920
+	fi
+	uX=$(( $(cat /proc/uptime | sed 's/ .*$//;s/\..*//')/60 ))
+	uH=$(( $uX/60 ))
+	uM=$(( ($uX-$uH*60)*100/60 ))
+	case $uM in ?) uM=0$uM ;; esac
+	uptdata=N:$uH.$uM
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $uptdata --template uptime
+}
+
+collect_pow() {
+	NAMEPREFIX=pow_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		for sourceitem in $RRDSTATS_POWER_CFG; do
+			local datasources="$datasources DS:$sourceitem:GAUGE:600:0:100"
+		done
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			$datasources \
+			RRA:MAX:0.1:1:576 \
+			RRA:MAX:0.1:6:672 \
+			RRA:MAX:0.1:24:732 \
+			RRA:MAX:0.1:144:1460 \
+			RRA:MAX:0.1:360:2920
+	fi
+	for sourceitem in $RRDSTATS_POWER_CFG; do
+		local powdat="$powdat:$(ctlmgr_ctl r power status/rate_${sourceitem}act 2>/dev/null)"
+		local powtpl="$powtpl:${sourceitem}"
+	done
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd N${powdat} --template ${powtpl:1}
+}
+
+collect_temp() {
+	NAMEPREFIX=temp_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:temperature:GAUGE:600:0:100 \
+			RRA:MAX:0.1:1:576 \
+			RRA:MAX:0.1:6:672 \
+			RRA:MAX:0.1:24:732 \
+			RRA:MAX:0.1:144:1460 \
+			RRA:MAX:0.1:360:2920
+	fi
+	uT="$(ctlmgr_ctl r power status/act_temperature 2>/dev/null)"
+	[ $uT -gt 0 ] 2>/dev/null || return
+	tempdata=N:$uT
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $tempdata --template temperature
+}
+
+collect_diskio() {
+	[ $# -eq 0 ] && return
+	case $1 in
+		1)
+			DISK=$RRDSTATS_DISK_DEV1
+			;;
+		2)
+			DISK=$RRDSTATS_DISK_DEV2
+			;;
+		3)
+			DISK=$RRDSTATS_DISK_DEV3
+			;;
+		4)
+			DISK=$RRDSTATS_DISK_DEV4
+			;;
+		*)
+			return
+			;;
+	esac
+	if ( cat /proc/diskstats | grep -E "$DISK " >/dev/null 2>&1 ); then
+		NAMEPREFIX=diskio$1_$RRDSTATS_INTERVAL-$DISK
+		if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+			$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+				--step $RRDSTATS_INTERVAL \
+				DS:read:DERIVE:600:0:U \
+				DS:write:DERIVE:600:0:U \
+				RRA:AVERAGE:0.5:1:576 \
+				RRA:AVERAGE:0.5:6:672 \
+				RRA:AVERAGE:0.5:24:732 \
+				RRA:AVERAGE:0.5:144:1460 \
+				RRA:AVERAGE:0.5:360:2920
+		fi
+		if ( echo $DISK | grep -E 'sd[a-z][0-9]' >/dev/null 2>&1 ); then
+			io=$(cat /proc/diskstats | sed -n 's/^.*'$DISK' \([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.*$/\2:\4/p')
+		else
+			io=$(cat /proc/diskstats | sed -n 's/^.*'$DISK' \([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.\([0-9]*\)[0-9]*.*$/\3:\7/p')
+		fi
+			[ -z "$io" ] && return
+			rB=$(($(echo $io | cut -d : -f1) * 512))
+			wB=$(($(echo $io | cut -d : -f2) * 512))
+			diskiodata=N:$rB:$wB
+			[ -z "$diskiodata" ] && diskiodata="N:0:0"
+		$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $diskiodata --template read:write
+	else
+		return
+	fi
+}
+
+collect_thg() {
+	NAMEPREFIX=thg_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:rx:GAUGE:600:-100:150 \
+			DS:sn:GAUGE:600:-100:150 \
+			DS:tx:GAUGE:600:-100:150 \
+			DS:ip:GAUGE:600:0:999 \
+			DS:up:GAUGE:600:0:99999 \
+			DS:if:GAUGE:600:0:999 \
+			DS:uc:GAUGE:600:0:9 \
+			RRA:LAST:0.1:1:576 \
+			RRA:LAST:0.1:6:672 \
+			RRA:LAST:0.1:24:732 \
+			RRA:LAST:0.1:144:1460 \
+			RRA:LAST:0.1:360:2920
+	fi
+	[ -z "$WGET" ] && WGET="$(detect_wget)"
+	uptdatBL=N$($WGET http://192.168.100.1/BasicLan.htm -O - -q -T 2 | grep -E "Power|Ratio|Computers" | sed 's/ dB.*//g;s/<\/td><\/tr>$//;s/^.*>/:/' | tr -d "\n")
+	[ $uptdatBL = N ] && return
+	if [ "$RRDSTATS_THOMSON_ADV" = yes ]; then
+		tX=$($WGET http://192.168.100.1/BasicLan.htm -O - -q -T 2 | grep "System uptime")
+		tH=$(( $(echo $tX | sed 's/.*<td>//;s/ .*//') *24+ $(echo $tX | sed -r 's/.* 0{0,1}//;s/h.*//') ))
+		tM=$(( ( $(echo $tX | sed -r 's/.*h:0{0,1}//;s/m:.*//') *100)/60 ))
+		case $tM in ?) tM=0$tM ;; esac
+		uptdatUP=:$tH.$tM
+		uptdatIS=:$($WGET http://192.168.100.1/InitialScan.htm -O - -q -T 2 | grep -E "mCmInfoDsFreq1|mCmInfoUsId1" | sed 's/.*ue="//;s/".*//;s/000000/:/' | tr -d "\n")
+		templateADD=:up:if:uc
+	fi
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $uptdatBL$uptdatUP$uptdatIS --template rx:sn:tx:ip$templateADD
+}
+
+collect_dvb() {
+	NAMEPREFIX=dvb_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		count=0
+		while [ $count -lt $RRDSTATS_FRITZDVB_RX ]; do
+			let count++
+			local dvbRX="$dvbRX DS:rxdb$count:GAUGE:600:-99:99 DS:rxsn$count:GAUGE:600:0:99"
+		done
+		count=0
+		while [ $count -lt $RRDSTATS_FRITZDVB_TX ]; do
+			let count++
+			local dvbTX="$dvbTX DS:txdb$count:GAUGE:600:0:99"
+		done
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			$dvbRX \
+			$dvbTX \
+			RRA:LAST:0.1:1:576  \
+			RRA:LAST:0.1:6:672  \
+			RRA:LAST:0.1:24:732 \
+			RRA:LAST:0.1:144:1460 \
+			RRA:LAST:0.1:360:2920
+	fi
+	[ -z "$WGET" ] && WGET="$(detect_wget)"
+	updateT=
+	updateD=N
+
+
+	SIDF=/tmp/.fboxcable.sid
+	HOST="$RRDSTATS_FRITZDVB_AVMHOST"
+	USER="$RRDSTATS_FRITZDVB_AVMUSER"
+	PASS="$RRDSTATS_FRITZDVB_AVMPASS"
+	[ "${RRDSTATS_FRITZDVB_AVMHOST#https}" != "$RRDSTATS_FRITZDVB_AVMHOST" ] && CERT="--no-check-certificate"
+
+	local SIDS="$(cat $SIDF 2>/dev/null)"
+	local DS_IDX="$($WGET $CERT -q "$HOST/query.lua?sid=$SIDS&mq_ds=docsis:status/avmSammelDbEntry/ds_OperSnmpIndex_a" -O - 2>/dev/null | sed -rn 's/.* : "(.*)"/\1/p')"
+	if [ -z "$DS_IDX" ]; then
+		local P1="$($WGET $CERT -q "$HOST/login_sid.lua" -O - 2>/dev/null | sed 's/.*<Challenge>//;s/<.*//')"
+		local P2="$(echo -n -e $(echo -n $P1-$PASS | hexdump -v -e '"\\\x" 1/1 "%02x" "\\\x" "0" "0"' | sed 's!\\\\!\\!g' ) | md5sum | sed 's/ .*//')"
+		$WGET $CERT -q "$HOST/login_sid.lua?response=$P1-$P2&username=$USER" -O - 2>/dev/null | sed 's/.*<SID>//;s/<.*//' > $SIDF
+		SIDS="$(cat $SIDF 2>/dev/null)"
+		DS_IDX="$($WGET $CERT -q "$HOST/query.lua?sid=$SIDS&mq_ds=docsis:status/avmSammelDbEntry/ds_OperSnmpIndex_a" -O - 2>/dev/null | sed -rn 's/.* : "(.*)"/\1/p')"
+	fi
+	[ -z "$DS_IDX" ] && return
+
+	local ADD=""
+	for x in $DS_IDX; do
+		ADD="${ADD}&mse_$x=docsis:status/snmpOidCom/int/1/3/6/1/4/1/4491/2/1/20/1/24/1/1/$x"
+		ADD="${ADD}&pow_$x=docsis:status/snmpOidCom/int/1/3/6/1/2/1/10/127/1/1/1/1/6/$x"
+	done
+	local DS_RES="$($WGET $CERT -q "$HOST/query.lua?sid=$SIDS$ADD" -O - 2>/dev/null)"
+	local DS_MSE="$(echo "$DS_RES" |  sed -rn 's/.*mse_[0-9]*": "(.*)".*/\1/p')"
+	local DS_POW="$(echo "$DS_RES" |  sed -rn 's/.*pow_[0-9]*": "(.*)".*/\1/p')"
+
+	local US_POW="$($WGET $CERT -q "$HOST/query.lua?sid=$SIDS&x=docsis:status/UpstreamDbEntry/txPower_a" -O - 2>/dev/null | sed -rn 's/.*"x": "(.*)"/\1/;s/,/ /g;s/-9//gp')"
+
+
+	count=0
+	for line in $DS_MSE; do
+		let count++
+		[ $count -gt $RRDSTATS_FRITZDVB_RX ] && break
+		[ -n "$updateT" ] && updateT=$updateT:
+		updateD=${updateD}:$(echo "$line" | sed -rn 's/(.*)(.)/\1.\2/p')
+		updateT=${updateT}rxsn${count}
+	done
+
+	count=0
+	for line in $DS_POW; do
+		let count++
+		[ $count -gt $RRDSTATS_FRITZDVB_RX ] && break
+		[ -n "$updateT" ] && updateT=$updateT:
+		updateD=${updateD}:$(echo "$line" | sed -rn 's/(.*)(.)/\1.\2/p')
+		updateT=${updateT}rxdb${count}
+	done
+
+	count=0
+	for line in $US_POW; do
+		let count++
+		[ $count -gt $RRDSTATS_FRITZDVB_TX ] && break
+		[ -n "$updateT" ] && updateT=$updateT:
+		updateD=${updateD}:$(echo "$line" | sed -rn 's/(.*)(.)/\1.\2/p')
+		updateT=${updateT}txdb${count}
+	done
+
+
+	[ $updateD = N ] && return
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $updateD --template $updateT
+}
+
+collect_epc_100609() {
+	NAMEPREFIX=epc_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		count=0
+		while [ $count -lt $RRDSTATS_CISCOEPC_RX ]; do
+			let count++
+			local epcRX="$epcRX DS:rxfq$count:GAUGE:600:99:999 DS:rxdb$count:GAUGE:600:-99:99 DS:rxsn$count:GAUGE:600:0:99"
+		done
+		count=0
+		while [ $count -lt $RRDSTATS_CISCOEPC_TX ]; do
+			let count++
+			local epcTX="$epcTX DS:txfq$count:GAUGE:600:9:99 DS:txdb$count:GAUGE:600:0:99"
+		done
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			$epcRX \
+			$epcTX \
+			DS:up:GAUGE:600:0:99999 \
+			RRA:LAST:0.1:1:576  \
+			RRA:LAST:0.1:6:672  \
+			RRA:LAST:0.1:24:732 \
+			RRA:LAST:0.1:144:1460 \
+			RRA:LAST:0.1:360:2920
+	fi
+	[ -z "$WGET" ] && WGET="$(detect_wget)"
+	updateT=
+	updateD=N
+	local datWG=$($WGET http://192.168.100.1/Docsis_signal.htm -O - -q -T 2 |grep -E "vusch_freq|vdsch_freq|vch_pwr|vdsch_snr")
+	#RXdata
+	count=0
+	for line in $(echo "$datWG" | sed -ne '/vdsch_freq/{N}{N};s/.*nowrap> *\(...\)000000 Hz.*\n.*nowrap> *\(.*\)\.\(.*\) dBuV.*\n.*nowrap> *\(.*\) dB.*/\1:$((\2\3-600)):\4/p'); do
+		let count++
+		[ $count -gt $RRDSTATS_CISCOEPC_RX -o $count -gt 8 ] && break
+		[ -n "$updateT" ] && updateT=$updateT:
+		updateD=${updateD}:$(eval echo "$line" | sed -nr 's/(.*:.*)([0-9]:.*)/\1.\2/p')
+		updateT=${updateT}rxfq${count}:rxdb${count}:rxsn${count}
+	done
+	#TXdata
+	count=0
+	for line in $(echo "$datWG" | sed -ne '/vusch_freq/{N};s/.*nowrap> *\(..\)\(.\)00000 Hz.*\n.*nowrap> *\(.*\)\.\(.*\) dBuV.*/\1.\2:$((\3\4-600))/p'); do
+		let count++
+		[ $count -gt $RRDSTATS_CISCOEPC_TX -o $count -gt 4 ] && break
+		[ -n "$updateT" ] && updateT=$updateT:
+		updateD=${updateD}:$(eval echo "$line" | sed -nr 's/(.*:.*)(.)/\1.\2/p')
+		updateT=${updateT}txfq${count}:txdb${count}
+	done
+	[ $updateD = N ] && return
+	#uptime
+	if [ "$RRDSTATS_CISCOEPC_UP" == "yes" ]; then
+		local tX=$($WGET http://192.168.100.1/Docsis_status.htm -O - -q -T 2 | sed -ne '/vtimelastrst/{N};s/.*\n.*nowrap>\(.*\)m:..s<.*/\1/p')
+		local tH=$(($(echo $tX | sed -nr 's/([0-9]*) days 0?([0-9]*)h.*/\1*24+\2/p')))
+		local tM=$(($(echo $tX | sed -nr 's/.*:0?([0-9]*)/100*\1\/60/p')))
+		case $tM in ?) tM=0$tM ;; esac
+		local datUP=:$tH.$tM
+		local tplUP=:up
+	fi
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $updateD$datUP --template $updateT$tplUP
+}
+
+collect_epc_120225() {
+	NAMEPREFIX=epc_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		count=0
+		while [ $count -lt $RRDSTATS_CISCOEPC_RX ]; do
+			let count++
+			local epcRX="$epcRX DS:rxfq$count:GAUGE:600:99:999 DS:rxdb$count:GAUGE:600:-99:99 DS:rxsn$count:GAUGE:600:0:99"
+		done
+		count=0
+		while [ $count -lt $RRDSTATS_CISCOEPC_TX ]; do
+			let count++
+			local epcTX="$epcTX DS:txfq$count:GAUGE:600:9:99 DS:txdb$count:GAUGE:600:0:99"
+		done
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			$epcRX \
+			$epcTX \
+			DS:up:GAUGE:600:0:99999 \
+			RRA:LAST:0.1:1:576  \
+			RRA:LAST:0.1:6:672  \
+			RRA:LAST:0.1:24:732 \
+			RRA:LAST:0.1:144:1460 \
+			RRA:LAST:0.1:360:2920
+	fi
+	[ -z "$WGET" ] && WGET="$(detect_wget)"
+	updateT=
+	updateD=N
+	local datWG=$($WGET http://192.168.100.1/Docsis_signal.asp -O - -q -T 2 |grep -E "dw\((vhz|vdbuv|vdb|vusch_freq\))")
+	#RXdata
+	count=0
+	for line in $(echo "$datWG" | sed -ne '/dw(vhz)/{N}{N};s/.*nowrap> *\(.*\)000000 .*\n.*nowrap> *\(.*\)\.\(.*\) <script.*\n.*nowrap> *\(.*\) *<script.*/\1:$((\2\3-600)):\4/p'); do
+		let count++
+		[ $count -gt $RRDSTATS_CISCOEPC_RX -o $count -gt 8 ] && break
+		[ -n "$updateT" ] && updateT=$updateT:
+		updateD=${updateD}:$(eval echo "$line" | sed -nr 's/(.*:.*)([0-9]:.*)/\1.\2/p')
+		updateT=${updateT}rxfq${count}:rxdb${count}:rxsn${count}
+	done
+	#TXdata
+	count=0
+	for line in $(echo "$datWG" | sed -ne '/dw(vusch_freq)/{N};s/.*nowrap> *\(..\)\(.\)00000 <script.*\n.*nowrap> *\(.*\)\.\(.*\) <script.*/\1.\2:$((\3\4-600))/p'); do
+		let count++
+		[ $count -gt $RRDSTATS_CISCOEPC_TX -o $count -gt 4 ] && break
+		[ -n "$updateT" ] && updateT=$updateT:
+		updateD=${updateD}:$(eval echo "$line" | sed -nr 's/(.*:.*)(.)/\1.\2/p')
+		updateT=${updateT}txfq${count}:txdb${count}
+	done
+	[ $updateD = N ] && return
+	#uptime disabled, see Ticket #1793
+#	if [ "$RRDSTATS_CISCOEPC_UP" == "yes" ]; then
+#		local tX=$($WGET http://192.168.100.1/Docsis_status.asp -O - -q -T 2 |grep -v NetworkAccessControl| sed -ne 's/.*nowrap>\([0-9]*\).*dw(vdays).*\( [0-9]\{1,2\}\).*\(:[0-9]*\).*:[0-9]*.*/\1 days\2h\3/p')
+#		if [ -n "$tX" ]; then
+#			local tH=$(($(echo $tX | sed -nr 's/([0-9]*) days 0?([0-9]*)h.*/\1*24+\2/p')))
+#			local tM=$(($(echo $tX | sed -nr 's/.*:0?([0-9]*)/100*\1\/60/p')))
+#			case $tM in ?) tM=0$tM ;; esac
+#			local datUP=:$tH.$tM
+#			local tplUP=:up
+#		fi
+#	fi
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $updateD$datUP --template $updateT$tplUP
+}
+
+collect_arristm() {
+	NAMEPREFIX=arris_$RRDSTATS_INTERVAL
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:rx:GAUGE:600:-100:150 \
+			DS:sn:GAUGE:600:-100:150 \
+			DS:tx:GAUGE:600:-100:150 \
+			DS:ip:GAUGE:600:0:999 \
+			DS:up:GAUGE:600:0:99999 \
+			DS:if:GAUGE:600:0:999 \
+			DS:uf:GAUGE:600:0:999 \
+			RRA:LAST:0.1:1:576 \
+			RRA:LAST:0.1:6:672 \
+			RRA:LAST:0.1:24:732 \
+			RRA:LAST:0.1:144:1460 \
+			RRA:LAST:0.1:360:2920
+	fi
+	[ -z "$WGET" ] && WGET="$(detect_wget)"
+	inpData=$($WGET http://192.168.100.1/phy.htm -O - -q -T 2)
+	uptdatBL=N$(echo "$inpData" | grep -E "dB" | sed 's/ dB.*//;s/ *<.*>/:/' | tr -d '\n')
+	uptdatBL=$uptdatBL:$(echo "$inpData" | grep -E "Computers" | sed 's/.*<TD>//;s/<\/TD>.*//' | tr -d '\n')
+	[ $uptdatBL = N: ] && return
+
+	if [ "$RRDSTATS_ARRISTM_ADV" = yes ]; then
+		tX=$(echo "$inpData" | grep "System Uptime")
+		tH=$(( $(echo $tX | sed 's/.*<TD>//;s/ .*//') *24+ $(echo $tX | sed -r 's/.* //;s/h.*//') ))
+		tM=$(( ( $(echo $tX | sed -r 's/.*h://;s/m:.*//') *100)/60 ))
+		case $tM in ?) tM=0$tM ;; esac
+		uptdatUP=:$tH.$tM
+		uptdatIS=$(echo "$inpData" | grep -E "MHz" | sed 's/ MHz.*//;s/ *<.*>/:/' | tr -d '\n')
+		templateADD=:up:if:uf
+	fi
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $uptdatBL$uptdatUP$uptdatIS --template rx:sn:tx:ip$templateADD
+}
+
+collect_net() {
+	[ $# -eq 0 ] && return
+	case $1 in
+		1)
+			IF=$RRDSTATS_INTERFACE1
+			;;
+		2)
+			IF=$RRDSTATS_INTERFACE2
+			;;
+		3)
+			IF=$RRDSTATS_INTERFACE3
+			;;
+		4)
+			IF=$RRDSTATS_INTERFACE4
+			;;
+		*)
+			return
+			;;
+	esac
+	NAMEPREFIX=if$1_$RRDSTATS_INTERVAL-$(echo $IF | sed 's/\:/_/g')
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:in:DERIVE:600:0:12500000 \
+			DS:out:DERIVE:600:0:12500000 \
+			RRA:AVERAGE:0.5:1:576 \
+			RRA:AVERAGE:0.5:6:672 \
+			RRA:AVERAGE:0.5:24:732 \
+			RRA:AVERAGE:0.5:144:1460 \
+			RRA:AVERAGE:0.5:360:2920
+	fi
+	netdata=$(ifconfig $IF | sed '/bytes/!d;s/.*RX bytes/N/;s/ .*TX bytes//;s/ .*//')
+	[ -z "$netdata" ] && netdata="N:0:0"
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd $netdata --template in:out
+}
+
+revers() {
+	local x=$1
+	shift
+	[ $# -gt 0 ] && revers $*
+	echo -n "$x "
+}
+
+collect_csl() {
+	for _CURRENT_FRQ in $RRDSTATS_CABLESEG_FRQ; do
+		collect_csl_sub $_CURRENT_FRQ
+	done
+}
+
+collect_csl_sub() {
+	local _CURRENT_FRQ=${1}000000
+	NAMEPREFIX=csl_${RRDSTATS_INTERVAL}-$_CURRENT_FRQ
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:load:GAUGE:600:0:U \
+			RRA:MIN:0.5:1:576    RRA:AVERAGE:0.5:1:576    RRA:MAX:0.5:1:576    \
+			RRA:MIN:0.5:6:672    RRA:AVERAGE:0.5:6:672    RRA:MAX:0.5:6:672    \
+			RRA:MIN:0.5:24:732   RRA:AVERAGE:0.5:24:732   RRA:MAX:0.5:24:732   \
+			RRA:MIN:0.5:144:1460 RRA:AVERAGE:0.5:144:1460 RRA:MAX:0.5:144:1460 \
+			RRA:MIN:0.5:360:2920 RRA:AVERAGE:0.5:360:2920 RRA:MAX:0.5:360:2920
+	fi
+
+	$RRDSTATS_CABLESEG_PRE
+
+	local cnt=0
+	[ $_CURRENT_FRQ -lt ${RRDSTATS_CABLESEG_QAM}000000 ] && qam=$RRDSTATS_CABLESEG_QAM1 || qam=$RRDSTATS_CABLESEG_QAM2
+#	while ! $_NICE mediaclient --frequency=$_CURRENT_FRQ --Symbolrate=$RRDSTATS_CABLESEG_SRATE --Modulation=Q$qam >/dev/null 2>&1; do
+	while ! $_NICE dvbtune -f $_CURRENT_FRQ -s $RRDSTATS_CABLESEG_SRATE -qam $qam >/dev/null 2>&1; do
+		let cnt++
+		echo "$(date) $_CURRENT_FRQ TUNEFAIL $cnt" >> /var/log/rrdstats_csl.log
+		[ $cnt -gt 2 ] && break
+		sleep 1
+	done
+
+	local val=""
+	[ $cnt -le 2 ] && val=$($_NICE dvbsnoop -timeout 1666 -s bandwidth 8190 -n 5500 -hideproginfo 2>&1 | sed -nr 's/^## PID.*total.*Avrg: *([0-9]*\.[0-9]).*/\1/p')
+	[ $? -ne 0 -o "${val#0}" != "$val" ] && val=""
+
+	$RRDSTATS_CABLESEG_POST
+
+	if [ -n "$val" ]; then
+		# kbit->mbit, round, 1 decimal ...
+		val=$( printf %.1f $(awk "BEGIN{print $val/1024}") )
+		[ ${val%.*} -lt 99 ] && $_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd "N:$val" --template load
+	else
+		echo "$(date) $_CURRENT_FRQ READFAIL" >> /var/log/rrdstats_csl.log
+	fi
+	[ -n "$RRDSTATS_CABLESEG_SLEEP" -a "$RRDSTATS_CABLESEG_SLEEP" != "0" ] && sleep $RRDSTATS_CABLESEG_SLEEP
+}
+
+collect_one() {
+	[ -n "$RRDSTATS_DIGITEMPRS" ] && rs_param=" -s $RRDSTATS_DIGITEMPRS "
+	_CURRENT=$(date +"%d.%m.%Y %T")
+	_SENSOR_CUR=0
+	for _CURRENT_HEX in $_SENSOR_HEX; do
+		collect_one_sub $_SENSOR_CUR $_CURRENT_HEX
+		let _SENSOR_CUR++
+	done
+}
+
+collect_one_sub() {
+	NAMEPREFIX=one_${RRDSTATS_INTERVAL}-$2_$_SENSOR_UOM
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:temp:GAUGE:600:-67:257 \
+			RRA:MIN:0.5:1:576    RRA:AVERAGE:0.5:1:576    RRA:MAX:0.5:1:576    \
+			RRA:MIN:0.5:6:672    RRA:AVERAGE:0.5:6:672    RRA:MAX:0.5:6:672    \
+			RRA:MIN:0.5:24:732   RRA:AVERAGE:0.5:24:732   RRA:MAX:0.5:24:732   \
+			RRA:MIN:0.5:144:1460 RRA:AVERAGE:0.5:144:1460 RRA:MAX:0.5:144:1460 \
+			RRA:MIN:0.5:360:2920 RRA:AVERAGE:0.5:360:2920 RRA:MAX:0.5:360:2920
+	fi
+
+	onedata=""
+	oneretries="$RRDSTATS_DIGITEMP_RETRIES"
+	while [ -z "$onedata" -a "$oneretries" -ge 0 ]; do
+		let oneretries--
+		onedata="$($_NICE digitemp $rs_param -t$1 -q -o%$_SENSOR_UOM -c$_SENSOR_CNF 2>/dev/null)"
+		oneretv=$?
+		[ "$onedata" = "$_SENSOR_ERR" -a "$RRDSTATS_DIGITEMP_RETRY85" = "yes" -a "$oneretries" -ge 0 ] && onedata=""
+	done
+
+	if [ -n "$onedata" -a "$oneretv" -eq 0 ]; then
+		echo "$_CURRENT;$onedata;" >> $RRDSTATS_RRDDATA/one_00-$2_$_SENSOR_UOM.cvs
+		[ "$RRDSTATS_DIGITEMP85" = "yes" -a "$onedata" = "$_SENSOR_ERR" ] && return
+		[ "$RRDSTATS_DIGITEMP_A" = "yes" ] && one_alert $onedata $2
+		$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd "N:$onedata" --template temp
+	fi
+}
+
+one_alert() {
+	[ $# -lt 2 ] && return
+	_ALERT_NUM=0
+	_SENSOR_ALI=$(grep "^$2 " /tmp/flash/rrdstats/digitemp.alias 2>/dev/null | tr -s " " | cut -d" " -f3)
+	_ALERT_COUNT=$(grep "^$_SENSOR_ALI " /tmp/flash/rrdstats/digitemp.alert 2>/dev/null | wc -l)
+	while [ $_ALERT_NUM -lt $_ALERT_COUNT ]; do
+		let _ALERT_NUM++
+		_ALERT=$(grep "^$_SENSOR_ALI " /tmp/flash/rrdstats/digitemp.alert 2>/dev/null | head -n $_ALERT_NUM | tail -n1 | tr -s " ")
+		_ALERT_SEC=$(echo $_ALERT | cut -d " " -f4)
+
+		_ALERT_FILE=/tmp/.rrdstats/digitemp_alert.$_ALERT_NUM
+		if [ -f $_ALERT_FILE ]; then
+			[ $(( $(cat $_ALERT_FILE)+$_ALERT_SEC )) -gt $(date +%s) ] && continue
+		fi
+
+		_ALERT_2DO=no
+		_ALERT_RND=$(printf %.1f $1 | sed 's/\.//')
+		_ALERT_VAL=$(echo $_ALERT | cut -d " " -f2)
+		case "$(echo $_ALERT | cut -d " " -f3)" in
+			MAX|Max|max)
+				[ "$_ALERT_RND" -gt ${_ALERT_VAL}0 ] && _ALERT_2DO=yes
+			;;
+			MIN|Min|min)
+				[ "$_ALERT_RND" -lt ${_ALERT_VAL}0 ] && _ALERT_2DO=yes
+			;;
+		esac
+
+		[ "$_ALERT_2DO" != yes ] && continue
+		echo $(date +%s) > $_ALERT_FILE
+		echo "$(echo $_ALERT | cut -d " " -f5-)" > $_ALERT_FILE.run
+		chmod +x $_ALERT_FILE.run
+		$_ALERT_FILE.run $1 &
+	done
+}
+
+collect_aha() {
+	if [ ! -e /tmp/.smarthome.up ]; then
+		[ "$(sed 's/\..*//' /proc/uptime)" -gt 215 ] && touch /tmp/.smarthome.up || return
+	fi
+        _CURRENT=$(date +"%d.%m.%Y %T")
+	/usr/bin/aha.sh small | while read line; do
+		echo "$line" | while IFS='|' read  identifier name  power voltage energy  celsius offset  current factor; do
+			[ -z "$identifier" ] && continue
+			let "watt = power" 2>/dev/null
+			let "volt = voltage" 2>/dev/null
+			let "kilo = energy" 2>/dev/null
+			[ -z "$offset" ] && grad="" ||  let "grad = celsius" 2>/dev/null
+			let "curr = current" 2>/dev/null
+			let "fact = factor" 2>/dev/null
+			collect_aha_sub "$identifier"  "$watt" "$volt" "$kilo"  "$grad"  "$curr" "$fact"
+		done
+	done
+}
+
+collect_aha_sub() {
+	NAMEPREFIX=aha_${RRDSTATS_INTERVAL}-${1//:/}
+	if [ ! -e $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd ]; then
+		$RRDTOOL create $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd \
+			--step $RRDSTATS_INTERVAL \
+			DS:volt:GAUGE:600:215:250 \
+			DS:kilo:COUNTER:600:0:U \
+			DS:grad:GAUGE:600:-20:65 \
+			DS:curr:GAUGE:600:0:12 \
+			DS:fact:GAUGE:600:0:1 \
+			RRA:MIN:0.5:1:576    RRA:AVERAGE:0.5:1:576    RRA:MAX:0.5:1:576    \
+			RRA:MIN:0.5:6:672    RRA:AVERAGE:0.5:6:672    RRA:MAX:0.5:6:672    \
+			RRA:MIN:0.5:24:732   RRA:AVERAGE:0.5:24:732   RRA:MAX:0.5:24:732   \
+			RRA:MIN:0.5:144:1460 RRA:AVERAGE:0.5:144:1460 RRA:MAX:0.5:144:1460 \
+			RRA:MIN:0.5:360:2920 RRA:AVERAGE:0.5:360:2920 RRA:MAX:0.5:360:2920
+	fi
+
+	echo "$_CURRENT;$2;$3;$4;$5;$6;$7;" >> $RRDSTATS_RRDDATA/aha_00-${1//:/}.cvs
+	[ -z "$2" ] && local watt=NaN || local watt="$(echo  000$2 | sed  's/...$/.&/g')"
+	[ -z "$3" ] && local volt=NaN || local volt="$(echo  000$3 | sed  's/...$/.&/g')"
+	[ -z "$4" ] && local kilo=NaN || local kilo="$4"
+	[ -z "$5" ] && local grad=NaN || local grad="$(echo    0$5 | sed    's/.$/.&/g')"
+	[ -z "$6" ] && local curr=NaN || local curr="$(echo 0000$6 | sed 's/....$/.&/g')"
+	[ -z "$7" ] && local fact=NaN || local fact="$(echo  000$7 | sed  's/...$/.&/g')"
+	[ "$RRDSTATS_AHA_ALERT" = "yes" ] && aha_alert $1 $watt $volt $kilo $grad $curr $fact
+	aha_data="$volt:$kilo:$grad:$curr:$fact"
+	$_NICE $RRDTOOL update $RRDSTATS_RRDDATA/$NAMEPREFIX.rrd "N:$aha_data" --template volt:kilo:grad:curr:fact
+}
+
+aha_alert() {
+	_ALERT_NUM=0
+	grep "^$1 " /tmp/flash/rrdstats/smarthome.alert 2>/dev/null | tr -s " " | while read ain typ value condition interval command; do
+		let _ALERT_NUM++
+
+		_ALERT_FILE=/tmp/.rrdstats/smarthome_alert.$ain$_ALERT_NUM
+		[ -f $_ALERT_FILE ] && [ $(( $(cat $_ALERT_FILE)+$interval )) -gt $(date +%s) ] && continue
+
+		case $typ in
+			watt)	data=$2 ;;
+			volt)	data=$3 ;;
+			kilo)	data=$4 ;;
+			grad)	data=$5 ;;
+			curr)	data=$6 ;;
+			fact)	data=$7 ;;
+		esac
+
+		_ALERT_2DO=no
+		case "$condition" in
+			MAX|Max|max)	[ "${data%.*}" -gt "${value}" ] && _ALERT_2DO=yes ;;
+			MIN|Min|min)	[ "${data%.*}" -lt "${value}" ] && _ALERT_2DO=yes ;;
+		esac
+		[ "$_ALERT_2DO" != yes ] && continue
+
+		echo $(date +%s) > $_ALERT_FILE
+		echo "$command" > $_ALERT_FILE.run
+		chmod +x $_ALERT_FILE.run
+		$_ALERT_FILE.run $* &
+
+	done
+}
+
+
+[ "$RRDSTATS_DIGITEMP_C" = yes ] && _SENSOR_ERR="85.000000" || _SENSOR_ERR="185.000000"
+_STARTDATE=$(date +%s)
+while true; do
+	[ $# -eq 0 ] || _NEXTRUN=$(( ( ($(date +%s) - $_STARTDATE)/$1 +1) *$1 + $_STARTDATE ))
+	collect_cpu
+	collect_mem
+	[ "$RRDSTATS_UPTIME_ENB" = yes ] && collect_upt
+	[ "$RRDSTATS_POWER_ENB" = yes ] && collect_pow
+	if [ "$FREETZ_PACKAGE_RRDSTATS_TEMPERATURE_SENSOR" == "y" ]; then
+		[ "$RRDSTATS_TEMP_ENB" = yes ] && collect_temp
+	fi
+	if [ "$FREETZ_PACKAGE_RRDSTATS_CABLEMODEM" == "y" ]; then
+		[ "$RRDSTATS_CABLE_MODEM" = thg ] && collect_thg
+		[ "$RRDSTATS_CABLE_MODEM" = epc ] && collect_epc$RRDSTATS_CISCOEPC_FW
+		[ "$RRDSTATS_CABLE_MODEM" = arris ] && collect_arristm
+		[ "$RRDSTATS_CABLE_MODEM" = dvb ] && collect_dvb
+	fi
+	if [ "$FREETZ_PACKAGE_RRDSTATS_SEGMENTLOAD" == "y" ]; then
+		[ "$RRDSTATS_CABLESEG_ENABLED" = yes ] && collect_csl
+	fi
+	if [ "$FREETZ_PACKAGE_RRDSTATS_STORAGE" == "y" ]; then
+		[ -n "$RRDSTATS_DISK_DEV1" ] && collect_diskio 1
+		[ -n "$RRDSTATS_DISK_DEV2" ] && collect_diskio 2
+		[ -n "$RRDSTATS_DISK_DEV3" ] && collect_diskio 3
+		[ -n "$RRDSTATS_DISK_DEV4" ] && collect_diskio 4
+	fi
+	if [ "$FREETZ_PACKAGE_RRDSTATS_NETWORK" == "y" ]; then
+		[ -n "$RRDSTATS_INTERFACE1" ] && collect_net 1
+		[ -n "$RRDSTATS_INTERFACE2" ] && collect_net 2
+		[ -n "$RRDSTATS_INTERFACE3" ] && collect_net 3
+		[ -n "$RRDSTATS_INTERFACE4" ] && collect_net 4
+	fi
+	if [ "$FREETZ_PACKAGE_RRDSTATS_DIGITEMP" == "y" ]; then
+		[ "$RRDSTATS_DIGITEMP1W" = yes ] && collect_one
+	fi
+	if [ "$FREETZ_PACKAGE_RRDSTATS_SMARTHOME" == "y" ]; then
+		[ "$RRDSTATS_AHA_ENB" = yes ] && collect_aha
+	fi
+	[ $# -eq 0 ] && exit
+	_SLEEPER=$(( $_NEXTRUN-$(date +%s) ))
+	[ $_SLEEPER -gt 0 ] && sleep $_SLEEPER
+done
+

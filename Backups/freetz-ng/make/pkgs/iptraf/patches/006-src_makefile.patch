@@ -1,0 +1,20 @@
+--- src/Makefile
++++ src/Makefile
+@@ -68,7 +68,7 @@
+ # installation target directory.  The iptraf and rvnamed programs get
+ # stored here.  iptraf also exec's rvnamed from this directory.
+ 
+-TARGET		= /usr/local/bin
++TARGET		= /usr/bin
+ 
+ # The IPTraf working directory; if you change this.  Starting with this
+ # version, this definition overrides dirs.h.
+@@ -73,7 +73,7 @@
+ # The IPTraf working directory; if you change this.  Starting with this
+ # version, this definition overrides dirs.h.
+ 
+-WORKDIR		= /var/local/iptraf
++WORKDIR		= /var/tmp
+ 
+ # The IPTraf log file directory.  IPTraf log files are placed here.
+ # This definition overrides dirs.h

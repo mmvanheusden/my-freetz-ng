@@ -1,0 +1,3 @@
+[ "$EXTERNAL_FREETZ_PACKAGE_FTDI1" == "y" ] && EXTERNAL_FILES+=" /usr/bin/ftdi_eeprom"
+[ "$EXTERNAL_FREETZ_LIB_libftdi1" == "y" ] && EXTERNAL_FILES+=" ${FREETZ_LIBRARY_DIR}/libftdi1.so.2.5.0"
+

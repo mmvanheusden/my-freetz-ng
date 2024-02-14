@@ -1,0 +1,26 @@
+config FREETZ_PACKAGE_MTR
+	bool "MTR 0.80/0.95 (binary only)"
+	select FREETZ_LIB_libncurses
+	default n
+	help
+		MTR combines the functionality of the 'traceroute' and 'ping' programs
+		in a single network diagnostic tool.
+
+if FREETZ_PACKAGE_MTR
+
+	choice
+		prompt "Version"
+			default FREETZ_PACKAGE_MTR_VERSION_CURRENT
+
+		config FREETZ_PACKAGE_MTR_VERSION_ABANDON
+			bool "0.80"
+			depends on !FREETZ_TARGET_GCC_4_8_MIN
+
+		config FREETZ_PACKAGE_MTR_VERSION_CURRENT
+			bool "0.95"
+			depends on FREETZ_TARGET_GCC_4_8_MIN
+
+	endchoice
+
+endif # FREETZ_PACKAGE_MTR
+

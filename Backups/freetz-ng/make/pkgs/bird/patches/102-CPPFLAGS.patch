@@ -1,0 +1,20 @@
+--- tools/Rules.in
++++ tools/Rules.in
+@@ -19,7 +19,7 @@
+ all-dirs:=$(static-dirs) $(dynamic-dirs) $(client-dirs) $(doc-dirs)
+ clean-dirs:=$(all-dirs) proto sysdep
+ 
+-CPPFLAGS=-I$(root-rel) -I$(srcdir) @CPPFLAGS@
++CPPFLAGS=-I$(root-rel) -I$(srcdir) @CPPFLAGS@ -D_GNU_SOURCE
+ CFLAGS=$(CPPFLAGS) @CFLAGS@
+ LDFLAGS=@LDFLAGS@
+ LIBS=@LIBS@
+@@ -70,7 +70,7 @@
+ #       $(LD) -r -o $@ $^
+ #	Changed to $(CC) because $(LD) has problems with crosscompiling
+ 	@echo LD -r -o $@ $^
+-	@$(CC) -nostdlib -r -o $@ $^
++	@$(CC) $(CFLAGS) -nostdlib -r -o $@ $^
+ 
+ endif
+ 

@@ -1,0 +1,34 @@
+--- usr/www/all/html/de/home/home.js
++++ usr/www/all/html/de/home/home.js
+@@ -770,7 +770,7 @@
+ var nPartTotal = Number(g_usbhost_data.part_count_total);
+ if (isNaN(nPartTotal)) nPartTotal = 0;
+ var unplugOk = parseInt(g_usbhost_data.unplug_ok, 10) == 1;
+-if (nPartTotal > nStor)
++if (nPartTotal > 0)
+ {
+ if (unplugOk)
+ {
+@@ -778,9 +778,7 @@
+ }
+ else
+ {
+-strStor = "{?895:5106?} ";
+-strStor += "<a href=\"javascript:syslog_jslSubmitFormEx(5);\">{?895:8842?}</a>";
+-strStor = strStor.fontcolor("#cc0000");
++strStor = "Mounted " + nStor + " of " + nPartTotal + " partitions.";
+ }
+ strArr.push(strStor);
+ }
+--- usr/www/all/html/de/usb/status.js
++++ usr/www/all/html/de/usb/status.js
+@@ -481,8 +481,7 @@
+ }
+ else
+ {
+-str += "<font color=\"#cc0000\">";
+-str += "{?2798:8143?}";
++strStor = "Mounted " + nStor + " of " + nPartTotal + " partitions.";
+ str += "</font>";
+ str += "<a href=\"javascript:goto_syslog_usb();\">{?2798:9581?}</a>";
+ }

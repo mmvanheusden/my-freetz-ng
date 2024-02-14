@@ -1,0 +1,12 @@
+--- configure
++++ configure
+@@ -20547,8 +20547,7 @@
+ 	CFLAGS="-g $CFLAGS"
+ else
+ 	CPPFLAGS="-DNDEBUG $CPPFLAGS"
+-	CFLAGS=$(echo "$CFLAGS" | sed 's/-O2//')
+-	CFLAGS="-O3 -funroll-loops $CFLAGS"
++	CFLAGS="$CFLAGS"
+ fi
+ 
+ 

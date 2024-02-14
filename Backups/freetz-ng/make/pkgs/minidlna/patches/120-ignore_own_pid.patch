@@ -1,0 +1,14 @@
+--- process.c
++++ process.c
+@@ -196,8 +196,11 @@
+ 		{
+ 			if(!kill(pid, 0))
+ 			{
++				if(getpid()!=pid)
++				{
+ 				close(pidfile);
+ 				return -2;
++				}
+ 			}
+ 		}
+ 	}

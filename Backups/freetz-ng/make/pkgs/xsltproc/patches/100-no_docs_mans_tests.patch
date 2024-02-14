@@ -1,0 +1,52 @@
+--- libexslt/Makefile.in
++++ libexslt/Makefile.in
+@@ -880,7 +880,7 @@
+ 
+ info-am:
+ 
+-install-data-am: install-exsltincHEADERS install-man \
++install-data-am: install-exsltincHEADERS             \
+ 	install-nodist_exsltincHEADERS
+ 
+ install-dvi: install-dvi-am
+--- libxslt/Makefile.in
++++ libxslt/Makefile.in
+@@ -854,7 +854,7 @@
+ 
+ info-am:
+ 
+-install-data-am: install-man install-nodist_xsltincHEADERS \
++install-data-am:             install-nodist_xsltincHEADERS \
+ 	install-xsltincHEADERS
+ 
+ install-dvi: install-dvi-am
+--- Makefile.in
++++ Makefile.in
+@@ -435,8 +435,8 @@
+ top_builddir = @top_builddir@
+ top_srcdir = @top_srcdir@
+ ACLOCAL_AMFLAGS = -I m4
+-SUBDIRS = libxslt libexslt xsltproc doc tests $(am__append_1)
+-DIST_SUBDIRS = libxslt libexslt xsltproc python doc tests
++SUBDIRS = libxslt libexslt xsltproc $(am__append_1)
++DIST_SUBDIRS = libxslt libexslt xsltproc
+ confexecdir = $(libdir)
+ confexec_DATA = xsltConf.sh
+ bin_SCRIPTS = xslt-config
+@@ -1029,14 +1029,13 @@
+ 
+ info-am:
+ 
+-install-data-am: install-cmakeDATA install-dist_cmakeDATA \
+-	install-dist_m4dataDATA install-pkgconfigDATA
++install-data-am: install-cmakeDATA install-dist_cmakeDATA install-pkgconfigDATA
+ 
+ install-dvi: install-dvi-recursive
+ 
+ install-dvi-am:
+ 
+-install-exec-am: install-binSCRIPTS install-confexecDATA
++install-exec-am: install-binSCRIPTS
+ 
+ install-html: install-html-recursive
+ 

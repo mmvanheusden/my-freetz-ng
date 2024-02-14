@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libfribidi
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libfribidi
+	bool "libfribidi"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libfribidi.so.0.4.0
+

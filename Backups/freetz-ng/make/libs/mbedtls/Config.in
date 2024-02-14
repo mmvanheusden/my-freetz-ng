@@ -1,0 +1,39 @@
+config FREETZ_LIB_libmbedcrypto
+	bool "mbedCrypto (libmbedcrypto.so)"
+	default n
+
+	config FREETZ_LIB_libmbedcrypto_WITH_BLOWFISH
+		bool "With Blowfish cipher" if FREETZ_LIB_libmbedcrypto
+		default n
+		help
+			Enables support for the Blowfish block cipher.
+
+	config FREETZ_LIB_libmbedcrypto_WITH_GENRSA
+		bool "With RSA prime-number generation" if FREETZ_LIB_libmbedcrypto
+		default n
+		help
+			Enables the RSA prime-number generation code.
+
+config FREETZ_LIB_libmbedtls
+	bool "mbedTLS (libmbedtls.so)"
+	default n
+
+config FREETZ_LIB_libmbedx509
+	bool "mbedX.509 (libmbedx509.so)"
+	default n
+
+choice
+	prompt "mbedTLS version"
+	default FREETZ_MBEDTLS_VERSION_CURRENT
+	default FREETZ_MBEDTLS_VERSION_ABANDON
+
+	config FREETZ_MBEDTLS_VERSION_ABANDON
+		bool "2.7 - DEPRECATED"
+		depends on  FREETZ_TARGET_GCC_4_MAX
+
+	config FREETZ_MBEDTLS_VERSION_CURRENT
+		bool "2.28"
+		depends on !FREETZ_TARGET_GCC_4_MAX
+
+endchoice # "mbedTLS version"
+

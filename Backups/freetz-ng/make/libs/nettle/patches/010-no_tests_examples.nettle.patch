@@ -1,0 +1,11 @@
+--- Makefile.in
++++ Makefile.in
+@@ -19,7 +19,7 @@
+ 
+ FAT_TEST_LIST = @FAT_TEST_LIST@
+ 
+-SUBDIRS = tools testsuite examples
++SUBDIRS = tools
+ 
+ include config.make
+ 

@@ -1,0 +1,35 @@
+From 1aa561c7dd019a6723deba2e0d408638e9172f01 Mon Sep 17 00:00:00 2001
+From: Stephen Hemminger <shemminger@osdl.org>
+Date: Fri, 7 Oct 2005 16:43:51 -0700
+Subject: [PATCH] [PATCH] BIC coding bug in Linux 2.6.13
+
+Please consider this change for 2.6.13-stable   Since BIC is
+the default congestion control algorithm, this fix is quite
+important.
+
+Missing parenthesis in causes BIC to be slow in increasing congestion
+window.
+
+Spotted by Injong Rhee.
+
+Signed-off-by: Stephen Hemminger <shemminger@osdl.org>
+Signed-off-by: David S. Miller <davem@davemloft.net>
+Signed-off-by: Chris Wright <chrisw@osdl.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
+---
+ net/ipv4/tcp_bic.c |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git linux-2.6.13/net/ipv4/tcp_bic.c linux-2.6.13/net/ipv4/tcp_bic.c
+index ec38d45..a721085 100644
+--- linux-2.6.13/net/ipv4/tcp_bic.c
++++ linux-2.6.13/net/ipv4/tcp_bic.c
+@@ -136,7 +136,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
+ 		else if (cwnd < ca->last_max_cwnd + max_increment*(BICTCP_B-1))
+ 			/* slow start */
+ 			ca->cnt = (cwnd * (BICTCP_B-1))
+-				/ cwnd-ca->last_max_cwnd;
++				/ (cwnd - ca->last_max_cwnd);
+ 		else
+ 			/* linear increase */
+ 			ca->cnt = cwnd / max_increment;

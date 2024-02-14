@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libexpat
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libexpat
+	bool "libexpat"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libexpat.so.1.9.0
+

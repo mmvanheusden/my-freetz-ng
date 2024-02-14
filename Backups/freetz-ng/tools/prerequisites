@@ -1,0 +1,172 @@
+#! /usr/bin/env bash
+SCRIPT="$(readlink -f $0)"
+PARENT="$(dirname ${SCRIPT%/*})"
+PACKAGES="$PARENT/tools/.prerequisites"
+
+
+check_requisite() {
+	case "$2" in
+		pkgconf)
+			[ -n "$(find /usr/lib*/pkgconfig/ /usr/local/lib*/pkgconfig/ /usr/lib/*/pkgconfig/ -name "$1" 2>/dev/null)" ]
+			;;
+		pkgconf32)
+			[ -n "$(find /usr/lib/pkgconfig/  /usr/local/lib/pkgconfig/  /usr/lib/*/pkgconfig/ -name "$1" 2>/dev/null | grep -v 'x86_64')" ]
+			;;
+		program)
+			[ -x "$(command -v $1)" ]
+			;;
+		binary)
+			[ -x "$1" ]
+			;;
+		lib)
+			ldconfig -p | grep -Eq "^[[:space:]]*$1(\.[01])* "
+			;;
+		lib32)
+			ldconfig -p | grep -v 'x86-64' | grep -Eq "^[[:space:]]*$1(\.[01])* "
+			;;
+		header)
+			[ -n "$(find /usr/include/ /usr/local/include/ -path "*/$1" 2>/dev/null)" ]
+			;;
+		*)
+			false
+			;;
+	esac
+}
+
+failed_requisite() {
+	case "$2" in
+		pkgconf)
+			echo "ERROR: The pkgconf '$1' was not found in /usr/(local/)lib*/(*/)pkgconfig/"
+			;;
+		pkgconf32)
+			echo "ERROR: The pkgconf '$1' (32-bit) was not found in /usr/(local/)lib/(*/)pkgconfig/"
+			;;
+		program)
+			echo "ERROR: The program '$1' was not found in path"
+			;;
+		binary)
+			echo "ERROR: The exeutabe binary '$1' was not found"
+			;;
+		lib)
+			echo "ERROR: The library '$1' was not found in /etc/ld.so.cache"
+			;;
+		lib32)
+			echo "ERROR: The library '$1' (32-bit) was not found in /etc/ld.so.cache"
+			;;
+		header)
+			echo "ERROR: The header file '$1' was not found in /usr/(local/)include"
+			;;
+		*)
+			echo "Unknown requisite type '$2' for '$1'."
+			;;
+	esac
+}
+
+makefile_internal() {
+	retval=0
+	while read parser file depends; do
+		[ -z "$file" ] && continue
+		# check dependencies
+		MODE="or"
+		[ "${depends%% *}" == 'and' ] && \
+		  MODE="and" && \
+		  depends="${depends#and }"
+		depends="${depends#or }"
+		[ "${#depends}" == '0' ] && mandatory='y' || mandatory='n'
+		ands='y'
+		for x in $depends; do
+			grep -q "^$x=y$" "$PARENT/.config" 2>/dev/null && mandatory='y' || ands='n'
+		done
+		[ "$MODE" == "and" -a "$ands" != "y" ] && mandatory='n'
+		[ "$mandatory" != 'y' ] && continue
+		# check installed
+		check_requisite "$file" "$parser" && continue
+		failed_requisite "$file" "$parser"
+		retval=1
+	done < <(sed 's/#.*//g;/^[ \t]*$/d' "$PARENT/.prerequisites" 2>/dev/null)
+	exit $retval
+}
+
+
+detect_linux() {
+	NAME="$(sed -rn 's/^NAME=//p' /etc/os-release 2>/dev/null)"
+	NAME="$(echo $NAME | sed 's/"//g;s/ *Linux *//;s/ .*//;s/\..*//')"
+	VERSION="$(sed -rn 's/^VERSION=//p' /etc/os-release 2>/dev/null)"
+	VERSION="$(echo $VERSION | sed 's/"//g;s/ .*//;s/\..*//')"
+	echo "$NAME$VERSION"
+}
+
+install_requisite() {
+	local OSV="$1" ARG="$2"DOY="$3"
+
+	[ -z "$OSV" ] && OSV="$(detect_linux)"
+	[ -z "$OSV" ] && echo 'Can not detect you Linux version, set it manually'&& list_linux  && exit 1
+
+	OSV="${OSV##*/}"
+	GENERIC="$(echo "$OSV" | sed 's/[0-9]*$//')"
+	[ ! -e "$PACKAGES/$OSV" ] && [ -e "$PACKAGES/$GENERIC" ] && OSV="$GENERIC"
+
+	[ ! -e "$PACKAGES/$OSV" ] && echo "Unsupported, file for your Linux version not found: $OSV" && list_linux && exit 1
+
+	vals="$(sed 's/[\t ]*#.*//g' "$PACKAGES/$OSV" | sort | tr '\n' ' ' | sed 's/^ *//;s/  */ /g;s/ *$//')"
+	echo -e "\nPackages for '$OSV':\n$vals\n"
+	[ "${ARG:0:1}" == "s" ] && exit 0
+	case "$OSV" in
+		Fedora*)                                sudo dnf --refresh  install $DOY $vals || exit 1 ;;
+		Debian*|Devuan*) sudo apt-get update && sudo apt            install $DOY $vals || exit 1 ;;
+		Ubuntu*|Mint*)   sudo apt-get update && sudo apt-get        install $DOY $vals || exit 1 ;;
+		*)               echo 'No known installer'                                     && exit 1 ;;
+	esac
+	exit 0
+}
+
+
+list_linux() {
+	echo -e "\n\tAvailable names for 'linux+version' parameter:"
+	for x in "$PACKAGES/"*; do echo -e "\t  ${x##*/}"; done
+	echo
+}
+
+show_usage() {
+	cat << EOF
+
+	Prerequisites handling
+
+	Usage: $0 [ check | list | show [os] | install [-y] [os] ]
+
+	 - check
+	  Checks prerequisites and shows missing. Used by make, check return value.
+
+	 - list [linux+version]
+	  Lists supported linux distributions and versions.
+
+	 - show [linux+version]
+	  Shows packages to install with package-manager of 'linux+version'.
+
+	 - install [-y] [linux+version]
+	  Installs packages by package-manager for 'linux+version'.
+	  You will be asked for sudo password if you have no sufficent permissions.
+	  To install instantly and without question use the '-y' parameter.
+
+	Without 'linux+version' parameter, the current system will be detected.
+EOF
+	list_linux
+	exit 1
+}
+
+
+ARG="$1"
+shift
+[ "$1" == '-y' ] && shift && DOY="-y" || DOY=""
+OSV="$1"
+shift
+
+case "$ARG" in
+	c|check)		makefile_internal ;;
+	l|list)			list_linux ;;
+	i|install|s|show)	install_requisite "$OSV" "$ARG" "$DOY" ;;
+	*)			show_usage ;;
+esac
+
+exit 0
+

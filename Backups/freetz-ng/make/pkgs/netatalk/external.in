@@ -1,0 +1,15 @@
+config EXTERNAL_FREETZ_PACKAGE_NETATALK
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_NETATALK
+	bool "netatalk"
+	default n
+	help
+		externals the following file(s):
+		 /sbin/afpd
+		 /sbin/cnid_dbd
+		 /sbin/metad
+		 /sbin/dbd
+		 /sbin/hash
+		 ${FREETZ_LIBRARY_DIR}/uams_dhx2_passwd.so
+		 ${FREETZ_LIBRARY_DIR}/uams_dhx_passwd.so
+		 ${FREETZ_LIBRARY_DIR}/uams_guest.so
+

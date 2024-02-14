@@ -1,0 +1,76 @@
+comment "AutoFS (not available, needs replace kernel)"
+	depends on !FREETZ_AVM_HAS_AUTOFS4_FS_BUILTIN
+	depends on FREETZ_KERNEL_VERSION_2_6_28_MAX && !FREETZ_REPLACE_KERNEL
+
+comment "AutoFS (not available, no kernel sources from AVM)"
+	depends on !FREETZ_AVM_HAS_AUTOFS4_FS_BUILTIN
+	depends on FREETZ_KERNEL_VERSION_2_6_32_MIN && !FREETZ_REPLACE_MODULE_AVAILABLE
+
+config FREETZ_PACKAGE_AUTOFS
+	bool "AutoFS 5.0.5/5.1.8"
+	depends on FREETZ_AVM_HAS_AUTOFS4_FS_BUILTIN \
+		|| (FREETZ_KERNEL_VERSION_2_6_28_MAX && FREETZ_REPLACE_KERNEL) \
+		|| (FREETZ_KERNEL_VERSION_2_6_32_MIN && FREETZ_REPLACE_MODULE_AVAILABLE)
+	select FREETZ_LIB_libdl       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libpthread  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libtirpc    if !FREETZ_TARGET_UCLIBC_SUPPORTS_rpc
+	select FREETZ_MODULE_autofs4  if !FREETZ_AVM_HAS_AUTOFS4_FS_BUILTIN
+	select FREETZ_BUSYBOX_FEATURE_MOUNT_HELPERS
+	select FREETZ_BUSYBOX_FEATURE_MOUNT_LABEL
+	default n
+	help
+		Autofs is a kernel-based automounter for Linux. It performs a job
+		similar to amd(8) but relies on a small stub of kernel code instead of
+		pretending to be an NFS server. The result is simpler code, better
+		reliability, and much faster operation in the common case (everything
+		already mounted).
+
+if FREETZ_PACKAGE_AUTOFS && FREETZ_REPLACE_MODULE_AVAILABLE
+
+	config FREETZ_PACKAGE_AUTOFS_NFS
+		bool "select nfs module"
+		select FREETZ_MODULE_nfs if !FREETZ_AVM_HAS_NFS_FS_BUILTIN
+		default n
+		help
+			Select this if you want to mount NFS-shares.
+
+	comment "select cifs package (not available, needs replace kernel)"
+		depends on !FREETZ_REPLACE_KERNEL && FREETZ_KERNEL_VERSION_2_6_28_MIN && !FREETZ_KERNEL_VERSION_3_MIN
+
+	config FREETZ_PACKAGE_AUTOFS_CIFS
+		bool "select cifs package"
+		depends on  FREETZ_REPLACE_KERNEL || FREETZ_KERNEL_VERSION_2_6_19_MAX ||  FREETZ_KERNEL_VERSION_3_MIN
+		select FREETZ_PACKAGE_CIFSMOUNT
+		select FREETZ_PACKAGE_CIFSMOUNT_REMOVE_WEBIF
+		default n
+		help
+			Select this if you want to mount SMB-shares.
+
+	config FREETZ_PACKAGE_AUTOFS_CURLFTPFS
+		bool "select curlftpfs package"
+		depends on !FREETZ_TARGET_UCLIBC_0_9_28
+		select FREETZ_PACKAGE_CURLFTPFS
+		select FREETZ_PACKAGE_CURLFTPFS_REMOVE_WEBIF
+		default n
+		help
+			Select this if you want to mount FTP-shares.
+
+	config FREETZ_PACKAGE_AUTOFS_DAVFS2
+		bool "select davfs2 package"
+		select FREETZ_PACKAGE_DAVFS2
+		select FREETZ_PACKAGE_DAVFS2_REMOVE_WEBIF
+		default n
+		help
+			Select this if you want to mount WebDAV-shares.
+			Support for SSL and ZLIB could additionally be selected!
+
+	config FREETZ_PACKAGE_AUTOFS_SSHFS
+		bool "select sshfs package"
+		depends on FREETZ_OPENSSL_VERSION_1_MIN
+		select FREETZ_PACKAGE_SSHFS_FUSE
+		default n
+		help
+			Select this if you want to mount SSH-shares.
+
+endif # FREETZ_PACKAGE_AUTOFS
+

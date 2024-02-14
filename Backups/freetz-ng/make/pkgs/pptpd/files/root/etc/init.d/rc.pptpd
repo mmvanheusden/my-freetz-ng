@@ -1,0 +1,75 @@
+#!/bin/sh
+
+DAEMON=pptpd
+. /etc/init.d/modlibrc
+
+config() {
+	set -o noglob
+	rm -f /mod/etc/ppp/ip-up
+	rm -f /mod/etc/ppp/ip-down
+	[ -x "/tmp/flash/ppp/pppd_ip-up" ] && /tmp/flash/ppp/pppd_ip-up > /mod/etc/ppp/ip-up
+	[ ! -e "/mod/etc/ppp/ip-up" ] && /mod/etc/default.pppd/pppd_ip-up > /mod/etc/ppp/ip-up
+	[ -x "/tmp/flash/ppp/pppd_ip-down" ] && /tmp/flash/ppp/pppd_ip-down > /mod/etc/ppp/ip-down
+	[ ! -e "/mod/etc/ppp/ip-down" ] && /mod/etc/default.pppd/pppd_ip-down > /mod/etc/ppp/ip-down
+	chmod 755 /mod/etc/ppp/ip-up
+	chmod 755 /mod/etc/ppp/ip-down
+}
+
+start() {
+	kver="$(uname -r)"
+	modprobe arc4
+	[ "${kver:4:2}" -lt 28 ] && modprobe sha1 || modprobe sha1_generic 2>/dev/null
+	modprobe ppp_generic 2>/dev/null
+	modprobe ppp_async 2>/dev/null
+	modprobe ppp_deflate
+	modprobe ppp_mppe_mppc
+	modlib_startdaemon $DAEMON -c /etc/ppp/$DAEMON.conf
+}
+
+stop() {
+	kill $(ps | grep pp[t]pd | grep -vE "rc.pp|pppd" | sed 's/^[^0-9]*\([0-9]*\).*/\1/')
+}
+
+case $1 in
+	""|load)
+		[ ! -d "/tmp/flash/ppp" ] && mkdir -p /tmp/flash/ppp
+		[ ! -d "/mod/etc/ppp" ] && mkdir -p /mod/etc/ppp
+
+		[ ! -e "/tmp/flash/ppp/options.pptpd" ] && /mod/etc/default.${DAEMON}/pptpd_options > /tmp/flash/ppp/options.pptpd
+		[ ! -e "/tmp/flash/ppp/pptpd.conf" ] && /mod/etc/default.${DAEMON}/pptpd_conf > /tmp/flash/ppp/pptpd.conf
+
+		[ ! -e "/mod/etc/ppp/options.pptpd" ] && ln -s /tmp/flash/ppp/options.pptpd /mod/etc/ppp/options.pptpd
+		[ ! -e "/mod/etc/ppp/pptpd.conf" ] && ln -s /tmp/flash/ppp/pptpd.conf /mod/etc/ppp/pptpd.conf
+
+		modreg cgi 'pptpd' 'PPTPD'
+		modreg daemon $DAEMON
+		modreg file pptpd options 'options.pptpd' 0 "pptpd_options"
+		modreg file pptpd conf 'pptpd.conf' 0 "pptpd_conf"
+
+		modlib_start $PPTPD_ENABLED
+		;;
+	unload)
+		modunreg cgi pptpd
+		modunreg daemon $DAEMON
+		modunreg file pptpd
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

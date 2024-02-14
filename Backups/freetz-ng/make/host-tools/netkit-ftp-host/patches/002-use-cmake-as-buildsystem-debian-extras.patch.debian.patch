@@ -1,0 +1,58 @@
+Description: Adjust install paths and file names for Debian
+Author: Christoph Biedl <debian.axhn@manchmal.in-ulm.de>
+Forwarded: not-needed
+Last-Update: 2019-02-24
+
+--- a/ftp/CMakeLists.txt
++++ b/ftp/CMakeLists.txt
+@@ -1,6 +1,11 @@
+ 
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64")
++if(USE_READLINE)
++    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__USE_READLINE__")
++endif()
++
+ add_executable(
+-    ftp
++    netkit-ftp
+     cmds.c
+     cmdtab.c
+     domacro.c
+@@ -9,28 +14,23 @@
+     ruserpass.c
+ )
+ install(
+-    TARGETS ftp
++    TARGETS netkit-ftp
+     DESTINATION ${BIN_DIR}
+ )
+-install(
+-    CODE "execute_process( \
+-        COMMAND ${CMAKE_COMMAND} -E create_symlink \
+-        ptftp \$ENV{DESTDIR}${BIN_DIR}/ftp \
+-    )"
+-)
+-
++if(USE_READLINE)
++    target_link_libraries(
++        netkit-ftp
++        readline
++    )
++endif()
+ install(
+     FILES ftp.1
+     DESTINATION ${MAN_DIR}/man1/
+-)
+-install(
+-    CODE "execute_process( \
+-        COMMAND ${CMAKE_COMMAND} -E create_symlink \
+-        pftp.1 \$ENV{DESTDIR}${MAN_DIR}/pftp.1 \
+-    )"
++    RENAME netkit-ftp.1
+ )
+ 
+ install(
+     FILES netrc.5
+     DESTINATION ${MAN_DIR}/man5/
++    RENAME netkit-netrc.5
+ )

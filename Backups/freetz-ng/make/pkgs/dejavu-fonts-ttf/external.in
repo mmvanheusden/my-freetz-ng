@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_PACKAGE_DEJAVU_FONTS_TTF
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_DEJAVU_FONTS_TTF && EXTERNAL_SUBDIRS
+	bool "DejaVu Fonts TTF"
+	default n
+	help
+		externals the following file(s):
+		 /usr/share/fonts/dejavu-sans-fonts/
+

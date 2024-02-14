@@ -1,0 +1,59 @@
+#!/bin/sh
+
+DAEMON=openntpd
+DAEMON_BIN=ntpd
+. /etc/init.d/modlibrc
+
+config() {
+	modlib_config
+	[ -e "/var/db" ] || mkdir -p /var/db
+	[ -e "/mod/etc/ntpd.conf" ] || ln -s /tmp/flash/openntpd/ntpd.conf /mod/etc/ntpd.conf
+}
+
+start() {
+	DAEMON_ENV="TZ=$(cat /etc/TZ)"
+	modlib_startdaemon $DAEMON_BIN -s -f /mod/etc/ntpd.conf $OPENNTPD_OPTIONS
+}
+
+case $1 in
+	""|load)
+		mkdir -p /tmp/flash/openntpd
+
+		modlib_add_user_and_group ntp
+		mkdir -p /mod/home/ntp
+		chown root /mod/home/ntp -R
+		chmod 0700 /mod/home/ntp -R
+
+		modreg cgi 'openntpd' 'OpenNTPD'
+		modreg daemon $DAEMON
+		if [ "$CONFIG_FILE" != '/etc/ntpd.conf' ]; then
+			modreg file $DAEMON conf "$(lang de:"Konfiguration" en:"Configuration")" 0 "openntpd_conf"
+		fi
+
+		modlib_start $OPENNTPD_ENABLED
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

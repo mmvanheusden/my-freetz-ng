@@ -1,0 +1,16 @@
+config EXTERNAL_FREETZ_LIB_librrd
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_librrd
+	bool "librrd"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/librrd.so.x.x.x
+
+config EXTERNAL_FREETZ_LIB_librrd_th
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_librrd_th
+	bool "librrd_th"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/librrd_th.so.2.0.13
+

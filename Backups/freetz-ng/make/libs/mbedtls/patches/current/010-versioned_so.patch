@@ -1,0 +1,62 @@
+--- library/Makefile
++++ library/Makefile
+@@ -39,9 +39,17 @@
+ endif
+ endif
+ 
+-SOEXT_TLS=so.14
+-SOEXT_X509=so.1
+-SOEXT_CRYPTO=so.7
++VERSION=0.0.0
++VERSION_MAJOR=$(word 1,$(subst ., ,$(VERSION)))
++VERSION_MINOR=$(word 2,$(subst ., ,$(VERSION)))
++
++define MAJOR_MINOR_ONLY
++$(patsubst %.$(VERSION),%.$(VERSION_MAJOR).$(VERSION_MINOR),$(strip $(1)))
++endef
++
++SOEXT_TLS=so.$(VERSION)
++SOEXT_X509=so.$(VERSION)
++SOEXT_CRYPTO=so.$(VERSION)
+ 
+ # Set AR_DASH= (empty string) to use an ar implementation that does not accept
+ # the - prefix for command line options (e.g. llvm-ar)
+@@ -219,9 +227,11 @@
+ 
+ libmbedtls.$(SOEXT_TLS): $(OBJS_TLS) libmbedx509.so
+ 	echo "  LD    $@"
+-	$(CC) -shared -Wl,-soname,$@ -o $@ $(OBJS_TLS) -L. -lmbedx509 -lmbedcrypto $(LOCAL_LDFLAGS) $(LDFLAGS)
++	$(CC) -shared -Wl,-soname,$(call MAJOR_MINOR_ONLY,$@) -o $@ $(OBJS_TLS) -L. -lmbedx509 -lmbedcrypto $(LOCAL_LDFLAGS) $(LDFLAGS)
+ 
+ libmbedtls.so: libmbedtls.$(SOEXT_TLS)
++	echo "  LN    $(call MAJOR_MINOR_ONLY,$<) -> $<"
++	ln -sf $< $(call MAJOR_MINOR_ONLY,$<)
+ 	echo "  LN    $@ -> $<"
+ 	ln -sf $< $@
+ 
+@@ -246,9 +256,11 @@
+ 
+ libmbedx509.$(SOEXT_X509): $(OBJS_X509) libmbedcrypto.so
+ 	echo "  LD    $@"
+-	$(CC) -shared -Wl,-soname,$@ -o $@ $(OBJS_X509) -L. -lmbedcrypto $(LOCAL_LDFLAGS) $(LDFLAGS)
++	$(CC) -shared -Wl,-soname,$(call MAJOR_MINOR_ONLY,$@) -o $@ $(OBJS_X509) -L. -lmbedcrypto $(LOCAL_LDFLAGS) $(LDFLAGS)
+ 
+ libmbedx509.so: libmbedx509.$(SOEXT_X509)
++	echo "  LN    $(call MAJOR_MINOR_ONLY,$<) -> $<"
++	ln -sf $< $(call MAJOR_MINOR_ONLY,$<)
+ 	echo "  LN    $@ -> $<"
+ 	ln -sf $< $@
+ 
+@@ -273,9 +285,11 @@
+ 
+ libmbedcrypto.$(SOEXT_CRYPTO): $(OBJS_CRYPTO)
+ 	echo "  LD    $@"
+-	$(CC) -shared -Wl,-soname,$@ -o $@ $(OBJS_CRYPTO) $(LOCAL_LDFLAGS) $(LDFLAGS)
++	$(CC) -shared -Wl,-soname,$(call MAJOR_MINOR_ONLY,$@) -o $@ $(OBJS_CRYPTO) $(LOCAL_LDFLAGS) $(LDFLAGS)
+ 
+ libmbedcrypto.so: libmbedcrypto.$(SOEXT_CRYPTO)
++	echo "  LN    $(call MAJOR_MINOR_ONLY,$<) -> $<"
++	ln -sf $< $(call MAJOR_MINOR_ONLY,$<)
+ 	echo "  LN    $@ -> $<"
+ 	ln -sf $< $@
+ 

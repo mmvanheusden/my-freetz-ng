@@ -1,0 +1,42 @@
+if FREETZ_SHOW_EXPERT
+
+comment "modules"
+
+
+config EXTERNAL_OWN_MODULES
+	string "own modules"
+	default ""
+	help
+		Put your own kernel modules here (space separated, without extension)
+
+
+menu "fs"
+	depends on FREETZ_MODULE_cifs
+
+config EXTERNAL_FREETZ_MODULE_cifs
+	depends on FREETZ_MODULE_cifs
+	bool "cifs.ko"
+	default n
+
+endmenu # fs
+
+
+menu "net"
+	depends on FREETZ_MODULE_ipv6
+	depends on FREETZ_MODULE_wireguard
+
+config EXTERNAL_FREETZ_MODULE_ipv6
+	depends on FREETZ_MODULE_ipv6
+	bool "ipv6.ko"
+	default n
+
+config EXTERNAL_FREETZ_MODULE_wireguard
+	depends on FREETZ_MODULE_wireguard
+	bool "wireguard.ko"
+	default n
+
+endmenu # net
+
+
+endif # FREETZ_SHOW_EXPERT
+

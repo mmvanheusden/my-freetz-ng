@@ -1,0 +1,23 @@
+--- tcpdump.c.orig	2010-03-12 02:56:44.000000000 +0100
++++ tcpdump.c	2010-04-07 11:16:38.000000000 +0200
+@@ -901,20 +901,6 @@
+ 				error("invalid data link type %s", gndo->ndo_dltname);
+ 			break;
+ 
+-#if defined(HAVE_PCAP_DEBUG) || defined(HAVE_YYDEBUG)
+-		case 'Y':
+-			{
+-			/* Undocumented flag */
+-#ifdef HAVE_PCAP_DEBUG
+-			extern int pcap_debug;
+-			pcap_debug = 1;
+-#else
+-			extern int yydebug;
+-			yydebug = 1;
+-#endif
+-			}
+-			break;
+-#endif
+ 		case 'z':
+ 			if (optarg) {
+ 				zflag = strdup(optarg);

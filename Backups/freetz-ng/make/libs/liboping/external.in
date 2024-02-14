@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_liboping
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_liboping
+	bool "liboping"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/liboping.so.0.2.7
+

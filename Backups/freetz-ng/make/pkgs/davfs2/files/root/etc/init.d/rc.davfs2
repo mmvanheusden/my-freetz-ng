@@ -1,0 +1,150 @@
+#!/bin/sh
+
+DAEMON=davfs2
+DAEMON_LONG_NAME=DavFS2
+DAEMON_CHECK="mount.davfs"
+. /etc/init.d/modlibrc
+
+CONF_DIR=/var/$DAEMON
+
+config() {
+	# cache-directory
+	mkdir $DAVFS2_TMPPATH 2>/dev/null
+	mkdir -p /var/cache
+	rm /var/cache/davfs2 2>/dev/null
+	ln -s $DAVFS2_TMPPATH /var/cache/davfs2
+	if [ ! -d "$DAVFS2_TMPPATH" ]; then
+		echo "cache-directory not available, failed"
+		exit 1
+	fi
+
+	# to hide error messages
+	touch $CONF_DIR/davfs2.conf $CONF_DIR/secrets
+	chmod 600 $CONF_DIR/secrets
+
+	for i in 1 2 3; do
+		modlib_config davfs2_secrets_${i} $CONF_DIR/secrets_${i}
+	done
+
+	modprobe fuse 2>/dev/null
+}
+
+start() {
+	echo -n "Starting $DAEMON_LONG_NAME ... "
+	config
+	[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+	# abort on https if SSL is not enabled on build
+	if [ "$FREETZ_PACKAGE_DAVFS2_WITH_SSL" != "y" ]; then
+		for i in 1 2 3; do
+			[ "$(eval "echo \$DAVFS2_ENABLED${i}")" != "yes" ] && continue
+			if eval "echo \$DAVFS2_HOST${i}" | grep -q -i "^https://"; then
+				echo "https is not allowed due to missing SSL, failed."
+				exit 1
+			fi
+		done
+	fi
+
+	local retval=0
+	for i in 1 2 3; do
+		[ "$(eval "echo \$DAVFS2_ENABLED${i}")" != "yes" ] && continue
+		local cert="$(eval "echo \$DAVFS2_SERVERCERT${i}")"
+		local uselocks="$(eval "echo \$DAVFS2_USELOCKS${i}")"
+		local ifmatchbug="$(eval "echo \$DAVFS2_IFMATCHBUG${i}")"
+		local point="$(eval "echo \$DAVFS2_MOUNTPOINT${i}")"
+		local host="$(eval "echo \$DAVFS2_HOST${i}")"
+		local cfile="$CONF_DIR/davfs2_${i}.conf"
+		echo "secrets $CONF_DIR/secrets_${i}" > $cfile
+		if [ "$cert" == "yes" -a "$FREETZ_PACKAGE_DAVFS2_WITH_SSL" == "y" ]; then
+			echo "servercert /var/tmp/flash/davfs2/servercrt${i}.pem" >> $cfile
+		fi
+		[ "$uselocks" == "yes" ] && echo "use_locks 0" >> $cfile
+		[ "$ifmatchbug" == "yes" ] && echo "if_match_bug 1" >> $cfile
+		echo "ask_auth 0" >> $cfile
+		echo "cache_size $DAVFS2_CACHE_SIZE" >> $cfile
+		chmod 600 $CONF_DIR/secrets_${i}
+		mkdir $point 2>/dev/null
+		mount -t davfs $host $point -o conf=$cfile,uid=ftpuser
+		local retpoint=$?
+		if [ "$retpoint" -ne 0 ]; then
+			retval=$retpoint
+			rmdir $point 2>/dev/null
+		fi
+	done;
+
+	if [ "$retval" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		exit $retval
+	fi
+}
+
+active_mounts() {
+	mount | grep ^http | cut -d" " -f3
+}
+
+stop() {
+	mpoints="$(active_mounts)"
+	count=9
+	while [ -n "$(active_mounts)" ]; do
+		umount $(active_mounts) 2>/dev/null
+		sleep 1
+		let count--
+		[ "$count" -le 0 ] && break
+	done
+	[ "$count" -le 0 ] && umount -l $(active_mounts) 2>/dev/null
+	[ -n "$mpoints" ] && rmdir $mpoints
+	killall -9 mount.davfs 2>/dev/null
+	rm -rf /var/run/mount.davfs/
+}
+
+reload() {
+	killall -HUP $DAEMON 2>/dev/null
+}
+
+case $1 in
+	""|load)
+		mkdir -p $CONF_DIR
+		mkdir -p /tmp/flash/$DAEMON
+
+		modlib_addgroup users
+		modlib_adduser ftpuser -G users -D -S -h "/var/media/ftp" -g "ftpuser"
+
+		modreg cgi $DAEMON $DAEMON_LONG_NAME
+		modreg daemon $DAEMON
+
+		for i in 1 2 3; do
+			modreg file $DAEMON servercrt$i "Server Zertifikat $i" 0 "davfs2_servercrt$i"
+		done
+
+		modlib_start $DAVFS2_ENABLED
+		;;
+	unload)
+		modunreg file davfs2
+		modunreg daemon $DAEMON
+		modunreg cgi davfs2
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|reload|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

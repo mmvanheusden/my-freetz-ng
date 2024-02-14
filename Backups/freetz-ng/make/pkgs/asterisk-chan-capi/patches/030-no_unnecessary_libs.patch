@@ -1,0 +1,11 @@
+--- Makefile
++++ Makefile
+@@ -115,7 +115,7 @@
+ endif
+ 
+ 
+-LIBS=-ldl -lpthread -lm
++LIBS=-lpthread
+ CC=gcc
+ INSTALL=install
+ 

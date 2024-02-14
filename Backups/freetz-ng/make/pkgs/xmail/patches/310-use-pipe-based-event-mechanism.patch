@@ -1,0 +1,20 @@
+--- Makefile.lnx
++++ Makefile.lnx
+@@ -44,12 +44,12 @@
+ MAINSRC = MainLinux.cpp
+ SYSSRCS = SysDepLinux.cpp SysDepUnix.cpp
+ 
+-ifeq ($(wildcard /usr/include/sys/eventfd.h), )
++#ifeq ($(wildcard /usr/include/sys/eventfd.h), )
+     SYSSRCS := $(SYSSRCS) SysOsEventfd_pipe.cpp
+-else
+-    SYSSRCS := $(SYSSRCS) SysOsEventfd_eventfd.cpp
+-    CFLAGS := $(CFLAGS) -DHAS_EVENTFD
+-endif
++#else
++#    SYSSRCS := $(SYSSRCS) SysOsEventfd_eventfd.cpp
++#    CFLAGS := $(CFLAGS) -DHAS_EVENTFD
++#endif
+ 
+ 
+ CFLAGS := $(CFLAGS) -I. -D__UNIX__ -D__LINUX__ -D_REENTRANT=1 -D_THREAD_SAFE=1 -DHAS_SYSMACHINE \

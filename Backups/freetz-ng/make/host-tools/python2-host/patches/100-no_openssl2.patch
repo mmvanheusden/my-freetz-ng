@@ -1,0 +1,14 @@
+--- setup.py
++++ setup.py
+@@ -908,6 +908,11 @@
+         have_usable_openssl = (have_any_openssl and
+                                openssl_ver >= min_openssl_ver)
+ 
++        # No OpenSSL v2
++        have_any_openssl = False
++        have_usable_openssl = False
++        openssl_ver = 0x00000000
++
+         if have_any_openssl:
+             if have_usable_openssl:
+                 # The _hashlib module wraps optimized implementations

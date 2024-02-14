@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libprotobuf_c
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libprotobuf_c
+	bool "libprotobuf-c"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libprotobuf-c.so.1.0.0
+

@@ -1,0 +1,18 @@
+--- configure
++++ configure
+@@ -4579,6 +4579,7 @@
+ 
+ done
+ 
++if false; then
+ for ac_header in libintl.h
+ do :
+   ac_fn_c_check_header_mongrel "$LINENO" "libintl.h" "ac_cv_header_libintl_h" "$ac_includes_default"
+@@ -4614,6 +4615,7 @@
+ fi
+ 
+ done
++fi
+ 
+ 
+ ac_fn_c_check_type "$LINENO" "size_t" "ac_cv_type_size_t" "$ac_includes_default"

@@ -1,0 +1,282 @@
+#! /usr/bin/env bash
+
+# Freetz patch tool with optional auto-fix feature
+#
+# This script can either be dot-included via '. tools/freetz_patch' to get an
+# in-process definition of the 'modpatch' shell function or executed directly.
+# The execution mode will be determined by checking if $0 has the base name
+# 'freetz_patch'.
+#
+# The functionality has evolved from the original "modpatch" function in
+# Freetz's 'fwmod' script (cf. copyright information there).
+# The additional auto-fix feature for self-healing patches was developed by
+# Alexander Kriegisch (kriegaex), 2007-06-25.
+# MD5 extension added by cuma, 2011
+# patch-level detection added by cuma, 2020
+
+
+helpmsg()
+{
+cat >&2 << EOF
+
+$freetz_patch_name - Freetz patch tool with optional auto-fix feature
+
+Usage: $freetz_patch_name <target-dir> <patch-file|md5-dir> [md5-source]
+    target-dir   - target directory to apply patch to
+    patch-file   - patch file name (unified context diff, patch level -p0 - -p9)
+    md5-dir      - directory with patch files, named "*<MD5>*.patch"
+    md5-source   - from which file md5 is computed (optional)
+                   if this is not set, the first file in .patch is used
+
+Examples:
+    $freetz_patch_name source/my-package patches/my.patch
+    $freetz_patch_name another/package another.patch 2
+    $freetz_patch_name third/package patches-directory/
+    $freetz_patch_name fourth/package patches-directory/ somewhere/file_for_md5
+
+Environment variables changing behaviour:
+    FREETZ_VERBOSITY_LEVEL  - verbose output, if >= 2
+    VERBOSE                 - verbose output, if == '-v'
+    AUTO_FIX_PATCHES        - try to auto-fix fuzzy non-md5 patches, if == 'y'
+
+EOF
+}
+
+_findTool()
+{
+	local tool="$1"
+	if [ -f "$TOOLS_DIR/$tool" ] && [ -x "$TOOLS_DIR/$tool" ]; then
+		# prefer the tool from the TOOLS_DIR if available
+		echo "$TOOLS_DIR/$tool"
+	else
+		# fallback to that found by which otherwise
+		which $tool 2>/dev/null || error 1 "$freetz_patch_name: required tool $tool missing, please install"
+	fi
+}
+
+# Strip $2 directory level(s) from one patch file, without argument: 1
+#
+# The $1 parameter is the name of the patch file to be stripped in place -
+# no backup! The patch file must be a unidiff, and no care is taken of spaces,
+# tabs or slashes within path names.
+strip_patch_level()
+{
+	local p=${2:-1}
+	while [ $p -gt 0 ]; do
+		sed -i -r 's/^(---|\+\+\+) [^/]+\//\1 /' "$1"
+		p=$(( $p - 1 ))
+	done
+}
+
+modpatch()
+{
+	if [ $# -ne 2 -a $# -ne 3 ]; then
+		helpmsg
+		return 1
+	fi
+
+	local is_verbose=""
+	if [ "$FREETZ_VERBOSITY_LEVEL" ] && [ "$FREETZ_VERBOSITY_LEVEL" -ge 2 ] || [ "$VERBOSE" == "-v" ]; then
+		is_verbose="y"
+	fi
+
+	local target_dir="$1"
+	local patch_file="$2"
+	local _auto_fix_supported="y"
+
+	## md5 start
+	if [ -d "$patch_file" ]; then
+		_auto_fix_supported="n"
+		local patch_target="$3"
+		if [ -z "$patch_target" ]; then
+			patch_target="$(grep -m1 '^+++ ' $patch_file/*.patch 2>/dev/null | sed -r -n 's,.*patch:[+]{3} ([^\t]*)(\t.*)?,\1,p' | sort -u)"
+			echo "$patch_target" | grep -q " " && patch_target=""
+			[ -z "$patch_target" ] && error 2 "modpatch: Could not determine target file"
+		fi
+		[ -e "$target_dir"/"$patch_target" ] || error 2 "modpatch: Target file $patch_target does not exist"
+
+		# System's md5sum is used if busybox applet is not available, eg while download of busybox (see #1535)
+		local MD5SUM
+		MD5SUM=$(_findTool md5sum) || exit $?
+
+		local target_md5="$($MD5SUM "$target_dir"/"$patch_target" | sed -n 's/\([a-f0-9]*\) .*$/\1/p')"
+
+		local md5_patch="$(find "$patch_file" -name *${target_md5}*.patch)"
+		if [ -z "$md5_patch" ]; then
+			[ -n "$target_md5" ] && local md5_error="for $patch_target (MD5: $target_md5)"
+			error 2 "modpatch: No matching patch found in $patch_file $md5_error"
+		else
+			patch_file="$md5_patch"
+		fi
+	fi
+	## md5 end
+
+	[ ! -e $patch_file ] && error 2 "modpatch: Could not find patch-file $patch_file"
+
+	local uncompress_tool
+	local reverse
+	case "$patch_file" in
+		*.gz)
+			uncompress_tool="gunzip"
+			;;
+		*.bzip2|*.bz2|*.bz)
+			uncompress_tool="bunzip2"
+			;;
+		*.xz)
+			uncompress_tool="unxz"
+			;;
+		*.lz)
+			uncompress_tool="lunzip"
+			;;
+		*.lzma)
+			uncompress_tool="unlzma"
+			;;
+		*.Z)
+			uncompress_tool="uncompress"
+			;;
+		*.diff)
+			reverse='-R'
+			;;
+	esac
+
+	local read_patch_cmd
+	if [ -n "$uncompress_tool" ]; then
+		_auto_fix_supported="n"
+		uncompress_tool=$(_findTool "$uncompress_tool") || exit $?
+		read_patch_cmd="$uncompress_tool -c"
+	else
+		read_patch_cmd="cat"
+	fi
+
+	local _auto_fix_patches
+	[ "$_auto_fix_supported" == "y" ] && _auto_fix_patches="$AUTO_FIX_PATCHES"
+
+	# detect patch-level
+	for p in 0 1 2 3 4 5 6 7 8 9; do
+		$read_patch_cmd "$patch_file" | patch $reverse -f -p$p -d "$target_dir" --dry-run &>/dev/null && break || p=0
+	done
+
+	local backup
+	local do_fix
+	if [ "$_auto_fix_patches" == "y" ]; then
+		# Check prerequisites for auto-fix
+		for tool in lsdiff filterdiff; do
+			which $tool > /dev/null || error 1 "$freetz_patch_name: tool $tool needed for auto-fix mode, please install"
+		done
+
+		local output=$(patch $reverse --dry-run -d "$target_dir" -p$p < "$patch_file" 2> /dev/null)
+		if [ $? -eq 0 ] && echo "$output" | grep -sqE '^Hunk '; then
+			# Is any target file patched more than once per patch? -> skip auto-fix
+			local multi_patch_files="$(lsdiff "$patch_file" | sort | uniq -cd)"
+			if [ "$multi_patch_files" ]; then
+				# Developer note: If you encounter this warning and want to make
+				# a patch auto-fix-friendly, either split it into two patch files
+				# (recommended because a patch should not contain multiple change
+				# sets for one file) or consolidate multiple change sets into one.
+				echo2 "warning: cannot auto-fix $patch_file, multiple change sets found for the following file(s):" >&2
+				echo2 "$multi_patch_files" >&2
+			else
+				do_fix="y"
+				backup="-b "
+			fi
+		fi
+	fi
+
+	local READ_PATCH_STATUS
+	local APPLY_PATCH_STATUS
+	if [ "$is_verbose" ]; then
+		echo2 "applying patch${p#0} file $patch_file"
+		$read_patch_cmd "$patch_file" | patch $reverse --force ${backup}-d "$target_dir" -p$p --no-backup-if-mismatch 2>&1 | sed -e "s/^/${L2}/g"
+		READ_PATCH_STATUS=${PIPESTATUS[0]} APPLY_PATCH_STATUS=${PIPESTATUS[1]}
+	else
+		$read_patch_cmd "$patch_file" | patch $reverse --force ${backup}-d "$target_dir" -p$p --no-backup-if-mismatch >/dev/null
+		READ_PATCH_STATUS=${PIPESTATUS[0]} APPLY_PATCH_STATUS=${PIPESTATUS[1]}
+	fi
+	if [ $READ_PATCH_STATUS -gt 0 ]; then
+		error 2 "modpatch: Failed to read/decompress patch-file $patch_file"
+	elif [ $APPLY_PATCH_STATUS -gt 0 ]; then
+		error 2 "modpatch: Error in patch-file $patch_file"
+	elif [ "$_auto_fix_patches" == "y" ] && [ "$do_fix" == "y" ]; then
+		# Alter patch to patch-level 0
+		strip_patch_level "$patch_file" $p
+		# Create (temporary) clean patch file copy without any comments in between change sets
+		filtered_file="$(mktemp _filtered_patch.XXXXXXXX)" || exit 1
+		filterdiff "$patch_file" > "$filtered_file"
+		# Arrays of files to be patched and lines where patches begin in orginal and clean patch file
+		IFS=$'\n'
+		local files=( $(lsdiff -n "$patch_file" | sed -r 's/^[0-9]+[[:space:]]+(.*)/\1/') )
+		local patch_lines=( $(lsdiff -n "$patch_file" | grep -Eo '^[0-9]+') )
+		local filtered_lines=( $(lsdiff -n "$filtered_file" | grep -Eo '^[0-9]+') )
+		unset IFS
+		rm -f "$filtered_file"
+		# Number of files to be patched should be the same in original and clean patch file
+		local file_count=${#files[@]}
+		test $file_count = ${#patch_lines[@]} -a $file_count = ${#filtered_lines[@]} || exit 1
+		echo2
+		echo2 "auto-fixing fuzzy patch file $patch_file"
+		#echo2 "    file_count     = $file_count"
+		#echo2 "    files          = ${files[*]}"
+		#echo2 "    patch_lines    = ${patch_lines[*]}"
+		#echo2 "    filtered_lines = ${filtered_lines[*]}"
+		# Because we are going 'cd' soon, we need an absolute path to the patch file now
+		local patch_file="$(readlink -f "$patch_file")"
+		mv -f "$patch_file" "$patch_file.orig"
+		cd "$target_dir"
+		for (( i=0; i<$file_count; i++ )); do
+			# Locate patch comment for each file
+			local delta=$(( patch_lines[i] - filtered_lines[i] ))
+			local hdr_len=$(( delta - delta_old ))
+			local from=$(( patch_lines[i] - hdr_len ))
+			local to=$(( from + hdr_len - 1 ))
+			local delta_old=$delta
+			#echo2 "    $delta, $hdr_len, $from, $to"
+			# Cut & paste comment (if any) from original into auto-fixed patch file
+			if [ $to -ge $from ]; then
+				eval "sed -n '$from,${to}p' \"\$patch_file.orig\" >> \"\$patch_file\""
+			fi
+			local _file="${files[i]}"
+			# If backup exists, but is unreadable and has a size of zero, it
+			# was created as a placeholder by 'patch -b' previously and can be
+			# safely deleted. It even must be deleted in order to avoid a diff
+			# error because it is unreadable.
+			if [ -f "$_file.orig" -a ! -r "$_file.orig" -a ! -s "$_file.orig" ]; then
+				rm -f "$_file.orig"
+			fi
+			# Auto-fix possibly fuzzy patch by re-diffing patched file against original
+			diff -Naur --label "$_file" --label "$_file" "$_file.orig" "$_file" >> "$patch_file"
+			rm -f "$_file.orig"
+		done
+		cd - > /dev/null
+		rm "$patch_file.orig"
+		[ -n "$reverse" ] && mv $patch_file ${patch_file%.diff}
+	fi
+	[ "$is_verbose" == "y" -o "$do_fix" == "y" ] && echo2 -- "----------------------------------------------------------------------"
+	return 0
+}
+
+if [ "$(basename "$0")" == "freetz_patch" ]; then
+	# standalone invocation
+	TOOLS_DIR=$(dirname "$0")
+else
+	# possibly sourced invocation
+	[ -z "$TOOLS_DIR" ] && TOOLS_DIR="tools"
+fi
+
+# Include freetz_functions if not already done by fwmod
+if ! declare -F | cut -d ' ' -f 3 | grep -q echoX; then
+	if [ -f "$TOOLS_DIR/freetz_functions" ]; then
+		source "$TOOLS_DIR/freetz_functions"
+	else
+		echo "$TOOLS_DIR/freetz_functions not found" >&2
+		exit 1
+	fi
+fi
+
+# Direct script call? -> delegate parameters to shell function
+if [ "$(basename "$0")" == "freetz_patch" ]; then
+	freetz_patch_name="freetz_patch"
+	modpatch "$@"
+else
+	freetz_patch_name="modpatch"
+fi
+

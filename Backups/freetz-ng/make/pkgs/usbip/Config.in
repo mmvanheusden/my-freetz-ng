@@ -1,0 +1,29 @@
+config FREETZ_PACKAGE_USBIP
+	bool "USB/IP 0.1.8"
+	depends on FREETZ_KERNEL_VERSION_2_6_32_MAX
+	depends on FREETZ_REPLACE_MODULE_AVAILABLE
+	default n
+	select FREETZ_LIB_libglib_2
+	select FREETZ_LIB_libsysfs
+	select FREETZ_MODULE_usbip if !FREETZ_AVM_HAS_USB_IP_HOST_BUILTIN
+	select FREETZ_PACKAGE_USBIDS
+	help
+		USB/IP Project aims to develop a general USB
+		device sharing system over IP network. To share
+		USB devices between computers with their full
+		functionality, USB/IP encapsulates "USB I/O messages"
+		into IP packets and transmits them between computers.
+
+		If you plan to share a printer with this package, consider
+		to remove AVM's printserv, but not the usblp kernel module.
+
+config FREETZ_PACKAGE_USBIP_WRAPPER
+	bool "replace printserv"
+	depends on FREETZ_AVM_HAS_USB_HOST
+	depends on FREETZ_PACKAGE_USBIP
+	default n
+	select FREETZ_REMOVE_PRINTSERV
+	help
+		This replaces AVM's printserv by a wrapper to
+		automatically share connected printers.
+

@@ -1,0 +1,10 @@
+--- linux-2.6.13/include/asm-mips/unistd.h
++++ linux-2.6.13/include/asm-mips/unistd.h
+@@ -13,6 +13,7 @@
+ #define _ASM_UNISTD_H
+ 
+ #include <asm/sgidefs.h>
++#include <linux/config.h>
+ 
+ #if _MIPS_SIM == _MIPS_SIM_ABI32
+ 

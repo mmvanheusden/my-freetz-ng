@@ -1,0 +1,434 @@
+--- configure.in
++++ configure.in
+@@ -37,15 +37,13 @@
+ AC_PROG_INSTALL
+ AC_PROG_LIBTOOL
+ 
+-# Checks for required libraries, don't set global -lpthread, -lm, -ljpeg, ... here, set in Makefile.
++# Checks for required libraries, don't set global -lpthread, -lm, ... here, set in Makefile.
+ AC_CHECK_LIB([pthread], [pthread_create], [LIBS="$LIBS"], [AC_MSG_ERROR([cannot find libpthread support], 7)])
+ AC_CHECK_LIB([m], [pow], [LIBS="$LIBS"], [AC_MSG_ERROR([cannot find libm math support], 10)])
+-AC_CHECK_LIB([jpeg], [jpeg_set_defaults],[LIBS="$LIBS"], [AC_MSG_ERROR(["cannot find libjpeg support"], 102)])
+ AC_CHECK_LIB([dl], [dlopen], [LIBS="$LIBS" AC_DEFINE([HAVE_LIBDL])], [AC_MSG_ERROR(["cannot find libdl support"], 104)])
+ 
+ # Checks for required header files.
+ AC_CHECK_HEADERS(pthread.h,, [AC_MSG_ERROR([cannot find pthread-devel support], 7)])
+-AC_CHECK_HEADERS(jpeglib.h,, [AC_MSG_ERROR([cannot find libjpeg-devel support], 103)])
+ 
+ # Checks for typedefs, structures, and compiler characteristics.
+ AC_C_BIGENDIAN(,[APDK_ENDIAN_FLAG="-DAPDK_LITTLE_ENDIAN"])
+@@ -509,8 +507,6 @@
+ fi
+ 
+ if test "$hpijs_only_build" = "no" && test "$hpcups_only_build" = "no"; then
+-   AC_CHECK_LIB([cups], [cupsDoFileRequest], [LIBS="$LIBS"], [AC_MSG_ERROR([cannot find libcups support], 9)])
+-   AC_CHECK_HEADERS(cups/cups.h, ,[AC_MSG_ERROR([cannot find cups-devel support], 3)])
+    if test "$libusb01_build" = "yes"; then
+       AC_CHECK_LIB([usb], [usb_init], [LIBS="$LIBS"], [AC_MSG_ERROR([cannot find libusb support], 2)])
+       AC_CHECK_HEADERS(usb.h, ,[AC_MSG_ERROR([cannot find libusb-devel support], 11)])
+--- hplip.conf.in
++++ hplip.conf.in
+@@ -5,15 +5,6 @@
+ 
+ [dirs]
+ home=@abs_datadir@/hplip
+-run=/var/run
+-ppd=@abs_hpppddir@
+-ppdbase=@abs_ppddir@
+-doc=@abs_docdir@
+-html=@abs_htmldir@
+-icon=@icondir@
+-cupsbackend=@cupsbackenddir@
+-cupsfilter=@cupsfilterdir@
+-drv=@abs_drvdir@
+ bin=/usr/bin
+ 
+ # Following values are determined at configure time and cannot be changed.
+--- scan/sane/hpaio.c
++++ scan/sane/hpaio.c
+@@ -34,7 +34,6 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-#include <cups/cups.h>
+ #include "hpmud.h"
+ #include "hpip.h"
+ #include "soap.h"
+@@ -47,47 +46,6 @@
+ #define DEBUG_DECLARE_ONLY
+ #include "sanei_debug.h"
+ 
+-#if (CUPS_VERSION_MAJOR > 1) || (CUPS_VERSION_MINOR > 5)
+-#define HAVE_CUPS_1_6 1
+-#endif
+-
+-#ifndef HAVE_CUPS_1_6
+-#define ippGetGroupTag(attr)  attr->group_tag
+-#define ippGetValueTag(attr)  attr->value_tag
+-#define ippGetName(attr)      attr->name
+-#define ippGetString(attr, element, language) attr->values[element].string.text
+-
+-static ipp_attribute_t * ippFirstAttribute( ipp_t *ipp )
+-{
+-    if (!ipp)
+-        return (NULL);
+-    return (ipp->current = ipp->attrs);
+-}
+-
+-static ipp_attribute_t * ippNextAttribute( ipp_t *ipp )
+-{
+-    if (!ipp || !ipp->current)
+-        return (NULL);
+-    return (ipp->current = ipp->current->next);
+-}
+-
+-static int ippSetOperation( ipp_t *ipp, ipp_op_t op )
+-{
+-    if (!ipp)
+-        return (0);
+-    ipp->request.op.operation_id = op;
+-    return (1);
+-}
+-
+-static int ippSetRequestId( ipp_t *ipp, int request_id )
+-{
+-    if (!ipp)
+-        return (0);
+-    ipp->request.any.request_id = request_id;
+-    return (1);
+-}
+-#endif
+-
+ static SANE_Device **DeviceList = NULL;
+ 
+ static int AddDeviceList(char *uri, char *model, SANE_Device ***pd)
+@@ -172,98 +130,6 @@
+    return i;
+ }
+ 
+-static int AddCupsList(char *uri, char ***printer)
+-{
+-   int i, stat=1;
+-
+-   /* Look for hp network URIs only. */
+-   if (strncasecmp(uri, "hp:/net/", 8) !=0)
+-      goto bugout;
+-
+-   if (*printer == NULL)
+-   {
+-      /* Allocate array of string pointers. */
+-      *printer = malloc(sizeof(char *) * MAX_DEVICE);
+-      memset(*printer, 0, sizeof(char *) * MAX_DEVICE);
+-   }
+-
+-   /* Ignor duplicates (ie: printer queues using the same device). */
+-   for (i=0; (*printer)[i] != NULL && i<MAX_DEVICE; i++)
+-   {
+-      if (strcmp((*printer)[i], uri) == 0)
+-         goto bugout;
+-   }
+-
+-   /* Find empty slot in array of pointers. */
+-   for (i=0; i<MAX_DEVICE; i++)
+-   {
+-      if ((*printer)[i] == NULL)
+-      {
+-         (*printer)[i] = strdup(uri);
+-         break;
+-      }
+-   }
+-
+-   stat = 0;
+-
+-bugout:
+-
+-   return stat;
+-}
+-
+-
+-static int GetCupsPrinters(char ***printer)
+-{
+-   http_t *http=NULL;     /* HTTP object */
+-   ipp_t *request=NULL;  /* IPP request object */
+-   ipp_t *response=NULL; /* IPP response object */
+-   ipp_attribute_t *attr;     /* Current IPP attribute */
+-   int cnt=0;
+-
+-   /* Connect to the HTTP server */
+-   if ((http = httpConnectEncrypt(cupsServer(), ippPort(), cupsEncryption())) == NULL)
+-      goto bugout;
+-
+-   /* Assemble the IPP request */
+-   request = ippNew();
+-
+-   ippSetOperation( request, CUPS_GET_PRINTERS );
+-   ippSetRequestId( request, 1 );
+-
+-   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_CHARSET, "attributes-charset", NULL, "utf-8");
+-   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_LANGUAGE, "attributes-natural-language", NULL, "en");
+-   ippAddString(request, IPP_TAG_OPERATION, IPP_TAG_KEYWORD, "requested-attributes", NULL, "device-uri");
+-
+-   /* Send the request and get a response. */
+-   if ((response = cupsDoRequest(http, request, "/")) == NULL)
+-      goto bugout;
+-
+-   for (attr = ippFirstAttribute ( response ); attr != NULL; attr = ippNextAttribute( response ))
+-   {
+-      /* Skip leading attributes until we hit a printer. */
+-      while (attr != NULL && ippGetGroupTag( attr ) != IPP_TAG_PRINTER)
+-         attr = ippNextAttribute( response );
+-
+-      if (attr == NULL)
+-         break;
+-
+-      while (attr != NULL && ippGetGroupTag( attr ) == IPP_TAG_PRINTER)
+-      {
+-         if (strcmp(ippGetName( attr ), "device-uri") == 0 && ippGetValueTag( attr ) == IPP_TAG_URI && AddCupsList(ippGetString( attr, 0, NULL ), printer) == 0)
+-            cnt++;
+-         attr = ippNextAttribute( response );
+-      }
+-
+-      if (attr == NULL)
+-         break;
+-   }
+-
+-   ippDelete(response);
+-
+- bugout:
+-   return cnt;
+-}
+-
+ static int DevDiscovery(int localOnly)
+ {
+    struct hpmud_model_attributes ma;
+@@ -272,7 +138,6 @@
+    char model[HPMUD_LINE_SIZE];
+    char *tail;
+    int i, scan_type, cnt=0, total=0, bytes_read;
+-   char **cups_printer=NULL;     /* list of printers */
+    enum HPMUD_RESULT stat;
+ 
+    stat = hpmud_probe_devices(HPMUD_BUS_ALL, message, sizeof(message), &cnt, &bytes_read);
+@@ -299,29 +164,6 @@
+       }
+    }
+ 
+-    /* Check localOnly flag (used by saned) to decide whether to look for network all-in-one scan devices (defined by cups). */
+-	if (!localOnly)
+-	{
+-		cnt = GetCupsPrinters(&cups_printer);
+-		for (i=0; i<cnt; i++)
+-		{
+-			hpmud_query_model(cups_printer[i], &ma);
+-			if (ma.scantype > 0)
+-			{
+-				hpmud_get_uri_model(cups_printer[i], model, sizeof(model));
+-				AddDeviceList(cups_printer[i], model, &DeviceList);
+-				total++;
+-			}
+-			else
+-			{
+-				DBG(6,"unsupported scantype=%d %s\n", ma.scantype, cups_printer[i]);
+-			}
+-			free(cups_printer[i]);
+-		}
+-		if (cups_printer)
+-			free(cups_printer);
+-	}
+-
+ bugout:
+    return total;
+ }
+--- Makefile.am
++++ Makefile.am
+@@ -9,11 +9,6 @@
+ 
+ hplipdir = $(datadir)/hplip
+ 
+-docdir = $(hpdocdir)
+-htmldir = $(hphtmldir)
+-doc_DATA = COPYING copyright prnt/hpijs/README_LIBJPG
+-EXTRA_DIST = prnt/hpijs/gdevijs-krgb-1.5-gs8.61.patch prnt/hpijs/README_LIBJPG copyright
+-
+ dist_noinst_SCRIPTS =
+ dist_noinst_DATA =
+ noinst_PROGRAMS =
+@@ -35,14 +31,6 @@
+ 
+ if HPLIP_BUILD
+ 
+-# hp backend.
+-hpdir = $(cupsbackenddir)
+-hp_PROGRAMS = hp
+-hp_SOURCES = prnt/backend/hp.c
+-hp_LDADD = libhpmud.la $(DBUS_LIBS)
+-hp_LDFLAGS = $(libhpmud_la_LDFLAGS)
+-hp_CFLAGS = $(DBUS_CFLAGS)
+-
+ # hpaio sane backend
+ if SCAN_BUILD
+ libsane_hpaiodir = $(libdir)/sane
+@@ -59,7 +47,7 @@
+ libsane_hpaio_la_LDFLAGS = -version-info 1:0:0
+ endif
+ # The following is a interlibrary dependency that must be compiled first.
+-libsane_hpaio_la_LIBADD = libhpip.la libhpmud.la $(DBUS_LIBS) -lcups -ldl
++libsane_hpaio_la_LIBADD = libhpip.la libhpmud.la $(DBUS_LIBS) -lm    -ldl
+ #libsane_hpaio_la_CFLAGS = -DWITH_NONAMESPACES -DSOAP_DEBUG
+ libsane_hpaio_la_CFLAGS = $(DBUS_CFLAGS)
+ endif # SCAN_BUILD
+@@ -104,33 +92,10 @@
+ 	ip/hpip.h ip/ipdefs.h ip/xform.h ip/xjpg_dct.h ip/xjpg_huf.h ip/xjpg_mrk.h
+ 
+ 
+-#hpmud rules data dir
+-rulessystemdir=/usr/lib/systemd/system
+-dist_rulessystem_DATA =data/rules/hplip-printer@.service
+-
+-# hpmud.rules
+-rulesdir = /etc/udev/rules.d
+-if UDEV_SYSFS_RULES
+-dist_rules_DATA = data/rules/56-hpmud_sysfs.rules
+-else
+-dist_rules_DATA = data/rules/56-hpmud.rules
+-endif
+-
+-halpredir = /usr/share/hal/fdi/preprobe/10osvendor
+-dist_halpre_DATA = data/rules/20-hplip-devices.fdi
+-
+ # hplip.conf
+-hplip_confdir = /etc/hp
++hplip_confdir = /etc/default.hplip
+ hplip_conf_DATA = hplip.conf
+ 
+-#pstotiff filter
+-pstotiffdir = $(cupsfilterdir)
+-pstotiff_SCRIPTS = fax/filters/pstotiff
+-
+-# hplip.state
+-hplip_statedir = /var/lib/hp
+-dist_hplip_state_DATA =
+-
+ if FULL_BUILD
+ 
+ dist_hplip_SCRIPTS = hpssd.py __init__.py hpdio.py
+@@ -352,13 +317,6 @@
+ dist_policykit_policy_DATA = data/policykit/com.hp.hplip.policy
+ endif
+ 
+-# hppgsz
+-noinst_PROGRAMS += hppgsz
+-hppgsz_SOURCES = prnt/hpijs/PrinterProperties.cpp prnt/hpijs/PrinterProperties.h prnt/hpijs/bug.h
+-hppgsz_CXXFLAGS = $(libapdk_la_CXXFLAGS)
+-hppgsz_CFLAGS = $(libapdk_la_CFLAGS)
+-hppgsz_LDADD = libapdk.la -ljpeg -ldl
+-
+ if GUI_BUILD
+ # hplip.desktop
+ hplip_desktopdir = $(icondir)
+@@ -383,46 +341,6 @@
+ dist_rip_SCRIPTS = prnt/hpijs/foomatic-rip-hplip
+ endif
+ 
+-# apdk
+-noinst_LTLIBRARIES = libapdk.la
+-libapdk_la_SOURCES = prnt/hpijs/models.cpp prnt/hpijs/breaks_open.cpp \
+-	prnt/hpijs/dj9xxvip.cpp prnt/hpijs/dj9xx.cpp prnt/hpijs/capture.cpp prnt/hpijs/colormatch.cpp prnt/hpijs/colormatcher_open.cpp \
+-	prnt/hpijs/compression.cpp prnt/hpijs/context2.cpp prnt/hpijs/create_so.cpp prnt/hpijs/creator.cpp \
+-	prnt/hpijs/dj600.cpp prnt/hpijs/dj630.cpp prnt/hpijs/dj660.cpp prnt/hpijs/dj690.cpp prnt/hpijs/dj6xx.cpp prnt/hpijs/dj8xx.cpp prnt/hpijs/dj600_maps.cpp \
+-	prnt/hpijs/dj660_maps.cpp prnt/hpijs/dj690_maps.cpp prnt/hpijs/dj895_maps.cpp prnt/hpijs/dj895_maps2.cpp prnt/hpijs/dj970_maps.cpp \
+-	prnt/hpijs/dj970_maps2.cpp prnt/hpijs/dj970_maps3.cpp prnt/hpijs/filterhpa.cpp prnt/hpijs/apollo21xx.cpp prnt/hpijs/apollo2560.cpp prnt/hpijs/apollo2xxx.cpp \
+-	prnt/hpijs/dj8x5.cpp prnt/hpijs/psp100.cpp prnt/hpijs/phobos_cmaps.cpp prnt/hpijs/dj350.cpp prnt/hpijs/halftoner.cpp prnt/hpijs/halftoner_open.cpp \
+-	prnt/hpijs/globals.cpp prnt/hpijs/header2.cpp prnt/hpijs/htmtxhi.cpp prnt/hpijs/pmselect.cpp \
+-	prnt/hpijs/job.cpp prnt/hpijs/printer.cpp prnt/hpijs/registry.cpp prnt/hpijs/scaler.cpp \
+-	prnt/hpijs/scaler_open.cpp prnt/hpijs/script.cpp prnt/hpijs/systemservices.cpp \
+-	prnt/hpijs/translator.cpp prnt/hpijs/version.cpp prnt/hpijs/versioncode.cpp \
+-	prnt/hpijs/djgenericvip.cpp prnt/hpijs/dj540.cpp prnt/hpijs/dj850.cpp prnt/hpijs/dj850_maps.cpp prnt/hpijs/dj890.cpp \
+-	prnt/hpijs/apollo21xx.h prnt/hpijs/apollo2560.h prnt/hpijs/apollo2xxx.h prnt/hpijs/colormatch.h prnt/hpijs/colormatcher_open.h \
+-	prnt/hpijs/compression.h prnt/hpijs/config.h prnt/hpijs/context.h prnt/hpijs/dj350.h prnt/hpijs/dj400.h prnt/hpijs/dj540.h \
+-	prnt/hpijs/dj600.h prnt/hpijs/dj630.h prnt/hpijs/dj660.h prnt/hpijs/dj690.h prnt/hpijs/dj6xx.h prnt/hpijs/dj8x5.h prnt/hpijs/dj8xx.h \
+-	prnt/hpijs/dj850.h prnt/hpijs/dj890.h prnt/hpijs/dj9xx.h prnt/hpijs/dj9xxvip.h \
+-	prnt/hpijs/ernieplatform.h prnt/hpijs/filterhpa.h prnt/hpijs/global_types.h prnt/hpijs/halftoner.h prnt/hpijs/font.h prnt/hpijs/debug.h \
+-	prnt/hpijs/halftoner_open.h prnt/hpijs/header.h prnt/hpijs/hpprint_c_api.h \
+-	prnt/hpijs/hpprintapi.h prnt/hpijs/hptypes.h prnt/hpijs/htfed.h prnt/hpijs/internal.h \
+-	prnt/hpijs/interp.h prnt/hpijs/interp_data_50.h prnt/hpijs/io_defs.h prnt/hpijs/job.h prnt/hpijs/models.h prnt/hpijs/modes.h prnt/hpijs/pmselect.h \
+-	prnt/hpijs/printer.h prnt/hpijs/psp100.h prnt/hpijs/psp470.h prnt/hpijs/resources.h prnt/hpijs/scaler_open.h prnt/hpijs/scaler_prop.h prnt/hpijs/script.h \
+-	prnt/hpijs/systemservices.h prnt/hpijs/unistd_.h prnt/hpijs/djgenericvip.h prnt/hpijs/ljmono.h prnt/hpijs/ljmono.cpp \
+-	prnt/hpijs/dj3320.cpp prnt/hpijs/dj3320.h prnt/hpijs/dj3320_cmap.cpp prnt/hpijs/dj3600.cpp prnt/hpijs/dj3600.h prnt/hpijs/dj3600_cmap.cpp prnt/hpijs/dj4100.h prnt/hpijs/djd2600.h \
+-	prnt/hpijs/dj4100_cmap.cpp prnt/hpijs/ldlencap.h prnt/hpijs/ljcolor.cpp prnt/hpijs/ljcolor.h prnt/hpijs/pscript.h \
+-	prnt/hpijs/printerproxy.cpp prnt/hpijs/printerfactory.cpp prnt/hpijs/printerproxy.h prnt/hpijs/printerfactory.h \
+-	prnt/hpijs/ljjetready.cpp prnt/hpijs/ljjetready.h prnt/hpijs/jdatadbf.c prnt/hpijs/jccolor.c prnt/hpijs/ljfastraster.cpp prnt/hpijs/ljfastraster.h \
+-	prnt/hpijs/jinclude.h prnt/hpijs/jpegint.h prnt/hpijs/dj55xx.h prnt/hpijs/hpijsfax.h prnt/hpijs/ojprokx50.h \
+-	prnt/hpijs/ljzjs.cpp prnt/hpijs/ljzjs.h prnt/hpijs/ljzjsmono.cpp prnt/hpijs/ljm1005.cpp prnt/hpijs/ljm1005.h \
+-	prnt/hpijs/ljzjsmono.h prnt/hpijs/hpjbig_wrapper.h prnt/hpijs/quickconnect.cpp prnt/hpijs/quickconnect.h prnt/hpijs/ljp1xxx.h prnt/hpijs/ljzjscolor.cpp prnt/hpijs/ljzjscolor.h \
+-	common/utils.c common/utils.h
+-libapdk_la_CXXFLAGS = -DAPDK_DJ660 -DAPDK_DJ6xx -DAPDK_DJ6xxPhoto -DAPDK_DJ8xx -DAPDK_DJ9xx -DAPDK_DJ9xxVIP -DAPDK_DJ630 \
+-	-DAPDK_APOLLO2XXX -DAPDK_APOLLO21XX -DAPDK_APOLLO2560 -DAPDK_DJ600 -DAPDK_DJ350 -DAPDK_DJ8x5 -DAPDK_PSP100 -DAPDK_AUTODUPLEX \
+-	-DAPDK_HIGH_RES_MODES -DAPDK_LJMONO -DAPDK_DJ540 -DAPDK_DJ850 -DAPDK_DJ890 -DAPDK_DJ3320 -DAPDK_LJCOLOR -DAPDK_DJGENERICVIP \
+-	-DAPDK_LJJETREADY  -DAPDK_LJFASTRASTER -DAPDK_BUFFER_SEND -DAPDK_LDL_COMPRESS -DAPDK_EXTENDED_MEDIASIZE \
+-	-DAPDK_MLC_PRINTER -DAPDK_DJ3600 -DAPDK_LJZJS_MONO -DAPDK_LJZJS_COLOR -DAPDK_LJM1005 -DAPDK_QUICKCONNECT \
+-                $(APDK_ENDIAN_FLAG) $(APDK_AUTO_INCLUDE_FLAG) -DAPDK_LINUX -DNDEBUG $(DBUS_CFLAGS)
+-libapdk_la_CFLAGS = $(libapdk_la_CXXFLAGS) -Iprnt/hpijs
+-
+ if HPIJS_INSTALL
+ # hpijs
+ bin_PROGRAMS = hpijs
+@@ -503,58 +421,6 @@
+ endif # HPCUPS ONLY
+ endif # HPCUPS_INSTALL
+ 
+-# PPDs
+-ppddir = $(hpppddir)
+-dist_ppd_DATA = $(foomatic_ps_printers)
+-if FOOMATIC_PPD_INSTALL
+-dist_ppd_DATA += $(foomatic_ppd_printers)
+-endif
+-if FOOMATIC_DRV_INSTALL
+-cupsdrvdir = $(drvdir)
+-cupsdrv_DATA = $(foomatic_drv)
+-endif
+-if CUPS_PPD_INSTALL
+-dist_ppd_DATA += $(cups_ppd_printers)
+-endif
+-if CUPS_DRV_INSTALL
+-cupsdrv2dir = $(drvdir)
+-cupsdrv2_DATA = $(cups_drv)
+-endif
+-
+-install-data-hook:
+-if HPLIP_BUILD
+-#	   If scanner build, add hpaio entry to sane dll.conf.
+-	if [ "$(scan_build)" = "yes" ]; then \
+-	   $(mkinstalldirs) $(DESTDIR)/etc/sane.d; \
+-	   if [ ! -f $(DESTDIR)/etc/sane.d/dll.conf ]; then \
+-		  touch $(DESTDIR)/etc/sane.d/dll.conf; \
+-	   fi; \
+-	   if ! grep ^hpaio $(DESTDIR)/etc/sane.d/dll.conf >/dev/null 2>/dev/null ; then \
+-		  echo "Adding hpaio entry to /etc/sane.d/dll.conf." ; \
+-		  echo hpaio >>$(DESTDIR)/etc/sane.d/dll.conf ; \
+-	   fi \
+-	fi
+-if FULL_BUILD
+-#	   Create hp-xxx commands in bindir.
+-	$(mkinstalldirs) $(DESTDIR)$(bindir)
+-	for i in $(dist_cmd_SCRIPTS); do \
+-	   cmd=`basename $$i .py`; \
+-	   if [ ! \( "$$cmd" = "toolbox" -a "$(gui_build)" = "no" \) ]; then \
+-		  ln -sf ../share/$(PACKAGE)/$$i $(DESTDIR)$(bindir)/hp-$$cmd; \
+-	   fi \
+-	done
+-#
+-#	   Install fax support.
+-	if [ "$(fax_build)" = "yes" ]; then \
+-	   mv $(DESTDIR)$(hpfaxdir)/hpfax.py $(DESTDIR)$(hpfaxdir)/hpfax; \
+-	   chmod 700 $(DESTDIR)$(hpfaxdir)/hpfax; \
+-	fi
+-#
+-#       Make backend run as root.
+-#	chmod 700 $(DESTDIR)$(hpdir)/hp
+-endif # FULL_BUILD
+-endif # HPLIP_BUILD
+-
+ uninstall-hook:
+ if HPLIP_BUILD
+ #	   Remove hp-xxx commands.

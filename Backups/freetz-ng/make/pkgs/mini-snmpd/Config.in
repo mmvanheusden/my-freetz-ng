@@ -1,0 +1,8 @@
+config FREETZ_PACKAGE_MINI_SNMPD
+	bool "mini-snmpd 1.6 (binary only)"
+	default n
+	help
+		This program is an SNMP server for "embedded systems".
+		The advantage in comparison to other products is the
+		low usage of system resources.
+

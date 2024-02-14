@@ -1,0 +1,308 @@
+Description: Changeable increment between hash markings.
+ Modify the source of the command "hash" to take an optional
+ argument specifying the block size to be used when generating
+ hash markings during transmission. The toggle action is taken
+ only when no argument is present.
+ .
+ Also allow conventional shorthand notation like "32k", "5M",
+ and "2G" for simplified arithmetic!
+ .
+ The related command "tick" is changed to use an increment
+ of ten times the step used by "hash".  This fits the previous
+ sizes of 10240 and 1024, respectively, in legacy code.
+ .
+ In the report summary, adaptively print transfer rate in
+ either kB/s or MB/s.
+ .
+ A very old printing issue, present in the original source,
+ is a missing CRLF after the very last "tick" counter, causing
+ the final byte counter to be displayed by status string "226"
+ without any separating character.
+Bug-Debian: http://bugs.debian.org/731670
+ http://bugs.debian.org/754065
+Forwarded: not-needed
+Author: Mats Erik Andersson <debian@gisladisker.se>
+Last-Update: 2014-07-18
+
+--- netkit-ftp-0.17.debian/ftp/cmds.c
++++ netkit-ftp-0.17/ftp/cmds.c
+@@ -1170,16 +1170,45 @@ settrace(void)
+  * Toggle hash mark printing during transfers.
+  */
+ void
+-sethash(void)
++sethash(int argc, char *argv[])
+ {
+-	hash = !hash;
++	if (argc > 1 && isdigit(*argv[1])) {
++		char *end = argv[1];
++
++		hash = 1;	/* Turn on unconditionally.  */
++
++		while (isdigit(*end))
++			end++;
++
++		sscanf(argv[1], "%zu", &hashstep);
++
++		switch (*end) {
++			case 'g':
++			case 'G':
++				hashstep *= 1024;
++			case 'm':
++			case 'M':
++				hashstep *= 1024;
++			case 'k':
++			case 'K':
++				hashstep *= 1024;
++		}
++
++		if (hashstep <= 0)
++			hashstep = 1024;
++	}
++
++	/* Toogle status when no argument is present.  */
++	if (argc == 1)
++		hash = !hash;
++
+ 	if (hash && tick)
+ 		settick();
+  
+ 	printf("Hash mark printing %s", onoff(hash));
+ 	code = hash;
+ 	if (hash)
+-		printf(" (%d bytes/hash mark)", 1024);
++		printf(" (%zu bytes/hash mark)", hashstep);
+ 	printf(".\n");
+ }
+ 
+@@ -1191,11 +1220,11 @@ settick(void)
+ {
+ 	tick = !tick;
+ 	if (hash && tick)
+-		sethash();
++		sethash(1, NULL);
+ 	printf("Tick counter printing %s", onoff(tick));
+ 	code = tick;
+ 	if (tick)
+-		printf(" (%d bytes/tick increment)", TICKBYTES);
++		printf(" (%d bytes/tick increment)", 10 * hashstep);
+ 	printf(".\n");
+ }
+ 
+--- netkit-ftp-0.17.debian/ftp/cmds.h
++++ netkit-ftp-0.17/ftp/cmds.h
+@@ -7,7 +7,7 @@ void setbinary(void);
+ void setdebug(int argc, char *argv[]);
+ void setform(void);
+ void setglob(void);
+-void sethash(void);
++void sethash(int argc, char *argv[]);
+ void setipany(void);
+ void setipv4(void);
+ void setipv6(void);
+--- netkit-ftp-0.17.debian/ftp/cmdtab.c
++++ netkit-ftp-0.17/ftp/cmdtab.c
+@@ -141,7 +141,7 @@ struct cmd cmdtab[] = {
+ 	{ "form",	formhelp,	0, 1, 1, NULL, setform, NULL },
+ 	{ "get",	receivehelp,	1, 1, 1, get, NULL, NULL },
+ 	{ "glob",	globhelp,	0, 0, 0, NULL, setglob, NULL },
+-	{ "hash",	hashhelp,	0, 0, 0, NULL, sethash, NULL },
++	{ "hash",	hashhelp,	0, 0, 0, sethash, NULL, NULL },
+ 	{ "help",	helphelp,	0, 0, 1, help, NULL, NULL },
+ 	{ "idle",	idlehelp,	0, 1, 1, idle_cmd, NULL, NULL },
+ 	{ "image",	binaryhelp,	0, 1, 1, NULL, setbinary, NULL },
+--- netkit-ftp-0.17.debian/ftp/ftp.1
++++ netkit-ftp-0.17/ftp/ftp.1
+@@ -195,7 +195,7 @@ current remote machine working directory
+ Change the permission modes of the file
+ .Ar file-name
+ on the remote
+-sytem to
++system to
+ .Ar mode  .
+ .It Ic close
+ Terminate the
+@@ -331,10 +331,16 @@ That can be done by
+ transferring a
+ .Xr tar 1
+ archive of the subtree (in binary mode).
+-.It Ic hash
+-Toggle hash-sign (``#'') printing for each data block
+-transferred.
+-The size of a data block is 1024 bytes.
++.It Ic hash Op Ar increment
++Toggle hash-sign (``#'') printing for each transferred
++data block, but only in the absence of an argument.
++The size of a data block is set to 1024 bytes by default,
++but can be changed by the argument
++.Ar increment ,
++which also accepts the suffixed multipliers 'k' and 'K' for
++kilobytes, 'm' and 'M' for Megabytes, and finally 'g' and 'G'
++for Gigabytes.
++Setting a size activates hash printing unconditionally.
+ .It Ic help Op Ar command
+ Print an informative message about the meaning of
+ .Ar command  .
+--- netkit-ftp-0.17.debian/ftp/ftp.c
++++ netkit-ftp-0.17/ftp/ftp.c
+@@ -71,6 +71,9 @@ char ftp_rcsid[] =
+ int data = -1;
+ off_t restart_point = 0;
+ 
++/* Increment for hash markings. Can be overridden by a command. */
++size_t hashstep = 1024;
++
+ static char ipstring[INET6_ADDRSTRLEN]; /* Scribble area for resolver. */
+ 
+ static struct sockaddr_storage hisctladdr;
+@@ -626,7 +629,7 @@ sendrequest(const char *cmd, char *local
+ 	register int c, d;
+ 	FILE *volatile fin = 0, *volatile dout = 0;
+ 	int (*volatile closefunc)(FILE *);
+-	volatile off_t bytes = 0, hashbytes = HASHBYTES;
++	volatile off_t bytes = 0, hashbytes = hashstep;
+ 	char buf[BUFSIZ], *bufp;
+ 	const char *volatile lmode;
+ 	sigjmp_buf jmploc;
+@@ -791,26 +794,27 @@ sendrequest(const char *cmd, char *local
+ 			if (hash) {
+ 				while (bytes >= hashbytes) {
+ 					(void) putchar('#');
+-					hashbytes += HASHBYTES;
++					hashbytes += hashstep;
+ 				}
+ 				(void) fflush(stdout);
+ 			}
+ 			if (tick && (bytes >= hashbytes)) {
+ 				printbytes(bytes);
+ 				while (bytes >= hashbytes)
+-					hashbytes += TICKBYTES;
++					hashbytes += 10 * hashstep;
+ 			}
+ 			if (d <= 0)
+ 				break;
+ 		}
+ 		if (hash && (bytes > 0)) {
+-			if (bytes < HASHBYTES)
++			if (bytes < hashstep)
+ 				(void) putchar('#');
+ 			(void) putchar('\n');
+ 			(void) fflush(stdout);
+ 		}
+ 		if (tick) {
+ 			printbytes(bytes);
++			putchar('\n');
+ 		}
+ 		if (c < 0)
+ 			fprintf(stderr, "local: %s: %s\n", local,
+@@ -825,12 +829,12 @@ sendrequest(const char *cmd, char *local
+ 				while (hash && (bytes >= hashbytes)) {
+ 					(void) putchar('#');
+ 					(void) fflush(stdout);
+-					hashbytes += HASHBYTES;
++					hashbytes += hashstep;
+ 				}
+ 				if (tick && (bytes >= hashbytes)) {
+ 					printbytes(bytes);
+ 					while (bytes >= hashbytes)
+-						hashbytes += TICKBYTES;
++						hashbytes += 10 * hashstep;
+ 				}
+ 				if (putc('\r', dout) == EOF) {
+ 					perror("netout");
+@@ -856,6 +860,7 @@ sendrequest(const char *cmd, char *local
+ 		}
+ 		if (tick) {
+ 			printbytes(bytes);
++			putchar('\n');
+ 		}
+ 		if (ferror(fin))
+ 			fprintf(stderr, "local: %s: %s\n", local,
+@@ -937,7 +942,7 @@ recvrequest(const char *cmd,
+ 	int tqcflag = 0;
+ 	unsigned bufsize;
+ 	char *buf;
+-	volatile off_t bytes = 0, hashbytes = HASHBYTES;
++	volatile off_t bytes = 0, hashbytes = hashstep;
+ 	register int c, d;
+ 	struct timeval start, stop;
+ 	struct stat st;
+@@ -1115,24 +1120,25 @@ recvrequest(const char *cmd,
+ 			if (hash && is_retr) {
+ 				while (bytes >= hashbytes) {
+ 					(void) putchar('#');
+-					hashbytes += HASHBYTES;
++					hashbytes += hashstep;
+ 				}
+ 				(void) fflush(stdout);
+ 			}
+ 			if (tick && (bytes >= hashbytes) && is_retr) {
+ 				printbytes(bytes);
+ 				while (bytes >= hashbytes)
+-					hashbytes += TICKBYTES;
++					hashbytes += 10 * hashstep;
+ 			}
+ 		}
+ 		if (hash && bytes > 0) {
+-			if (bytes < HASHBYTES)
++			if (bytes < hashstep)
+ 				(void) putchar('#');
+ 			(void) putchar('\n');
+ 			(void) fflush(stdout);
+ 		}
+ 		if (tick && is_retr) {
+ 			printbytes(bytes);
++			putchar('\n');
+ 		}
+ 		if (c < 0) {
+ 			perror("netin");
+@@ -1183,12 +1189,12 @@ done:
+ 					&& is_retr) {
+ 					(void) putchar('#');
+ 					(void) fflush(stdout);
+-					hashbytes += HASHBYTES;
++					hashbytes += hashstep;
+ 				}
+ 				if (tick && (bytes >= hashbytes) && is_retr) {
+ 					printbytes(bytes);
+ 					while (bytes >= hashbytes)
+-						hashbytes += TICKBYTES;
++						hashbytes += 10 * hashstep;
+ 				}
+ 				bytes++;
+ 				if ((c = getc(din)) != '\n' || tcrflag) {
+@@ -1218,6 +1224,7 @@ break2:
+ 		}
+ 		if (tick && is_retr) {
+ 			printbytes(bytes);
++			putchar('\n');
+ 		}
+ 		if (bare_lfs) {
+ 			printf("WARNING! %d bare linefeeds received in ASCII mode\n", bare_lfs);
+@@ -1516,8 +1523,14 @@ ptransfer(const char *direction, off_t b
+ 		s = td.tv_sec + (td.tv_usec / 1000000.);
+ #define	nz(x)	((x) == 0 ? 1 : (x))
+ 		bs = bytes / nz(s);
+-		printf("%jd bytes %s in %.2f secs (%.1f kB/s)\n",
+-		    (intmax_t) bytes, direction, s, bs / 1024.0);
++		if (bs > 1048576.)	/* 1024^2 */
++			printf("%jd bytes %s in %.2f secs (%.4f MB/s)\n",
++			       (intmax_t) bytes, direction, s,
++			       bs / 1048576.);
++		else
++			printf("%jd bytes %s in %.2f secs (%.4f kB/s)\n",
++			       (intmax_t) bytes, direction, s,
++			       bs / 1024.);
+ 	}
+ }
+ 
+--- netkit-ftp-0.17.debian/ftp/ftp_var.h
++++ netkit-ftp-0.17/ftp/ftp_var.h
+@@ -75,6 +75,7 @@
+ Extern int	rl_inhibit;	/* disable readline support */
+ Extern int	traceflag;	/* trace packets exchanged */
+ Extern int	hash;		/* print # for each buffer transferred */
++Extern size_t	hashstep;	/* Increment between hash markings */
+ Extern int	tick;		/* print byte counter during transfers */
+ Extern int	sendport;	/* use PORT cmd for each data connection */
+ Extern int	verbose;	/* print messages coming back from server */

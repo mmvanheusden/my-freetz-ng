@@ -1,0 +1,95 @@
+#! /usr/bin/env bash
+
+# Custom firmware modifications
+
+# Directories:
+#  build/modified/firmware/	- untared firmware
+#  build/modified/filesystem/	- unpacked filesystem squashfs
+#  build/modified/kernel/	- unpacked kernel & hidden kernel squashfs
+
+all() {
+	dummy=0
+#	local build_dir="$(dirname "$0")/build"
+#	# Use AVM's BusyBox, many Freetz functions will not work!
+#	cp -p ${build_dir}/original/filesystem/bin/busybox ${build_dir}/modified/filesystem/bin/busybox
+#	# Include AVM's BusyBox and use it only for these specified APPLETS!
+#	cp -p ${build_dir}/original/filesystem/bin/busybox ${build_dir}/modified/filesystem/bin/busybox-AVM
+#	ln -sf ../bin/busybox-AVM ${build_dir}/modified/filesystem/bin/APPLET1
+#	ln -sf ../bin/busybox-AVM ${build_dir}/modified/filesystem/sbin/APPLET2
+}
+
+all_no_freetz() {
+	local freetz_base patches_scripts
+	freetz_base=$(dirname "$0")
+	patches_scripts="${freetz_base}/patches/scripts"
+	filesystem_dir="${freetz_base}/build/modified/filesystem"
+
+	# source freetz-helper-functions and freetz .config
+	source "${freetz_base}/tools/freetz_functions"
+	source "${freetz_base}/tools/freetz_patch"
+	source "${freetz_base}/.config"
+
+	# restore telnetd support, still needs the additional "inhaus mode" patch below
+	ln -sf ../../bin/busybox ${filesystem_dir}/usr/sbin/telnetd
+
+	########################################################
+	# The mods/patches below need to be enabled by you in  #
+	# Freetz menuconfig, otherwise they won't do anything! #
+	########################################################
+
+	# run telefon daemon in "inhaus mode", needed for
+	# - /var/flash/calllog processing
+	# - telnetd on/off by phone (#96*7* / #96*8*)
+	# - automatic telnetd start
+	source "${patches_scripts}/114-run_telefon_in_inhaus_mode.sh"
+
+	# hardcode branding in rc.conf (an alternative to the enforce-urlader-settings patch below)
+	source "${patches_scripts}/101-enforce_branding.sh"
+
+	# enforce urlader settings, useful on boxes with bootloader version >=1.3179 (7490) resp. >=1.3229 (7580)
+	source "${patches_scripts}/101-enforce_urlader-settings.sh"
+
+	# restore debug.cfg support
+	source "${patches_scripts}/114-debug_cfg_support.sh"
+
+	# patch away / hide "Nicht empfohlene Einstellungen"
+	source "${patches_scripts}/194-patch_webmenu_secure.sh"
+
+	# patch away / hide "vom Hersteller nicht unterstützte Änderungen"
+	source "${patches_scripts}/195-patch_webmenu_signed.sh"
+
+	# restore volume counter support, 7412 only
+	source "${patches_scripts}/241-restore_vol_counter.sh"
+
+	# enable multiple fax pages
+	source "${patches_scripts}/383-enable-faxpages.sh"
+
+	# add yf-bootmanager
+	source "${patches_scripts}/800-yf_bootmanager.sh"
+
+	# unhide Annex selection in Fritz!OS web-if
+	source "${patches_scripts}/801-modfs_annex_selection.sh"
+}
+
+clean() {
+	dummy=0
+}
+
+case "$1" in
+	""|all)
+		all
+		;;
+	all_no_freetz)
+		all_no_freetz
+		;;
+	clean)
+		clean
+		;;
+	*)
+		echo "Usage: $0 {all|clean}" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0
+

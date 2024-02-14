@@ -1,0 +1,53 @@
+--- configure
++++ configure
+@@ -23381,6 +23381,8 @@
+ # Python: Used for testsuite
+ 
+ 
++PYTHON="none"
++if false; then
+ PYTHON="`$abs_srcdir/build/find_python.sh`"
+ if test -z "$PYTHON"; then
+   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Python 2.7 or later is required to run the testsuite." >&5
+@@ -23395,6 +23397,7 @@
+ $as_echo "$as_me: WARNING: to the Python executable, and re-run configure" >&2;}
+   PYTHON=none
+ fi
++fi
+ 
+ 
+ # The minimum version for the JVM runtime for our Java bytecode.
+@@ -23843,6 +23846,8 @@
+   withval=$with_swig_perl;
+ else
+ 
++PERL="none"
++if false; then
+ if test -n "$PERL"; then
+   if test "$PERL" = "no" -o "$PERL" = "none"; then
+     with_swig_perl=no
+@@ -23924,6 +23929,7 @@
+     SWIG_PL_PERL="$with_swig_perl"
+     ;;
+ esac
++fi
+ 
+ 
+ # Python: as a target of SWIG Python bindings
+@@ -23956,6 +23962,8 @@
+   withval=$with_swig_ruby;
+ else
+ 
++RUBY="none"
++if false; then
+ if test -n "$RUBY"; then
+   if test "$RUBY" = "no" -o "$RUBY" = "none"; then
+     with_swig_ruby=no
+@@ -24203,6 +24211,7 @@
+ $as_echo "$as_me: WARNING: Upgrade to the official 1.8.2 release, or later" >&2;}
+   fi
+ fi
++fi
+ 
+ 
+ 

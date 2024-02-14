@@ -1,0 +1,63 @@
+#!/bin/sh
+
+DAEMON=webcfg
+DAEMON_BIN=httpd-$DAEMON
+DAEMON_LONG_NAME="WebCFG"
+PID_FILE=/var/run/webcfg.pid
+CONF_NAME=mod
+CONF_ENABLED=MOD_HTTPD
+. /etc/init.d/modlibrc
+
+config() {
+	modlib_config
+}
+
+start() {
+	modlib_startdaemon webcfg -P "$PID_FILE"
+}
+
+case $1 in
+	""|load)
+		modlib_add_httpd_symlink $DAEMON
+		modreg pkg $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon -p mod $DAEMON
+
+		if [ ! -e /usr/share/skin/$MOD_SKIN ]; then
+			# set first available skin, if selected is not installed
+			modconf set $CONF_NAME MOD_SKIN="$(ls /usr/share/skin | head -n1)"
+		fi
+
+		modlib_start $MOD_HTTPD
+		;;
+	unload)
+		modunreg daemon mod $DAEMON
+		modunreg pkg $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	force-restart)
+		[ $# -ge 2 ] && sleep $2 2>/dev/null
+		modlib_force_restart
+		;;
+	status)
+		modlib_status
+		;;
+	config)
+		config
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|force-restart|status|config]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

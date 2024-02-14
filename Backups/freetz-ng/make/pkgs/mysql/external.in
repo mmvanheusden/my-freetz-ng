@@ -1,0 +1,35 @@
+config EXTERNAL_FREETZ_PACKAGE_MYSQL
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_MYSQL
+	bool "MySQL"
+	default n
+
+if EXTERNAL_FREETZ_PACKAGE_MYSQL
+
+	config EXTERNAL_FREETZ_PACKAGE_MYSQL_mysqld
+		depends on FREETZ_PACKAGE_MYSQL_mysqld
+		bool "mysqld"
+		default y
+		help
+			externals the following file(s):
+			 /usr/bin/mysqld
+			 /usr/share/mysql/english/errmsg.sys
+
+	config EXTERNAL_FREETZ_PACKAGE_MYSQL_mysql
+		depends on FREETZ_PACKAGE_MYSQL_mysql
+		bool "mysql"
+		default y
+		help
+			externals the following file(s):
+			 /usr/bin/mysql
+			 ${FREETZ_LIBRARY_DIR}/libmysqlclient.so.16.0.0
+
+	config EXTERNAL_FREETZ_PACKAGE_MYSQL_setup
+		depends on FREETZ_PACKAGE_MYSQL_setup
+		bool "setup"
+		default y
+		help
+			externals the following file(s):
+			 /usr/share/mysql/mysql.tbz
+
+endif # EXTERNAL_FREETZ_PACKAGE_MYSQL
+

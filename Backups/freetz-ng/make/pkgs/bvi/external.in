@@ -1,0 +1,16 @@
+config EXTERNAL_FREETZ_PACKAGE_BVI_bvi
+	bool "bvi"
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_BVI_bvi
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/bvi
+
+config EXTERNAL_FREETZ_PACKAGE_BVI_bmore
+	bool "bmore"
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_BVI_bmore
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/bmore
+

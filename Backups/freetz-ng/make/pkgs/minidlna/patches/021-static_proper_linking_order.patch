@@ -1,0 +1,20 @@
+--- Makefile.in
++++ Makefile.in
+@@ -451,7 +451,7 @@
+ 	@LIBEXIF_LIBS@ \
+ 	@LIBINTL@ \
+ 	@LIBICONV@ \
+-	-lFLAC $(flacogglibs) $(vorbislibs) $(avahilibs)
++	-lFLAC $(vorbislibs) $(flacogglibs) $(avahilibs)
+ 
+ testupnpdescgen_SOURCES = testupnpdescgen.c upnpdescgen.c
+ testupnpdescgen_LDADD = \
+@@ -461,7 +461,7 @@
+ 	@LIBAVFORMAT_LIBS@ \
+ 	@LIBAVUTIL_LIBS@ \
+ 	@LIBEXIF_LIBS@ \
+-	-lFLAC $(flacogglibs) $(vorbislibs) $(avahilibs)
++	-lFLAC $(vorbislibs) $(flacogglibs) $(avahilibs)
+ 
+ SUFFIXES = .tmpl .
+ GENERATED_FILES = \

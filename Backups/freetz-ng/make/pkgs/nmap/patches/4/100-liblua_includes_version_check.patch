@@ -1,0 +1,27 @@
+--- configure
++++ configure
+@@ -7435,7 +7435,7 @@
+     no_lua="yes"
+   ;;
+   *)
+-    CPPFLAGS="-I$with_liblua/include $CPPFLAGS"
++    CPPFLAGS="-I$with_liblua/include/lua $CPPFLAGS"
+     LDFLAGS="-L$with_liblua/lib $LDFLAGS"
+   ;;
+   esac
+@@ -7753,6 +7753,7 @@
+ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'
+ ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
+ 
++if false; then
+     { echo "$as_me:$LINENO: checking for lua version >= 501" >&5
+ echo $ECHO_N "checking for lua version >= 501... $ECHO_C" >&6; }
+ 
+@@ -7809,6 +7810,7 @@
+ fi
+ rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
+ fi
++fi
+ 
+ 
+     ac_ext=c

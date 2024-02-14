@@ -1,0 +1,4 @@
+if [ "$EXTERNAL_FREETZ_PACKAGE_TINC" == "y" ]; then
+	EXTERNAL_FILES+=" /usr/sbin/tincd"
+	[ "$FREETZ_PACKAGE_TINC_tinc" == "y" ] && EXTERNAL_FILES+=" /usr/sbin/tinc"
+fi

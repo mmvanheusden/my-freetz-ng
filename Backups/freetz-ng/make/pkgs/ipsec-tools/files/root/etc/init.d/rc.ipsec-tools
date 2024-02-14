@@ -1,0 +1,54 @@
+#!/bin/sh
+
+DAEMON=ipsec-tools
+DAEMON_BIN=racoon
+DAEMON_CONFIG=/mod/etc/racoon/racoon.conf
+
+. /etc/init.d/modlibrc
+
+config() {
+	modlib_config
+}
+
+start() {
+	echo -n 'Loading kernel modules ... '
+	for x in `find /lib/modules/2.6.*/kernel/crypto/*.ko /lib/modules/2.6.*/kernel/net/*/*.ko | sed 's%^.*/\([^/]*\)\.ko%\1%'`; do modprobe $x; done
+	config
+	setkey -f /mod/etc/racoon/setkey.conf
+	modlib_startdaemon $DAEMON_BIN -f $DAEMON_CONFIG
+}
+
+case "$1" in
+	""|load)
+		# build dir for control socket (needed for racconctl)
+		mkdir -p /var/run/racoon
+
+		modreg cgi 'ipsec-tools' 'IPsec-tools'
+		modreg daemon $DAEMON
+
+		modlib_start $IPSEC_TOOLS_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi 'ipsec-tools'
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

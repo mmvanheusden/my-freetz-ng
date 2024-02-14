@@ -1,0 +1,7 @@
+if FREETZ_TYPE_7330_SL && FREETZ_AVM_VERSION_06_2X
+
+config FREETZ_AVM_HAS_UPSI_2023_TR064CGI
+	def_bool y
+
+endif
+

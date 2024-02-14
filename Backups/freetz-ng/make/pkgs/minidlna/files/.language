@@ -1,0 +1,10 @@
+languages
+{ de en }
+default
+{ en }
+files
+{
+	usr/lib/cgi-bin/minidlna.cgi
+	usr/lib/cgi-bin/minidlna/minidlna_status.cgi
+}
+

@@ -1,0 +1,5 @@
+
+pkg_post_save() {
+	[ "$(modconf value CPMACCFG_ENABLED cpmaccfg 2>/dev/null)" == "yes" ] && /mod/etc/init.d/rc.cpmaccfg restart
+}
+

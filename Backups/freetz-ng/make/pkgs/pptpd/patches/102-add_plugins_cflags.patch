@@ -1,0 +1,12 @@
+--- plugins/Makefile
++++ plugins/Makefile
+@@ -1,6 +1,6 @@
+ CC	= gcc
+ COPTS	= -O2 -g
+-CFLAGS	= $(COPTS) -I.. -I../../include -fPIC
++CFLAGS	= $(COPTS) -I.. -I../../include $(PLUGINS_CFLAGS) -fPIC
+ LDFLAGS	= -shared
+ LDADD   = -lutil
+ INSTALL	= install -o root
+
+ 

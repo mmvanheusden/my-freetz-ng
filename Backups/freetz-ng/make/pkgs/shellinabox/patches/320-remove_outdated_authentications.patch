@@ -1,0 +1,18 @@
+--- shellinabox/service.c
++++ shellinabox/service.c
+@@ -171,12 +171,12 @@
+     service->cmdline                        = stringPrintf(NULL,
+       "ssh -a -e none -i /dev/null -x -oChallengeResponseAuthentication=no "
+           "-oCheckHostIP=no -oClearAllForwardings=yes -oCompression=no "
+-          "-oControlMaster=no -oGSSAPIAuthentication=no "
++          "-oControlMaster=no "
+           "-oHostbasedAuthentication=no -oIdentitiesOnly=yes "
+           "-oKbdInteractiveAuthentication=yes -oPasswordAuthentication=yes "
+           "-oPreferredAuthentications=keyboard-interactive,password "
+-          "-oPubkeyAuthentication=no -oRhostsRSAAuthentication=no "
+-          "-oRSAAuthentication=no -oStrictHostKeyChecking=no -oTunnel=no "
++          "-oPubkeyAuthentication=no "
++          "-oStrictHostKeyChecking=no -oTunnel=no "
+           "-oUserKnownHostsFile=/dev/null -oVerifyHostKeyDNS=no "
+ // beewoolie-2012.03.30: while it would be nice to disable this
+ //          feature, we cannot be sure that it is available on the

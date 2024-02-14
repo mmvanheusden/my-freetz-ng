@@ -1,0 +1,11 @@
+--- linux-2.6.13/fs/nfsd/nfsctl.c
++++ linux-2.6.13/fs/nfsd/nfsctl.c
+@@ -321,7 +321,7 @@
+ 			return rv;
+ 		if (newthreads <0)
+ 			return -EINVAL;
+-		rv = nfsd_svc(2049, newthreads);
++		rv = nfsd_svc(2047, newthreads);
+ 		if (rv)
+ 			return rv;
+ 	}

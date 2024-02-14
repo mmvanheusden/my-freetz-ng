@@ -1,0 +1,11 @@
+--- Makefile.in
++++ Makefile.in
+@@ -423,7 +423,7 @@
+ top_build_prefix = @top_build_prefix@
+ top_builddir = @top_builddir@
+ top_srcdir = @top_srcdir@
+-SUBDIRS = include lib sanei backend frontend tools doc po testsuite
++SUBDIRS = include lib sanei backend frontend tools testsuite
+ DIST_SUBDIRS = include lib sanei backend frontend tools doc po japi testsuite
+ dist_doc_DATA = AUTHORS ChangeLog COPYING LICENSE NEWS PROBLEMS PROJECTS \
+  README README.aix README.beos README.darwin README.djpeg README.freebsd \

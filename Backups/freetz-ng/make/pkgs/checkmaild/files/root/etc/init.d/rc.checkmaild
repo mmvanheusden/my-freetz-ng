@@ -1,0 +1,54 @@
+#!/bin/sh
+
+DAEMON=checkmaild
+. /etc/init.d/modlibrc
+
+FLASH_DIR=/tmp/flash/checkmaild
+SOCKET_DIR=/var/tmp/checkmaild
+MAILACTIONS_FILE=$FLASH_DIR/mailactions
+
+config() {
+	modlib_config
+	mkdir -p $SOCKET_DIR
+	ln -sf $MAILACTIONS_FILE /mod/etc/maillog.cfg
+}
+
+start() {
+	modlib_startdaemon $DAEMON -daemon -path /mod/etc/ $OPTIONS
+}
+
+case $1 in
+	""|load)
+		mkdir -p $FLASH_DIR
+		[ ! -e $MAILACTIONS_FILE ] && cat /mod/etc/default.checkmaild/mailactions.default > $MAILACTIONS_FILE
+
+		modreg cgi $DAEMON 'Checkmail'
+		modreg daemon $DAEMON
+		modreg file checkmaild mailactions 'MailActions' 0 mailactions
+
+		modlib_start $CHECKMAILD_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

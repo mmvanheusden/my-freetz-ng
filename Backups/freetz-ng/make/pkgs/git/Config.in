@@ -1,0 +1,36 @@
+config FREETZ_PACKAGE_GIT
+	bool "Git 2.43.1"
+	select FREETZ_BUSYBOX_START_STOP_DAEMON
+	select FREETZ_LIB_libpthread if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libcurl
+	select FREETZ_LIB_libexpat
+	select FREETZ_LIB_libiconv if FREETZ_TARGET_UCLIBC_0_9_28
+	select FREETZ_LIB_libcrypto
+	select FREETZ_LIB_libz
+	default n
+	help
+		Git is a fast, scalable, distributed revision control system with an
+		unusually rich command set that provides both high-level operations
+		and full access to internals.
+
+if FREETZ_PACKAGE_GIT
+
+	config FREETZ_PACKAGE_GIT_REMOVE_WEBIF
+		bool "remove webinterface"
+		default n
+		help
+			This option removes the webinterface
+
+	config FREETZ_PACKAGE_GIT_WITH_PCRE
+		bool "build with pcre support"
+		select FREETZ_LIB_libpcre
+		default n
+		help
+			With this option enabled git-grep will be able to use
+			Perl-compatible regular expressions (pcre).
+
+			Note: git supports all kinds of POSIX regular expressions
+			without libpcre. Most users want to say no here.
+
+endif # FREETZ_PACKAGE_GIT
+

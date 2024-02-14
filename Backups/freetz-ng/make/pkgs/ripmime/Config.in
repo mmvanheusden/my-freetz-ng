@@ -1,0 +1,7 @@
+config FREETZ_PACKAGE_RIPMIME
+	bool "ripmime 1.2.16.21 (binary only)"
+	default n
+	help
+		ripmime is an utility to decode and extract the parts of
+		mime-formatted mails.
+

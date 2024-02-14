@@ -1,0 +1,67 @@
+###
+### Packaging/SquashFS properties
+###
+
+# SquashFS version used by AVM
+config FREETZ_AVM_SQUASHFS_VERSION
+	int
+	default 2 if FREETZ_AVM_PROP_SQUASHFS_VERSION_2
+	default 3 if FREETZ_AVM_PROP_SQUASHFS_VERSION_3
+	default 4 if FREETZ_AVM_PROP_SQUASHFS_VERSION_4
+	default 0
+
+# SquashFS version used by the modified firmware
+# Note: this might deviate from that used by AVM (patched/replaced kernel required)
+config FREETZ_SQUASHFS_VERSION
+	int
+	default 3 if FREETZ_KERNEL_VERSION_2_6_13 && FREETZ_REPLACE_KERNEL
+	default FREETZ_AVM_SQUASHFS_VERSION
+
+config FREETZ_AVM_SQUASHFS_ENDIANNESS
+	string
+	default "le" if FREETZ_TARGET_ARCH_LE
+	default "be" if FREETZ_TARGET_ARCH_BE
+
+config FREETZ_AVM_SQUASHFS_COMPRESSION
+	string
+	default "lzma" if FREETZ_AVM_PROP_SQUASHFS_COMPRESSION_LZMA
+	default "gzip" if FREETZ_AVM_PROP_SQUASHFS_COMPRESSION_GZIP
+	default "xz"   if FREETZ_AVM_PROP_SQUASHFS_COMPRESSION_XZ
+
+config FREETZ_AVM_HAS_NMI_VECTOR
+	bool
+	default y
+	depends on FREETZ_AVM_PROP_NMI_V1 || FREETZ_AVM_PROP_NMI_V2 || FREETZ_AVM_PROP_NMI_V3
+
+# A sub-directory within the .image tarball containing the files like: kernel.image, filesystem.image, plugins.update, etc.
+config FREETZ_AVM_IMAGES_SUBDIR
+	string
+	default "var/remote/var/tmp/x86"  if FREETZ_TARGET_ARCH_X86
+	default "var/tmp"
+
+# kernel and filesystem reside in different mtd partitions
+# = both kernel.image and filesystem.image have non-zero size
+# = sometimes referred to as NAND box
+config FREETZ_AVM_HAS_SEPARATE_FILESYSTEM_IMAGE
+	bool
+	default y
+	depends on FREETZ_AVM_PROP_SEPARATE_FILESYSTEM_IMAGE
+
+# root-filesystem is wrapped within/by other filesystem, i.e. filesystem.image (whatever filesystem it uses) contains a file named filesystem_core.squashfs
+config FREETZ_AVM_HAS_INNER_OUTER_FILESYSTEM
+	bool
+	default y
+#	depends on FREETZ_AVM_HAS_SEPARATE_FILESYSTEM_IMAGE
+	depends on FREETZ_AVM_PROP_INNER_OUTER_FILESYSTEM
+
+#config FREETZ_AVM_INNER_FILESYSTEM_TYPE
+#	depends on FREETZ_AVM_HAS_INNER_OUTER_FILESYSTEM
+#	string
+#	default "SquashFS"
+
+config FREETZ_AVM_OUTER_FILESYSTEM_TYPE
+	depends on FREETZ_AVM_HAS_INNER_OUTER_FILESYSTEM
+	string
+	default "Ext2FS"    if FREETZ_AVM_PROP_OUTER_FILESYSTEM_TYPE_EXT2
+	default "SquashFS"
+

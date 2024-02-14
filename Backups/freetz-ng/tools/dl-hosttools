@@ -1,0 +1,38 @@
+#! /usr/bin/env bash
+# packs host-tools to dl/tools-VERSION.tar.xz in ~5min
+#Arg $1: <VERSION>
+
+MYPWD="$(dirname $(realpath $0))"
+VERSION="${1:-$(date '+%Y-%m-%d')}"
+[ "$1" == "own" ] && VERSION="$(sed -n 's/^$(call TOOLS_INIT, *\(.*\))/\1/p' "$MYPWD/../tools/make/tools-host/tools-host.mk")"
+
+miniconfig() {
+local i
+for i in "$@"; do echo "$i=y"; done
+cat << EOF
+FREETZ_USER_LEVEL_EXPERT=y
+# FREETZ_HOSTTOOLS_DOWNLOAD is not set
+FREETZ_VERBOSITY_LEVEL_0=y
+FREETZ_TOOLS_UBOOT_STATIC=y
+FREETZ_DL_SITE_USER="https://github.com/Freetz-NG/dl-mirror/raw/master"
+EOF
+}
+
+SKIP="kconfig"
+OUTP="dl/tools-$VERSION.tar.xz"
+[ -s "$OUTP" ] && echo "File $OUTP exists" && exit 1
+
+miniconfig > .config
+make distclean
+make kconfig-host-conf
+make olddefconfig
+time make tools-allexcept-local  # 4min
+make tools-distclean-local
+PACK="$(sed -n 's,^/,tools/,p' tools/.gitignore | grep -vE "/(${SKIP// /|})$")"
+find $PACK -type f -a -executable | xargs strip --strip-all -R .note -R .comment 2>/dev/null
+time tar cf - $PACK | xz -9 - > "$OUTP"  # 1min
+echo "################################################################"
+du -h "$OUTP"
+sha256sum "$OUTP" | sed 's/^/SHA256:=/;s/ .*//'
+echo "OUTPUT:=${OUTP##*/}"
+

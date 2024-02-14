@@ -1,0 +1,10 @@
+languages
+{ de en }
+default
+{ en }
+files
+{
+	etc/default.getdns/getdns_*.def
+	etc/init.d/rc.getdns
+	usr/lib/cgi-bin/getdns.cgi
+}

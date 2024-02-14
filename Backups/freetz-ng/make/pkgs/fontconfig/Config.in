@@ -1,0 +1,8 @@
+config FREETZ_PACKAGE_FONTCONFIG
+	bool "Fontconfig 2.14.2 (binary only)"
+	depends on FREETZ_LIB_libfontconfig
+	default n
+	help
+		Fontconfig is a library for configuring and customizing
+		font access. This package adds /etc/fontsfonts.conf
+

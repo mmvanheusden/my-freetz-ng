@@ -1,0 +1,15 @@
+--- Makefile.in
++++ Makefile.in
+@@ -3479,10 +3479,10 @@
+ info-am: $(INFO_DEPS)
+ 
+ install-data-am: install-dist_amDATA install-dist_automake_acDATA \
+-	install-dist_automake_internal_acDATA install-dist_docDATA \
++	install-dist_automake_internal_acDATA                      \
+ 	install-dist_perllibDATA install-dist_pkgvdataDATA \
+ 	install-dist_scriptDATA install-dist_system_acDATA \
+-	install-info-am install-man install-nodist_perllibDATA
++	                            install-nodist_perllibDATA
+ 	@$(NORMAL_INSTALL)
+ 	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
+ install-dvi: install-dvi-am

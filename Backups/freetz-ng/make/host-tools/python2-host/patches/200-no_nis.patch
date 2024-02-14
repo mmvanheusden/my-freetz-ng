@@ -1,0 +1,11 @@
+--- setup.py
++++ setup.py
+@@ -2205,6 +2205,8 @@
+             ext.libraries.append('dl')
+ 
+     def _detect_nis(self, inc_dirs, lib_dirs):
++        return None
++
+         if host_platform in {'win32', 'cygwin', 'qnx6'}:
+             return None
+ 

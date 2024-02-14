@@ -1,0 +1,19 @@
+--- support/Makefile
++++ support/Makefile
+@@ -7,12 +7,12 @@
+ 
+ libtextbox.a: $(OBJS)
+ 	rm -rf libtextbox.a
+-	ar cq libtextbox.a $(OBJS)
+-	ranlib libtextbox.a
+-#	gcc -shared -o libtextbox.so $(OBJS)
++	$(AR) cq libtextbox.a $(OBJS)
++	$(RANLIB) libtextbox.a
++#	$(CC) -shared -o libtextbox.so $(OBJS)
+ 
+ %.o: %.c *.h
+-	gcc -O2 -g -Wall -fPIC $(INCLUDEDIR) -c -o $*.o $<
++	$(CC) $(CFLAGS) -Wall $(INCLUDEDIR) -c -o $*.o $<
+ 
+ clean:
+ 	rm -rf *.o *~ libtextbox.a libtextbox.so

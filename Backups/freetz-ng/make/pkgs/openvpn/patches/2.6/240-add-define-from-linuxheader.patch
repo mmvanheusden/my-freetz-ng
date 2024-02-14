@@ -1,0 +1,26 @@
+--- src/openvpn/lladdr.c
++++ src/openvpn/lladdr.c
+@@ -24,6 +24,10 @@
+         return -1;
+     }
+ 
++#ifndef ETH_ALEN
++#define ETH_ALEN        6               /* Octets in one ethernet addr   */
++#endif
++
+ #if defined(TARGET_LINUX)
+     uint8_t addr[OPENVPN_ETH_ALEN];
+ 
+--- src/openvpn/networking_sitnl.c
++++ src/openvpn/networking_sitnl.c
+@@ -67,6 +67,10 @@
+         _nest->rta_len = (void *)NLMSG_TAIL(_msg) - (void *)_nest;  \
+     }
+ 
++#ifndef ETH_ALEN
++#define ETH_ALEN        6               /* Octets in one ethernet addr   */
++#endif
++
+ /**
+  * Generic address data structure used to pass addresses and prefixes as
+  * argument to AF family agnostic functions

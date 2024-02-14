@@ -1,0 +1,22 @@
+if [ "$EXTERNAL_FREETZ_PACKAGE_AUTOFS" == "y" ]; then
+
+	EXTERNAL_FILES+=" /usr/bin/automount"
+
+	for f in \
+		lookup_file \
+		lookup_hosts \
+		lookup_multi \
+		lookup_program \
+		lookup_userhome \
+		mount_afs \
+		mount_autofs \
+		mount_bind \
+		mount_changer \
+		mount_generic \
+		mount_nfs \
+		parse_sun \
+	; do
+		EXTERNAL_FILES+=" ${FREETZ_LIBRARY_DIR}/autofs/$f.so"
+	done
+
+fi

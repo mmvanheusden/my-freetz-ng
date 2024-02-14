@@ -1,0 +1,10 @@
+. /mod/etc/conf/sane-backends.cfg
+inetdcfg_desc="SANE"
+inetdcfg_port=$SANE_BACKENDS_PORT
+inetdcfg_sock=stream
+inetdcfg_proto=tcp$1
+inetdcfg_flags=nowait
+inetdcfg_user=root
+inetdcfg_exe=/usr/sbin/saned
+inetdcfg_arg0=saned
+inetdcfg_args=""

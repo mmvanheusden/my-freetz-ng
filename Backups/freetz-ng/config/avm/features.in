@@ -1,0 +1,300 @@
+###
+### internet connection type
+###
+
+config FREETZ_TYPE_CABLE
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_6430 || \
+		FREETZ_TYPE_6490 || \
+		FREETZ_TYPE_6590 || \
+		FREETZ_TYPE_6591 || \
+		FREETZ_TYPE_6660 || \
+		FREETZ_TYPE_6690
+
+config FREETZ_TYPE_DSL
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_6890 || \
+		( \
+			!FREETZ_TYPE_CABLE && \
+			!FREETZ_TYPE_EXTENDER && \
+			!FREETZ_TYPE_FIBER && \
+			!FREETZ_TYPE_LTE && \
+			!FREETZ_TYPE_WAN \
+		)
+
+config FREETZ_TYPE_EXTENDER
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_0300 || \
+		FREETZ_TYPE_0450 || \
+		FREETZ_TYPE_0540 || \
+		FREETZ_TYPE_0546 || \
+		FREETZ_TYPE_1200 || \
+		FREETZ_TYPE_1209 || \
+		FREETZ_TYPE_1240 || \
+		FREETZ_TYPE_1249 || \
+		FREETZ_TYPE_1260 || \
+		FREETZ_TYPE_1750 || \
+		FREETZ_TYPE_1759 || \
+		FREETZ_TYPE_2400 || \
+		FREETZ_TYPE_3000 || \
+		FREETZ_TYPE_3009 || \
+		FREETZ_TYPE_6000 || \
+		FREETZ_TYPE_GATE
+
+config FREETZ_TYPE_FIBER
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_5490 || \
+		FREETZ_TYPE_5491 || \
+		FREETZ_TYPE_5530 || \
+		FREETZ_TYPE_5590
+
+config FREETZ_TYPE_LTE
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_6810 || \
+		FREETZ_TYPE_6820 || \
+		FREETZ_TYPE_6840 || \
+		FREETZ_TYPE_6850 || \
+		FREETZ_TYPE_6842 || \
+		FREETZ_TYPE_6890
+
+config FREETZ_TYPE_WAN
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_4020 || \
+		FREETZ_TYPE_4040 || \
+		FREETZ_TYPE_4060
+
+
+
+###
+### hardware/software related properties
+###
+
+config FREETZ_AVM_HAS_TEMPERATURE_SENSOR
+	bool
+	default y
+	depends on \
+		(FREETZ_AVM_VERSION_05_2X_MIN && FREETZ_AVM_VERSION_05_5X_MAX) || \
+		(FREETZ_AVM_VERSION_06_0X_MIN && (FREETZ_TYPE_7490 || FREETZ_TYPE_7590) ) || \
+		FREETZ_SYSTEM_TYPE_UR8
+
+
+# Multi-Annex support, i.e. the same firmware image can be used both for Annex A and B
+config FREETZ_AVM_HAS_MULTI_ANNEX
+	bool
+	default y
+	depends on FREETZ_TYPE_DSL
+	depends on FREETZ_AVM_VERSION_05_2X_MIN
+
+# two different firmware images are available, one supporting Annex A and another one supporting Annex B
+config FREETZ_AVM_HAS_ANNEX_A_AND_B
+	bool
+	default y
+	depends on FREETZ_TYPE_DSL
+	depends on FREETZ_TYPE_LANG_EN && \
+		( \
+			FREETZ_TYPE_300IP || \
+			FREETZ_TYPE_FON || \
+			FREETZ_TYPE_5124 || \
+			FREETZ_TYPE_WLAN || \
+			FREETZ_TYPE_7140 || \
+			FREETZ_TYPE_7170 \
+		)
+
+
+
+###
+### kernel/kernel-modules related properties
+###
+
+config FREETZ_AVM_HAS_IPV6
+	bool
+	select FREETZ_TARGET_IPV6_SUPPORT
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_05_2X_MIN || \
+		FREETZ_TYPE_7570
+
+# original kernel has pty support
+config FREETZ_AVM_HAS_PTY_SUPPORT
+	bool
+	default y
+	depends on \
+		!FREETZ_TYPE_5140 && \
+		!FREETZ_TYPE_W501V
+
+config FREETZ_AVM_HAS_PRINTK
+	bool
+	default y
+	depends on \
+		!(FREETZ_TYPE_3170 && !FREETZ_REPLACE_KERNEL)
+
+config FREETZ_AVM_HAS_BUGON_IN_NET_CORE
+	bool
+	default y
+	depends on \
+		FREETZ_AVM_VERSION_07_0X_MIN && \
+		(FREETZ_SYSTEM_TYPE_GRX5 || FREETZ_SYSTEM_TYPE_VR9)
+	depends on FREETZ_KERNEL_VERSION_3_MAX
+
+config FREETZ_AVM_HAS_KERNEL_CONFIG_AREA
+	bool
+	default y
+	depends on FREETZ_KERNEL_VERSION_3_MIN
+	depends on !FREETZ_SYSTEM_TYPE_PUMA7
+
+config FREETZ_AVM_HAS_FIT_SIZE
+	int
+	default 50 if FREETZ_TYPE_1209
+	default 50 if FREETZ_TYPE_1249
+	default 50 if FREETZ_TYPE_3009
+	default 80 if FREETZ_TYPE_4060
+	default 50 if FREETZ_TYPE_5530
+	default 80 if FREETZ_TYPE_5590
+	default 80 if FREETZ_TYPE_6000
+	default 50 if FREETZ_TYPE_7510
+	default 50 if FREETZ_TYPE_7539
+	default 50 if FREETZ_TYPE_GATE
+	default 50
+	depends on FREETZ_AVM_HAS_FWLAYOUT_5
+	help
+		The maximum size (in MB) of the whole fit-image.
+
+
+
+###
+### binaries/daemons/libraries related properties
+###
+
+# original firmware contains microvoip-dsl.bin
+config FREETZ_AVM_HAS_MICROVOIP_DSL
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_FON  || \
+		FREETZ_TYPE_WLAN || \
+		FREETZ_TYPE_3131 || \
+		FREETZ_TYPE_3170 || \
+		FREETZ_TYPE_5010 || \
+		FREETZ_TYPE_5124 || \
+		FREETZ_TYPE_5140 || \
+		FREETZ_TYPE_5140 || \
+		FREETZ_TYPE_7112 || \
+		FREETZ_TYPE_7113 || \
+		FREETZ_TYPE_7140 || \
+		FREETZ_TYPE_7141 || \
+		FREETZ_TYPE_7150 || \
+		FREETZ_TYPE_7170
+
+# original firmware contains piglet file for POTS
+config FREETZ_AVM_HAS_PIGLET_POTS
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_5010 || \
+		FREETZ_TYPE_5113 || \
+		FREETZ_TYPE_7113 || \
+		FREETZ_TYPE_7113_7170 || \
+		FREETZ_TYPE_7150 || \
+		FREETZ_TYPE_7340 || \
+		FREETZ_TYPE_7340_7390
+
+# original firmware contains piglet file for ISDN
+config FREETZ_AVM_HAS_PIGLET_ISDN
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_2170 || \
+		FREETZ_TYPE_3130 || \
+		FREETZ_TYPE_3131 || \
+		FREETZ_TYPE_3170 || \
+		FREETZ_TYPE_5010 || \
+		FREETZ_TYPE_5113 || \
+		FREETZ_TYPE_5124 || \
+		FREETZ_TYPE_5140 || \
+		FREETZ_TYPE_7113 || \
+		FREETZ_TYPE_7113_7170 || \
+		FREETZ_TYPE_7140 || \
+		FREETZ_TYPE_7141 || \
+		FREETZ_TYPE_7150 || \
+		FREETZ_TYPE_7170 || \
+		FREETZ_TYPE_7340 || \
+		FREETZ_TYPE_7340_7390
+
+
+
+###
+### other properties
+###
+
+config FREETZ_AVM_HAS_ALLCFGCONV_WITH_DECRYPTION_SUPPORT
+	bool
+	default y
+	depends on \
+		(FREETZ_AVM_VERSION_05_5X_MAX &&  FREETZ_SYSTEM_TYPE_UR8) || \
+		(FREETZ_AVM_VERSION_06_0X_MAX && !FREETZ_SYSTEM_TYPE_UR8)
+
+config FREETZ_AVM_HAS_DEBUG_CFG_SUPPORT
+	bool
+	default y
+	depends on \
+		(FREETZ_AVM_VERSION_05_5X_MAX &&  FREETZ_SYSTEM_TYPE_UR8) || \
+		(FREETZ_AVM_VERSION_06_0X_MAX && !FREETZ_SYSTEM_TYPE_UR8)
+
+config FREETZ_AVM_HAS_JUIS_SUPPORT
+	bool
+	default y
+	depends on \
+		FREETZ_TYPE_7170     || \
+		FREETZ_TYPE_7270_V1  || \
+		FREETZ_TYPE_7570     || \
+		FREETZ_AVM_VERSION_05_2X_MIN
+	help
+		If /var/juis_boxinfo.xml or /usr/www/$OEM/jason_boxinfo.xml exists.
+
+# multid.leases file used by AVM uses "8 columns"-format instead of "7 columns"-one
+# Note: v2 is a Freetz internal name, it is unknown if and how AVM distinguishes the file format version.
+# TODO: check the default values, at the moment pure assumption
+config FREETZ_AVM_HAS_MULTID_LEASES_FORMAT_V2
+	bool
+	default y
+	depends on FREETZ_AVM_VERSION_05_2X_MIN
+
+config FREETZ_AVM_HAS_LIBC_FILE
+	string
+	default "libc.so"    if FREETZ_AVM_PROP_LIBC_MUSL
+	default "libc.so.0"  if FREETZ_AVM_PROP_LIBC_UCLIBC && FREETZ_TARGET_UCLIBC_0
+	default "libc.so.1"  if FREETZ_AVM_PROP_LIBC_UCLIBC && FREETZ_TARGET_UCLIBC_1
+	default "libc.so.6"  if FREETZ_AVM_PROP_LIBC_GLIBC
+
+config FREETZ_AVM_HAS_AVMMULTID_NTPCLIENT
+	bool
+	default y
+	depends on FREETZ_AVM_VERSION_04_XX_MAX
+
+config FREETZ_AVM_HAS_AVMMULTID_PRELOAD
+	bool
+	default y
+	depends on !FREETZ_AVM_VERSION_07_2X
+	help
+		This is not mandatory for FOS 7.2X
+
+config FREETZ_AVM_HAS_AVMCTLMGR_PRELOAD
+	bool
+	default y
+	depends on FREETZ_AVM_VERSION_07_1X_MAX
+	depends on FREETZ_AVM_VERSION_07_0X_MIN || FREETZ_AVM_HAS_USB_HOST
+	help
+		This is not used anymore since FOS 7.2X
+

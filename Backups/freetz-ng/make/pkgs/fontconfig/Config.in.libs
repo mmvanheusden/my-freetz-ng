@@ -1,0 +1,10 @@
+config FREETZ_LIB_libfontconfig
+	bool "Fontconfig (libfontconfig.so)"
+	select FREETZ_PACKAGE_FONTCONFIG
+	select FREETZ_LIB_libfreetype
+	select FREETZ_LIB_libxml2
+	select FREETZ_LIB_libz
+	default n
+	help
+		Fontconfig is a library for configuring and customizing font access.
+

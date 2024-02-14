@@ -1,0 +1,11 @@
+--- ftp/ftp.c
++++ ftp/ftp.c
+@@ -1320,7 +1320,7 @@
+ 		}
+ 		if (options & SO_DEBUG &&
+ 		    setsockopt(data, SOL_SOCKET, SO_DEBUG, (char *)&on,
+-			       sizeof (on)) < 0)
++			       sizeof (on)) > 0)
+ 			perror("ftp: setsockopt (ignored)");
+ 		switch (hisctladdr.ss_family) {
+ 			case AF_INET:

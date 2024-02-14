@@ -1,0 +1,34 @@
+The patches for usr/www/all/html/de/js/basis.js and usr/www/all/menus/menu_show.lua
+were taken from W701-sp2fr patchset.
+
+--- usr/www/all/html/de/js/basis.js
++++ usr/www/all/html/de/js/basis.js
+@@ -167,7 +167,7 @@
+ var menu = readCookie("menu");
+ var page = readCookie("page");
+ if (menu == "konfig") {
+-jslGoTo("konfig", "home");
++jslGoTo("enhsettings", "enhsettings");
+ }
+ else if (menu == "software") {
+ jslGoTo("software", "extern");
+@@ -176,7 +176,7 @@
+ jslGoTo("enhsettings", "enhsettings");
+ }
+ else {
+-jslGoTo("konfig", "home");
++jslGoTo("enhsettings", "enhsettings");
+ }
+ }
+ function GoToSitemap()
+--- usr/www/all/tools/update_result.html
++++ usr/www/all/tools/update_result.html
+@@ -14,7 +14,7 @@
+ function uiDoOnMainFormSubmit() {
+ jxl.setHtml("uiStatus", "{?197:584?}");
+ jxl.disable("uiUpdate");
+-jxl.disable("uiReboot");
++jxl.disable("uiInstall");
+ jxl.setStyle("uiMainForm", "cursor", "wait");
+ return true;
+ }

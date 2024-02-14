@@ -1,0 +1,42 @@
+# don't link libm to all binaries, only zabbix_server and zabbix_proxy require it
+--- configure
++++ configure
+@@ -690,6 +690,7 @@
+ ORACLE_OCI_LDFLAGS
+ ORACLE_OCI_CFLAGS
+ ORACLE_OCI_VERSION
++MATH_LIBS
+ MYSQL_LIBS
+ MYSQL_LDFLAGS
+ MYSQL_CFLAGS
+@@ -5452,7 +5453,7 @@
+ #define HAVE_LIBM 1
+ _ACEOF
+ 
+-  LIBS="-lm $LIBS"
++  MATH_LIBS="-lm"
+ 
+ fi
+ 
+--- src/zabbix_server/Makefile.in
++++ src/zabbix_server/Makefile.in
+@@ -292,7 +292,7 @@
+ LIBCURL_LDFLAGS = @LIBCURL_LDFLAGS@
+ LIBCURL_LIBS = @LIBCURL_LIBS@
+ LIBOBJS = @LIBOBJS@
+-LIBS = @LIBS@
++LIBS = @LIBS@ @MATH_LIBS@
+ LIBXML2_CFLAGS = @LIBXML2_CFLAGS@
+ LIBXML2_CONFIG = @LIBXML2_CONFIG@
+ LIBXML2_LDFLAGS = @LIBXML2_LDFLAGS@
+--- src/zabbix_proxy/Makefile.in
++++ src/zabbix_proxy/Makefile.in
+@@ -295,7 +295,7 @@
+ LIBCURL_LDFLAGS = @LIBCURL_LDFLAGS@
+ LIBCURL_LIBS = @LIBCURL_LIBS@
+ LIBOBJS = @LIBOBJS@
+-LIBS = @LIBS@
++LIBS = @LIBS@ @MATH_LIBS@
+ LIBXML2_CFLAGS = @LIBXML2_CFLAGS@
+ LIBXML2_CONFIG = @LIBXML2_CONFIG@
+ LIBXML2_LDFLAGS = @LIBXML2_LDFLAGS@

@@ -1,0 +1,59 @@
+#!/bin/sh
+
+DAEMON=knock
+DAEMON_BIN=knockd
+DAEMON_CONFIG=/tmp/flash/knock/knockd.conf
+
+. /etc/init.d/modlibrc
+
+config() {
+	if [ ! -e $DAEMON_CONFIG ]; then
+		modlib_config
+	fi
+}
+
+start() {
+	set -o noglob
+	local countdown=10
+	while [ $((countdown--)) -gt 0 ] && ! ifconfig $KNOCK_INTERFACE > /dev/null 2>&1; do
+		sleep 1
+	done
+	modlib_startdaemon $DAEMON_BIN -d -c $DAEMON_CONFIG -i "$KNOCK_INTERFACE"
+}
+
+case $1 in
+	""|load)
+		[ -d "/tmp/flash/knock" ] || mkdir /tmp/flash/knock
+		config
+
+		modreg cgi 'knock' 'Knock'
+		modreg daemon $DAEMON
+		modreg file knock conf "$(lang de:"Konfiguration" en:"Configuration")" 0 "knock_conf"
+
+		modlib_start $KNOCK_ENABLED
+		;;
+	unload)
+		modunreg file knock
+		modunreg daemon $DAEMON
+		modunreg cgi knock
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

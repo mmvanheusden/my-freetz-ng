@@ -1,0 +1,47 @@
+menu "Download options"
+	visible if FREETZ_SHOW_EXPERT
+
+	config FREETZ_DL_SITE_USER
+		string "Additional user-defined download site"
+		help
+			Additional user-defined download site(s) for Freetz packages and source files.
+			If you want to use multiple, seperate them by spaces.
+
+			Note: We recommend you to only set a user-defined value here, if necessary.
+			Necessary means that the regular Freetz mirrors are currently unavailable
+			or the desired package cannot be found on either of them.
+
+	config FREETZ_DL_DETECT_IMAGE_NAME
+		bool "Detect the .image file name" if FREETZ_SHOW_EXPERT
+		depends on FREETZ_TYPE_FIRMWARE_DETECT_LATEST || FREETZ_TYPE_FIRMWARE_LABOR
+		default n
+		help
+			Detect the .image file name automatically.
+			For archive files it is not needed anymore to
+			define FREETZ_DL_SOURCE and FREETZ_DL_SOURCE_HASH
+
+	config FREETZ_DL_VCS_REPO_FIRST
+		bool "Search first on repository for VCS downloads" if FREETZ_SHOW_EXPERT
+		default y
+		help
+			For a download by VCS, use first the repositories
+			itself and then download by the mirrors.
+			If not enabled, the mirrors are used at first.
+
+	config FREETZ_DL_VCS_FROM_MIRRORS
+		bool "Search on mirror sites for VCS files" if FREETZ_SHOW_EXPERT
+		depends on FREETZ_DL_VCS_REPO_FIRST
+		default y
+		help
+			Some downloads are by VCS repositories. Every time you download, the hash
+			of the file changes. Due to this, no hash is deposited within Freetz and
+			the download could not be verified.
+			If you do not want to search the download mirrors for such files, disable
+			this option.
+
+	source "config/mod/dl-toolchain.in"
+	source "config/mod/dl-kernel.in"
+	source "config/mod/dl-firmware.in"
+
+endmenu # Download options #
+

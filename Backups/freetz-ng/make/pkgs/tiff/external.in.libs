@@ -1,0 +1,16 @@
+config EXTERNAL_FREETZ_LIB_libtiff
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libtiff
+	bool "libtiff"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libtiff.so.5.2.5
+
+config EXTERNAL_FREETZ_LIB_libtiffxx
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libtiffxx
+	bool "libtiffxx"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libtiffxx.so.5.2.5
+

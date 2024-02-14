@@ -1,0 +1,10 @@
+
+[constants]
+arch              = 'mipsel-linux-uclibc'
+
+[target_machine]
+system            = 'linux'
+cpu_family        = 'mips'
+cpu               = 'mipsel'
+endian            = 'little'
+

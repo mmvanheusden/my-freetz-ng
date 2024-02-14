@@ -1,0 +1,13 @@
+--- linux-2.6.13/Makefile
++++ linux-2.6.13/Makefile
+@@ -924,7 +924,10 @@
+ endif
+ .PHONY: _modinst_post
+ _modinst_post: _modinst_
++# Do not run depmod while cross-compiling
++ifeq ([ uname -m ],$(ARCH))
+ 	if [ -r System.map -a -x $(DEPMOD) ]; then $(DEPMOD) -ae -F System.map $(depmod_opts) $(KERNELRELEASE); fi
++endif
+ 
+ else # CONFIG_MODULES
+ 

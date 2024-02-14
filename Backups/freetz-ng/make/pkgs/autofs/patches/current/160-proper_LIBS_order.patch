@@ -1,0 +1,11 @@
+--- daemon/Makefile
++++ daemon/Makefile
+@@ -38,7 +38,7 @@
+ all: automount
+ 
+ automount: $(OBJS) $(AUTOFS_LIB)
+-	$(CC) $(DAEMON_LDFLAGS) -o automount $(OBJS) $(LDFLAGS) $(LIBS) $(AUTOFS_LIB_LINK)
++	$(CC)                   -o automount $(OBJS) $(LDFLAGS) $(LIBS) $(AUTOFS_LIB_LINK) $(DAEMON_LDFLAGS)
+ 	$(STRIP) automount
+ 
+ master_tok.c: master_tok.l

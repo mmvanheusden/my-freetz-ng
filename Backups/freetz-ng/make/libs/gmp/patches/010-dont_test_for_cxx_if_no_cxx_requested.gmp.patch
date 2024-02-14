@@ -1,0 +1,47 @@
+
+Partial testing for CXX causes incorrect lt_prog_*_CXX values to be cached in config.cache which in turn breaks compilation of other packages.
+
+Fix: test for lt_prog_*_CXX only if CXX support is requested.
+
+--- configure
++++ configure
+@@ -21552,6 +21552,7 @@
+ 
+ 
+ 
++if test $enable_cxx != no; then
+     lt_prog_compiler_wl_CXX=
+ lt_prog_compiler_pic_CXX=
+ lt_prog_compiler_static_CXX=
+@@ -22249,6 +22250,7 @@
+   fi
+   ;;
+ esac
++fi
+ 
+ 
+ 
+@@ -29197,6 +29199,7 @@
+ predeps \
+ postdeps \
+ compiler_lib_search_path \
++enable_cxx \
+ LD_CXX \
+ reload_flag_CXX \
+ compiler_CXX \
+@@ -30518,6 +30521,7 @@
+   chmod +x "$ofile"
+ 
+ 
++if test $lt_enable_cxx != no; then
+     cat <<_LT_EOF >> "$ofile"
+ 
+ # ### BEGIN LIBTOOL TAG CONFIG: CXX
+@@ -30669,6 +30673,7 @@
+ 
+ # ### END LIBTOOL TAG CONFIG: CXX
+ _LT_EOF
++fi
+ 
+  ;;
+ 

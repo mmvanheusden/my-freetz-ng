@@ -1,0 +1,115 @@
+#!/bin/sh
+
+DAEMON=openssh
+DAEMON_LONG_NAME="OpenSSH"
+DAEMON_BIN=sshd
+. /etc/init.d/modlibrc
+
+CONFFILE=/mod/etc/openssh.conf
+
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+kex_algorithms() {
+	if [ "$FREETZ_PACKAGE_OPENSSH_INTERNAL_CRYPTO" != y ]; then
+		echo rsa
+		echo dsa
+	fi
+	echo ed25519
+}
+
+gen_key() {
+	rm -f "$1"
+	rm -f "$1.pub"
+	echo "Creating host key $(basename $1)"
+	if [ ! -e /usr/bin/ssh-keygen ]; then
+		echo "Error[$DAEMON]: Can't generate key. Please include openssh keyutils to your image or provide public and private $2 host keys via Web Interface!"
+		exit 1
+	fi
+	/usr/bin/ssh-keygen -q -t $2 -f "$1" -N ""
+}
+
+check_key_file() {
+	if [ -e "$1" ]; then
+		grep -q "[a-zA-Z0-9]" $1 && return
+	fi
+	gen_key "$1" "$2"
+	chmod 600 $1
+	/usr/bin/modsave flash
+}
+
+config() {
+	mkdir -p /tmp/flash/openssh
+	mkdir -p /var/empty
+
+	if [ ! -d "/mod/etc/ssh" ]; then
+		mkdir -p /mod/etc/ssh
+	fi
+
+	for kex_alg in $(kex_algorithms); do
+		check_key_file "/tmp/flash/openssh/${kex_alg}_host_key" "${kex_alg}"
+		ln -sf /tmp/flash/openssh/${kex_alg}_host_key /mod/etc/ssh/
+	done
+
+	echo "$OPENSSH_SETTINGS" | grep -Ev "^(HostKey|PasswordAuthentication|PermitRootLogin)" > $CONFFILE
+	for kex_alg in $(kex_algorithms); do
+		echo "HostKey /tmp/flash/openssh/${kex_alg}_host_key" >> $CONFFILE
+	done
+	if [ "$OPENSSH_PWDAUTH" = "yes" ]; then
+		if cat /etc/shadow | grep -q '^root:[*!]:'; then
+			echo "Error[$DAEMON]: no root password set - run 'passwd root'" 1>&2
+			exit 1
+		fi
+		echo "PasswordAuthentication yes" >> $CONFFILE
+	else
+		echo "PasswordAuthentication no" >> $CONFFILE
+	fi
+	if [ "$OPENSSH_ROOT" = "yes" ]; then
+		echo "PermitRootLogin yes" >> $CONFFILE
+	else
+		echo "PermitRootLogin no" >> $CONFFILE
+	fi
+}
+
+start() {
+	set -o noglob
+	modlib_startdaemon /usr/sbin/sshd -p "$OPENSSH_PORT" -f $CONFFILE $OPENSSH_OPTIONS
+}
+
+case $1 in
+	""|load)
+		modreg cgi 'openssh' 'OpenSSH'
+		modreg daemon $DAEMON
+
+		for kex_alg in $(kex_algorithms); do
+			modreg file openssh "${kex_alg}_key" "${kex_alg}_key" 0 "${kex_alg}_key"
+		done
+
+		mkdir -p /tmp/openssh
+		modlib_add_user_and_group $DAEMON_BIN
+
+		modlib_start $OPENSSH_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi openssh
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

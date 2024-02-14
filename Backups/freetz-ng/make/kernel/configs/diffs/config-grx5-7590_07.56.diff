@@ -1,0 +1,139 @@
+--- avm/config-grx5-7590_07.56
++++ freetz/config-grx5-7590_07.56
+@@ -1,6 +1,6 @@
+ #
+ # Automatically generated file; DO NOT EDIT.
+-# Linux/mips 4.9.218 Kernel Configuration
++# Linux/mips 4.9.325 Kernel Configuration
+ #
+ CONFIG_MIPS=y
+ 
+@@ -409,6 +409,7 @@
+ CONFIG_SHMEM=y
+ # CONFIG_AIO is not set
+ CONFIG_ADVISE_SYSCALLS=y
++# CONFIG_BPF_UNPRIV_DEFAULT_OFF is not set
+ # CONFIG_USERFAULTFD is not set
+ CONFIG_PCI_QUIRKS=y
+ CONFIG_MEMBARRIER=y
+@@ -681,6 +682,7 @@
+ CONFIG_PACKET=y
+ CONFIG_PACKET_DIAG=y
+ CONFIG_UNIX=y
++CONFIG_UNIX_SCM=y
+ CONFIG_UNIX_DIAG=y
+ CONFIG_XFRM=y
+ CONFIG_XFRM_ALGO=y
+@@ -1366,7 +1368,7 @@
+ # CONFIG_NETCONSOLE is not set
+ # CONFIG_NETPOLL is not set
+ # CONFIG_NET_POLL_CONTROLLER is not set
+-# CONFIG_TUN is not set
++CONFIG_TUN=m
+ # CONFIG_TUN_VNET_CROSS_LE is not set
+ CONFIG_VETH=m
+ # CONFIG_NLMON is not set
+@@ -1551,7 +1553,6 @@
+ CONFIG_NET_VENDOR_MICREL=y
+ # CONFIG_KS8842 is not set
+ # CONFIG_KS8851 is not set
+-# CONFIG_KS8851_MLL is not set
+ # CONFIG_KSZ884X_PCI is not set
+ CONFIG_NET_VENDOR_MICROCHIP=y
+ # CONFIG_ENC28J60 is not set
+@@ -1772,7 +1773,6 @@
+ # CONFIG_ISDN_DRV_GIGASET is not set
+ # CONFIG_HYSDN is not set
+ # CONFIG_MISDN is not set
+-# CONFIG_NVM is not set
+ 
+ #
+ # Input device support
+@@ -1890,6 +1890,7 @@
+ CONFIG_AVM_POWERMETER=y
+ CONFIG_AVM_SOFTIRQ_STATISTIC=y
+ # CONFIG_XILLYBUS is not set
++CONFIG_RANDOM_TRUST_BOOTLOADER=y
+ # CONFIG_LTQ_MPS2 is not set
+ 
+ #
+@@ -2002,6 +2003,7 @@
+ # CONFIG_SPI_SPIDEV is not set
+ # CONFIG_SPI_LOOPBACK_TEST is not set
+ # CONFIG_SPI_TLE62X0 is not set
++# CONFIG_SPI_DYNAMIC is not set
+ # CONFIG_SPMI is not set
+ # CONFIG_HSI is not set
+ 
+@@ -2559,7 +2561,7 @@
+ # CONFIG_USB_SERIAL_CP210X is not set
+ # CONFIG_USB_SERIAL_CYPRESS_M8 is not set
+ # CONFIG_USB_SERIAL_EMPEG is not set
+-# CONFIG_USB_SERIAL_FTDI_SIO is not set
++CONFIG_USB_SERIAL_FTDI_SIO=m
+ # CONFIG_USB_SERIAL_VISOR is not set
+ # CONFIG_USB_SERIAL_IPAQ is not set
+ # CONFIG_USB_SERIAL_IR is not set
+@@ -2579,7 +2581,7 @@
+ # CONFIG_USB_SERIAL_MOS7840 is not set
+ # CONFIG_USB_SERIAL_MXUPORT is not set
+ # CONFIG_USB_SERIAL_NAVMAN is not set
+-# CONFIG_USB_SERIAL_PL2303 is not set
++CONFIG_USB_SERIAL_PL2303=m
+ # CONFIG_USB_SERIAL_OTI6858 is not set
+ # CONFIG_USB_SERIAL_QCAUX is not set
+ # CONFIG_USB_SERIAL_QUALCOMM is not set
+@@ -2938,7 +2940,7 @@
+ # CONFIG_FANOTIFY is not set
+ # CONFIG_QUOTA is not set
+ # CONFIG_QUOTACTL is not set
+-# CONFIG_AUTOFS4_FS is not set
++CONFIG_AUTOFS4_FS=m
+ CONFIG_FUSE_FS=y
+ # CONFIG_CUSE is not set
+ CONFIG_OVERLAY_FS=y
+@@ -3060,7 +3062,10 @@
+ # CONFIG_NFS_V4_1 is not set
+ # CONFIG_NFS_USE_LEGACY_DNS is not set
+ CONFIG_NFS_USE_KERNEL_DNS=y
+-# CONFIG_NFSD is not set
++CONFIG_NFSD=m
++CONFIG_NFSD_V3=y
++# CONFIG_NFSD_V3_ACL is not set
++# CONFIG_NFSD_V4 is not set
+ CONFIG_GRACE_PERIOD=m
+ CONFIG_LOCKD=m
+ CONFIG_LOCKD_V4=y
+@@ -3069,7 +3074,14 @@
+ CONFIG_SUNRPC_GSS=m
+ # CONFIG_SUNRPC_DEBUG is not set
+ # CONFIG_CEPH_FS is not set
+-# CONFIG_CIFS is not set
++CONFIG_CIFS=m
++# CONFIG_CIFS_STATS is not set
++# CONFIG_CIFS_WEAK_PW_HASH is not set
++# CONFIG_CIFS_UPCALL is not set
++# CONFIG_CIFS_XATTR is not set
++# CONFIG_CIFS_DEBUG is not set
++# CONFIG_CIFS_DFS_UPCALL is not set
++# CONFIG_CIFS_SMB2 is not set
+ # CONFIG_NCP_FS is not set
+ # CONFIG_CODA_FS is not set
+ # CONFIG_AFS_FS is not set
+@@ -3216,6 +3228,7 @@
+ # CONFIG_DEBUG_LOCKING_API_SELFTESTS is not set
+ # CONFIG_LOCK_TORTURE_TEST is not set
+ CONFIG_STACKTRACE=y
++# CONFIG_WARN_ALL_UNSEEDED_RANDOM is not set
+ # CONFIG_DEBUG_KOBJECT is not set
+ # CONFIG_DEBUG_LIST is not set
+ # CONFIG_DEBUG_PI_LIST is not set
+@@ -3415,7 +3428,7 @@
+ # CONFIG_CRYPTO_CRCT10DIF is not set
+ CONFIG_CRYPTO_GHASH=y
+ # CONFIG_CRYPTO_POLY1305 is not set
+-# CONFIG_CRYPTO_MD4 is not set
++CONFIG_CRYPTO_MD4=m
+ CONFIG_CRYPTO_MD5=y
+ # CONFIG_CRYPTO_MICHAEL_MIC is not set
+ # CONFIG_CRYPTO_RMD128 is not set

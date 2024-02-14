@@ -1,0 +1,99 @@
+#!/bin/sh
+
+DAEMON="asterisk"
+DAEMON_LONG_NAME="Asterisk"
+PID_FILE=/var/run/asterisk/asterisk.pid
+DAEMON_CONFIG="/mod/etc/asterisk/asterisk.conf"
+. /etc/init.d/modlibrc
+
+
+config() {
+	local ASTERISK_CONFIGDIR_LINK="${DAEMON_CONFIG%/*}"
+	rm -rf "$ASTERISK_CONFIGDIR_LINK"
+	ln -s "$ASTERISK_CONFIGDIR" "$ASTERISK_CONFIGDIR_LINK"
+	mkdir "$ASTERISK_CONFIGDIR" 2>/dev/null
+}
+
+setup() {
+	modlib_check_running && modlib_stop
+	echo -n "Creating minimal $DAEMON_LONG_NAME configuration ... "
+	config
+	modlib_config ${DAEMON}_minimal
+	if [ -s "$DAEMON_CONFIG" ]; then
+		echo "done."
+	else
+		echo "failed."
+		exit 1
+	fi
+}
+
+start() {
+	if [ ! -s "$ASTERISK_CONFIGDIR/asterisk.conf" ]; then
+		echo "$DAEMON_LONG_NAME is not configured, failed."
+		return 1
+	fi
+	modlib_startdaemon $DAEMON -C "$DAEMON_CONFIG" $ASTERISK_VERBOSITY
+}
+
+stop() {
+	$DAEMON -C "$DAEMON_CONFIG" -rx "core stop now"
+}
+
+usage() {
+	echo "Usage: $0 {load|unload|start|start-v[v...]|stop|restart|status|setup|console}" >&2
+	exit 1
+}
+
+case "$1" in
+	""|load)
+		for dir in lib run log spool; do
+			mkdir -p /var/$dir/asterisk
+		done
+
+		modreg file $DAEMON conf 'asterisk.conf' 1 "asterisk_conf"
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+
+		modlib_start $ASTERISK_ENABLED
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	start-v*)
+		ASTERISK_VERBOSITY="${1//start-}"
+		if [ -z "${ASTERISK_VERBOSITY//v}" ]; then
+			ASTERISK_VERBOSITY="-${ASTERISK_VERBOSITY}" modlib_start
+		else
+			usage
+		fi
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	setup)
+		setup
+		;;
+	console)
+		shift
+		modlib_check_running || modlib_start
+		$DAEMON -C "$DAEMON_CONFIG" -r "$@"
+		;;
+	*)
+		usage
+		;;
+esac
+
+exit 0

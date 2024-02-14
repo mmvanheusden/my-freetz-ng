@@ -1,0 +1,15 @@
+#!/bin/sh
+
+cat << EOF
+devices = GSM
+logfile = /var/log/smsd.log
+loglevel = $SMSTOOLS3_LOGLEVEL
+eventhandler = $SMSTOOLS3_EVENTS
+
+[GSM]
+device = $SMSTOOLS3_DEVICE
+incoming = yes
+EOF
+
+[ -n "$SMSTOOLS3_PIN" ] && echo "pin = $SMSTOOLS3_PIN"
+

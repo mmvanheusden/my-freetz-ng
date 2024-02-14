@@ -1,0 +1,110 @@
+#!/bin/sh
+
+DAEMON=autofs
+DAEMON_BIN=automount
+DAEMON_LONG_NAME="AutoFS"
+PID_FILE=/var/run/automount/autofs-running
+. /etc/init.d/modlibrc
+
+
+
+config() {
+	#autofs
+	mkdir -p $(dirname $PID_FILE)
+	mkdir -p /var/media/autofs
+	modprobe autofs4 2>/dev/null
+
+	#davfs2
+	[ -r /etc/options.cfg ] && . /etc/options.cfg
+	if [ "$FREETZ_PACKAGE_DAVFS2" == "y" -a "$AUTOFS_DAVFS2_CONF" == "yes" ]; then
+		modlib_add_user_and_group davfs2
+		mkdir -p /var/davfs2
+		ln -sf /tmp/flash/autofs/davfs2.conf    /var/davfs2/davfs2.conf
+		ln -sf /tmp/flash/autofs/davfs2.secrets /var/davfs2/secrets
+		mkdir -p /var/cache
+		rm /var/cache/davfs2 2>/dev/null
+		mkdir $AUTOFS_DAVFS2_TEMP 2>/dev/null
+		ln -s $AUTOFS_DAVFS2_TEMP /var/cache/davfs2
+	fi
+
+	#cifs
+	for x in md4 md5 hmac cmac arc4 ecb des_generic sha256_generic cifs; do
+		modprobe $x 2>/dev/null
+	done
+	#nfs
+	for x in grace sunrpc lockd nfsv3 nfsv2 nfs; do
+		modprobe $x 2>/dev/null
+	done
+	#other
+	modprobe fuse 2>/dev/null
+}
+
+start() {
+	modlib_startdaemon $DAEMON_BIN $AUTOFS_CMDLINE
+	if [ $? -eq 0 -a "$AUTOFS_EXTERNAL" == "yes" -a -r /mod/etc/external.pkg ]; then
+		/mod/etc/init.d/rc.external start $mnt_path >/dev/null 2>&1 &
+	fi
+}
+
+stop() {
+	if [ "$AUTOFS_EXTERNAL" == "yes" -a -r /mod/etc/external.pkg ]; then
+		/mod/etc/init.d/rc.external stop $mnt_path >/dev/null 2>&1
+	fi
+	local current_pid="$(cat $PID_FILE 2>/dev/null)"
+	kill $current_pid 2>/dev/null
+	sync
+	sleep 1
+	if kill -0 $current_pid 2>/dev/null; then
+		killall -9 $DAEMON_BIN
+	fi
+}
+
+case $1 in
+	""|load)
+		modlib_defaults auto.conf
+		[ ! -d /var/media/autofs ] && mkdir -p /var/media/autofs
+
+		[ -r /etc/options.cfg ] && . /etc/options.cfg
+		if [ "$FREETZ_PACKAGE_DAVFS2" == "y" ]; then
+			[ ! -e /tmp/flash/autofs/davfs2.conf    ] && echo '# ask_auth 0' > /tmp/flash/autofs/davfs2.conf
+			[ ! -e /tmp/flash/autofs/davfs2.secrets ] && touch                 /tmp/flash/autofs/davfs2.secrets
+			chmod 600 /var/davfs2/secrets
+
+			modreg file $DAEMON davfs2  'davfs2.conf'    0 davfs2_conf
+			modreg file $DAEMON secrets 'davfs2.secrets' 0 davfs2_secrets
+		fi
+		modreg file $DAEMON conf 'auto.conf' 1 "auto_conf"
+		modreg cgi $DAEMON $DAEMON_LONG_NAME
+		modreg daemon $DAEMON
+
+		modlib_start $AUTOFS_ENABLED
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|reload|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

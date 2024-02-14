@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libpopt
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libpopt
+	bool "libpopt"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libpopt.so.0.0.2
+

@@ -1,0 +1,120 @@
+#!/bin/sh
+
+DAEMON=bird
+DAEMON_CONFIG=/tmp/flash/bird.conf
+. /etc/init.d/modlibrc
+
+[ -e /etc/bird.conf -a ! -e $DAEMON_CONFIG ] && DAEMON_CONFIG=/etc/bird.conf
+
+ar7ipaddr () {
+	local SEC=$1
+	local DEV=$2
+	echo $(echo 'ar7cfg.'$SEC'['$DEV'].ipaddr' | ar7cfgctl -s)
+}
+
+getipaddr () {
+	local ethmode=$(echo 'ar7cfg.ethmode' | ar7cfgctl -s)
+	local devname=lan
+	local section=ethinterfaces
+	case $ethmode in
+		ethmode_bridge)
+			section=brinterfaces
+			break
+			;;
+	esac
+	local ipaddr=$(ar7ipaddr $section $devname)
+	if [ -z "$ipaddr" ]; then
+		devname=eth0
+		ipaddr=$(ar7ipaddr $section $devname)
+	fi
+	if [ -z "$ipaddr" ]; then
+		ipaddr=169.254.1.1
+	fi
+	echo $ipaddr
+}
+
+config() {
+	if [ ! -e "$DAEMON_CONFIG" ]; then
+		echo "Creating $DAEMON_CONFIG"
+		{
+			echo "router id $(getipaddr);"
+			cat <<"EOF"
+protocol device {
+  scan time 10;
+}
+protocol direct {
+  interface "lan", "wlan", "tun*";
+}
+protocol kernel {
+  learn;
+  scan time 20;
+  import all;
+  export all;
+}
+protocol static {
+}
+filter skipdefault {
+  if net = 0.0.0.0/0 then reject;
+  accept;
+}
+protocol rip mainrip {
+  import filter skipdefault;
+  export filter skipdefault;
+}
+protocol ospf mainospf {
+  import filter skipdefault;
+  export filter skipdefault;
+  area 0 {
+    interface "lan"  { cost 10; };
+    interface "wlan" { cost 15; };
+    interface "tun*" { cost 50; };
+  };
+}
+EOF
+		} > $DAEMON_CONFIG
+		/usr/bin/modsave flash
+	fi
+}
+
+start() {
+	modlib_startdaemon $DAEMON -c $DAEMON_CONFIG
+}
+
+stop() {
+	killall $DAEMON > /dev/null 2>&1
+}
+
+case $1 in
+	''|load)
+		modreg cgi 'bird' 'BIRD'
+		modreg daemon $DAEMON
+		[ "$DAEMON_CONFIG" != '/etc/bird.conf' ] && modreg file bird conf 'bird.conf' 0 "bird_conf"
+
+		[ "$BIRD_AUTOSTARTDELAY" -gt 0 -a "$BIRD_ENABLED" = 'yes' ] && sleep $BIRD_AUTOSTARTDELAY
+		modlib_start $BIRD_ENABLED
+		;;
+	unload)
+		modunreg file bird
+		modunreg daemon $DAEMON
+		modunreg cgi bird
+		stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,6 @@
+menu "Busybox applets"
+	visible if FREETZ_SHOW_EXPERT
+	depends on FREETZ_REPLACE_BUSYBOX
+	source "make/busybox/Config.in"
+endmenu # "Busybox applets" #
+

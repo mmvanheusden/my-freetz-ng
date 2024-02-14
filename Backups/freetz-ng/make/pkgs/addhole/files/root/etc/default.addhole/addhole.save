@@ -1,0 +1,9 @@
+
+rc_status() { :; }
+
+apply_changes() { :; }
+
+pkg_post() {
+	/mod/etc/init.d/rc.addhole config
+}
+

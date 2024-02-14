@@ -1,0 +1,28 @@
+config FREETZ_LIB_libctlmgr
+	bool "libctlmgr (libctlmgr.so)"
+	depends on FREETZ_AVM_HAS_AVMCTLMGR_PRELOAD
+	default n
+	help
+		This is Freetz compatibility library which overwrites
+		functions of AVM's libraries, e.g. write_etc_passwd.
+
+if FREETZ_LIB_libctlmgr
+
+	config FREETZ_LIB_libctlmgr_WITH_CHMOD
+		bool
+		depends on FREETZ_AVM_VERSION_07_0X_MIN
+		default n
+		help
+			Alters chmod() for /var/tmp
+			Used to keep filesystem permissions
+
+	config FREETZ_LIB_libctlmgr_WITH_RENAME
+		bool
+		depends on FREETZ_AVM_HAS_USB_HOST
+		default n
+		help
+			Alters rename() for /etc/passwd
+			Used to keep freetz users
+
+endif # FREETZ_LIB_libctlmgr
+

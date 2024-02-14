@@ -1,0 +1,1387 @@
+#! /bin/sh
+# vim: set tabstop=4 syntax=sh :
+# SPDX-License-Identifier: GPL-2.0-or-later WITH exceptions
+#######################################################################################################
+#                                                                                                     #
+# verify signature of a sealed TAR archive                                                            #
+#                                                                                                     #
+###################################################################################################VER#
+#                                                                                                     #
+# yf_check_signature, version 1.0.1                                                                   #
+#                                                                                                     #
+# Some functions in this script were taken from the YourFritz Shell Script library (YF_SCRIPTLIB)     #
+# and/or from YourFritz UI framework (YF_UI), which is a part of the YourFritz project from           #
+# https://github.com/PeterPawn/YourFritz.                                                             #
+#                                                                                                     #
+###################################################################################################CPY#
+#                                                                                                     #
+# Copyright (C) 2016-2021 P. Haemmerlein (peterpawn@yourfritz.de)                                     #
+#                                                                                                     #
+###################################################################################################LIC#
+#                                                                                                     #
+# This script is licensed according to the following terms:                                           #
+#                                                                                                     #
+# This project is free software, you can redistribute it and/or modify it under the terms of the GNU  #
+# General Public License as published by the Free Software Foundation; either version 2 of the        #
+# License, or (at your option) any later version.                                                     #
+#                                                                                                     #
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without   #
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU      #
+# General Public License under http://www.gnu.org/licenses/gpl-2.0.html for more details.             #
+#                                                                                                     #
+# If you're including YF_UI functions in your own script(s) permanently, to deliver only one single   #
+# file, you HAVE TO KEEP these functions together as one single continuous part in your script AND    #
+# this section HAS TO BE prefixed by its own header, like it's created by framework generator AND the #
+# end of this section HAS TO BE marked clearly.                                                       #
+#                                                                                                     #
+# If you've changed anything to the content of UI functions, these changes HAVE TO BE marked with the #
+# name of author AND the date of change AND a short explanation, what was changed (if it's not        #
+# obvious).                                                                                           #
+#                                                                                                     #
+# In each case the copyright notice and licensing terms have to be kept as provided, but you may add  #
+# your own copyright notice(s) and your own license conditions, as long as they're conforming to the  #
+# rights granted by GPLv2 or later (with the exception above) and do not restrict or expand rights to #
+# these parts of code, which are licensed under YourFritz conditions above.                           #
+#                                                                                                     #
+#################################################################################################EMBED#
+#                                                                                                     #
+# constants                                                                                           #
+#                                                                                                     #
+#######################################################################################################
+avm_default_files="/etc/avm_firmware_public_key[1-9] plugin_global_key.pem"
+eva_prompt="Eva_AVM"
+box_key_name="/var/flash/websrv_ssl_key.pem"
+box_cert_name1="/var/flash/websrv_ssl_cert.pem"
+box_cert_name2="/var/tmp/websrv_ssl_cert.pem"
+sig_file_content="signature"
+sig_file_name="./var/signature"
+urlader_environment_file="environment"
+maca_name="maca"
+hwrev_name="HWRevision"
+prompt_name="prompt"
+eva_prompt="Eva_AVM"
+public_keys_list="public_keys_to_consider"
+tmp_pubkey="pubkey"
+tar_toc="tar_members"
+openssl_conf_name="openssl.conf"
+image_file_name="image_file"
+YF_UI_LANGUAGES="en de"
+#######################################################################################################
+#                                                                                                     #
+# exit code definitions                                                                               #
+#                                                                                                     #
+#######################################################################################################
+YF_CHECK_SIGNATURE_SUCCESS=0 # processing completed successfully
+YF_CHECK_SIGNATURE_INVALID_OPTION=1 # unknown option specified
+YF_CHECK_SIGNATURE_MISSING_ARGUMENTS=2 # missing arguments, usage screen shown
+YF_CHECK_SIGNATURE_IMAGE_FILE_MISSING=3 # specified image file not found
+YF_CHECK_SIGNATURE_MISSING_SIGNATURE=4 # specified image file doesn't contain a signature file (with proper name and path)
+YF_CHECK_SIGNATURE_WRONG_SIGNATURE_SIZE=5 # the signature file has a wrong/unexpected size
+YF_CHECK_SIGNATURE_FILE_NOT_FOUND=6 # a specified file does not exist
+YF_CHECK_SIGNATURE_WRONG_PUBLIC_KEY=7 # none of the public keys could be used to decrypt signature file
+YF_CHECK_SIGNATURE_INVALID_SIGNATURE_DATA=8 # invalid digest data found in signature file
+YF_CHECK_SIGNATURE_INVALID_CALL=9 # input file from STDIN, but it's a terminal
+YF_CHECK_SIGNATURE_UNSUPPORTED_HASH=10 # unsuppored hash algorithm was used to create the digest
+YF_CHECK_SIGNATURE_NO_KEYS_DEFINED=11 # no public keys available for verification (may occur with -f option, if none of the lines has been accepted)
+YF_CHECK_SIGNATURE_INVALID_DATA=12 # a specified public key file contains invalid data
+YF_CHECK_SIGNATURE_NO_BUILTIN_KEYS=13 # no builtin keys available, it's not a FRITZ!OS device we're running on
+YF_CHECK_SIGNATURE_NO_BOX_KEY=14 # unable to read box RSA key/certificate from /var/flash
+YF_CHECK_SIGNATURE_MISSING_KEY_OPTIONS=15 # no options for key sources specified
+YF_CHECK_SIGNATURE_NO_OSSL_BINARY=32 # no usable openssl binary found
+YF_CHECK_SIGNATURE_NO_OSSL_DIGEST=33 # the openssl binary doesn't support the 'dgst' command
+YF_CHECK_SIGNATURE_NO_OSSL_RSAUTIL=34 # the openssl binary doesn't support the 'rsautl' command
+YF_CHECK_SIGNATURE_NO_OSSL_X509=35 # the openssl binary doesn't support the 'x509' command and it would be needed
+YF_CHECK_SIGNATURE_VERIFICATION_FAILED=64 # signature verification wasn't successful
+#######################################################################################################
+#                                                                                                     #
+# determine our script path to locate the configuration file                                          #
+#                                                                                                     #
+#######################################################################################################
+my_path="$0"
+[ "${my_path%/*}" = "$my_path" ] && my_path="." || my_path="${my_path%/*}"
+# shellcheck disable=SC2034
+my_name="${0##*/}"
+#######################################################################################################
+#                                                                                                     #
+# include the configuration file, if it exists - only the definitions of external commands are used   #
+#                                                                                                     #
+#######################################################################################################
+config_file="${YF_SIGNIMAGE_CONFIG:-$my_path/yf_signimage.conf}"
+if [ -r "$config_file" ]; then
+	# shellcheck source=./yf_signimage.conf
+	. "$config_file"
+fi
+#######################################################################################################
+#                                                                                                     #
+# get the name of needed external command, if called from a cross-device toolchain                    #
+#                                                                                                     #
+#######################################################################################################
+if [ -n "$YF_SIGNIMAGE_OPENSSL" ]; then
+	__YF_SIGNIMAGE_OPENSSL="$YF_SIGNIMAGE_OPENSSL"
+	__yf_signimage_openssl()
+	{
+		"$__YF_SIGNIMAGE_OPENSSL" "$@"
+	}
+	YF_SIGNIMAGE_OPENSSL="__yf_signimage_openssl"
+else
+	YF_SIGNIMAGE_OPENSSL="openssl"
+fi
+
+#######################################################################################################
+#######################################################################################################
+##                                                                                                   ##
+##   Y o u r F r i t z   s h e l l   s c r i p t    l i b r ar y   a n d   Y o u r F r i t z   U I   ##
+##                                                                                                   ##
+#######################################################################################################
+#######################################################################################################
+
+__yf_check_required_command()
+(
+	IFS=:
+	set -- "$1"
+	for n in "$@"; do
+		command -v "$n" 2>/dev/null 1>&2 && exit 0
+	done
+	exit 1
+)
+
+__yf_ansi_sgr() { printf -- '\033[%sm' "$1"; }
+__yf_ansi_bold__="$(__yf_ansi_sgr 1)"
+__yf_ansi_underline__="$(__yf_ansi_sgr 4)"
+__yf_ansi_black__="$(__yf_ansi_sgr 30)"
+__yf_ansi_red__="$(__yf_ansi_sgr 31)"
+__yf_ansi_green__="$(__yf_ansi_sgr 32)"
+__yf_ansi_yellow__="$(__yf_ansi_sgr 33)"
+__yf_ansi_blue__="$(__yf_ansi_sgr 34)"
+__yf_ansi_magenta__="$(__yf_ansi_sgr 35)"
+__yf_ansi_cyan__="$(__yf_ansi_sgr 36)"
+__yf_ansi_white__="$(__yf_ansi_sgr 37)"
+__yf_ansi_gray__="$(__yf_ansi_sgr 90)"
+__yf_ansi_bright_red__="$(__yf_ansi_sgr 91)"
+__yf_ansi_bright_green__="$(__yf_ansi_sgr 92)"
+__yf_ansi_bright_yellow__="$(__yf_ansi_sgr 93)"
+__yf_ansi_bright_blue__="$(__yf_ansi_sgr 94)"
+__yf_ansi_bright_magenta__="$(__yf_ansi_sgr 95)"
+__yf_ansi_bright_cyan__="$(__yf_ansi_sgr 96)"
+__yf_ansi_bright_white__="$(__yf_ansi_sgr 97)"
+__yf_ansi_reset__="$(__yf_ansi_sgr 0)"
+__yf_bold() { printf -- "%s" "$__yf_ansi_bold__"; printf -- "%s" "$@"; printf -- "%s" "$__yf_ansi_reset__"; }
+__yf_undl() { printf -- "%s" "$__yf_ansi_underline__"; printf -- "%s" "$@"; printf -- "%s" "$__yf_ansi_reset__"; }
+__yf_color_codes()
+{
+	printf "%s\n" "$1" | sed \
+		-e "s|#BOLD#|${__yf_ansi_bold__}|g" \
+		-e "s|#UNDL#|${__yf_ansi_underline__}|g" \
+		-e "s|#BLCK#|${__yf_ansi_black__}|g" \
+		-e "s|#RED#|${__yf_ansi_red__}|g" \
+		-e "s|#GRN#|${__yf_ansi_green__}|g" \
+		-e "s|#YLLW#|${__yf_ansi_yellow__}|g" \
+		-e "s|#BLU#|${__yf_ansi_blue__}|g" \
+		-e "s|#MGNT#|${__yf_ansi_magenta__}|g" \
+		-e "s|#CYN#|${__yf_ansi_cyan__}|g" \
+		-e "s|#WHT#|${__yf_ansi_white__}|g" \
+		-e "s|#GRY#|${__yf_ansi_gray__}|g" \
+		-e "s|#BRED#|${__yf_ansi_bright_red__}|g" \
+		-e "s|#BGRN#|${__yf_ansi_bright_green__}|g" \
+		-e "s|#BYLLW#|${__yf_ansi_bright_yellow__}|g" \
+		-e "s|#BBLU#|${__yf_ansi_bright_blue__}|g" \
+		-e "s|#BMGNT#|${__yf_ansi_bright_magenta__}|g" \
+		-e "s|#BCYN#|${__yf_ansi_bright_cyan__}|g" \
+		-e "s|#BWHT#|${__yf_ansi_bright_white__}|g" \
+		-e "s|#RSET#|${__yf_ansi_reset__}|g"
+}
+
+__yf_escape_specials() { printf -- '%s\n' "$1" | sed -e 's|[";()$`\\]|\\&|g'; }
+__yf_escape_strings() { printf -- '%s\n' "$1" | sed -e 's|" $\\]|\\&|g'; }
+
+__yf_languages__="${YF_UI_LANGUAGES:-en}"
+__yf_get_language()
+(
+	__yf_get_language_code()
+	{
+		printf -- '%s\n' "$1" | sed -n -e '1s|^\([A-Za-z]*\).*|\1|p' | sed -e 'y/ABCDEFGHIJKLMNOPQRSTUVWXYZ/abcdefghijklmnopqrstuvwxyz/'
+	}
+
+	___yf_lang="$1" && shift
+
+	if [ -n "$Language" ]; then
+		___yf_check="$(__yf_get_language_code "$Language")"
+	elif [ -n "$LC_ALL" ]; then
+		___yf_check="$(__yf_get_language_code "$LC_ALL")"
+	else
+		[ -z "$LANG" ] || ___yf_check="$(__yf_get_language_code "$LANG")"
+	fi
+	if [ -n "$___yf_check" ]; then
+		[ "$___yf_lang" = "$___yf_check" ] || \
+		for ___yf_lng in "$@"; do
+			[ "$___yf_lng" = "$___yf_check" ] && ___yf_lang="$___yf_lng" && break
+		done
+	fi
+	printf -- '%s' "${___yf_lang:-en}"
+	unset ___yf_lng
+	unset ___yf_lang
+	unset ___yf_check
+)
+__yf_language__="$(eval __yf_get_language "$__yf_languages__")"
+
+__yf_get_localized()
+(
+	eval ___yf_msg="\${__YF_L10N_$1_${__yf_language__}}"
+	[ -z "$___yf_msg" ] && ___yf_lang="en" || ___yf_lang="$__yf_language__"
+	eval ___yf_msg="\${__YF_L10N_$1_${___yf_lang}}"
+	[ -z "$___yf_msg" ] && printf -- "Message definition '%s' is missing for '%s'.\n" "$1" "$__yf_language__" 1>&2 && return
+	printf -- '%s' "$___yf_msg"
+	unset ___yf_msg
+	unset ___yf_lang
+)
+__yf_declare_message()
+{
+	___yf_msg_lang="$1"
+	if [ "${#___yf_msg_lang}" -ne 2 ]; then
+		___yf_msg_lang='en'
+		___yf_msg_code="$1"
+		shift
+	else
+		___yf_msg_code="$2"
+		shift 2
+	fi
+	printf -- '__YF_L10N_%s_%s="%s"\n' "$___yf_msg_code" "$___yf_msg_lang" "$(__yf_escape_strings "$@")"
+	unset ___yf_msg_lang
+	unset ___yf_msg_code
+}
+__yf_msg()
+{
+	__yf_declare_message "$@"
+}
+__yf_localization()
+{
+	language="en"
+	while read -r id message; do
+		if [ "$id" = "language" ]; then
+			language="$message"
+			continue
+		fi
+		if [ -n "$id" ]; then
+			[ "$(expr "$id" : "\(.\).*")" != "#" ] \
+				&& __yf_declare_message "$language" "$id" "$(__yf_color_codes "$message")"
+		fi
+	done
+}
+
+#######################################################################################################
+#                                                                                                     #
+# functions to display messages to user                                                               #
+#                                                                                                     #
+#######################################################################################################
+__yf_nl_out() { printf -- '\n'; }
+__yf_nl_err() { __yf_nl_out 1>&2; }
+__yf_errmsg()
+{
+	___yf_mask="$1"
+	shift
+	# shellcheck disable=SC2059
+	printf -- "${___yf_mask}\a" "$@" 1>&2
+	unset ___yf_mask
+}
+__yf_emsg()
+{
+	___yf_mask="$(__yf_get_localized "$1")"
+	shift
+	__yf_errmsg "$___yf_mask" "$@"
+	unset ___yf_mask
+}
+__yf_info_output()
+{
+	___yf_mask="$1"
+	shift
+	# shellcheck disable=SC2059
+	printf -- "${___yf_mask}" "$@" 1>&2
+	unset ___yf_mask
+}
+__yf_info()
+{
+	___yf_mask="$(__yf_get_localized "$1")"
+	shift
+	__yf_info_output "$___yf_mask" "$@"
+	unset ___yf_mask
+}
+__yf_help()
+{
+	___yf_mask="$(__yf_color_codes "$1")"
+	shift
+	# shellcheck disable=SC2059
+	printf -- "${___yf_mask}" "$@"
+	unset ___yf_mask
+}
+#######################################################################################################
+#                                                                                                     #
+# temporary directory creation                                                                        #
+#                                                                                                     #
+#######################################################################################################
+__yf_random()
+(
+	[ -f /proc/sys/kernel/random/uuid ] && cat /proc/sys/kernel/random/uuid && exit 0
+	for h in md5sum sha1sum; do
+		if __yf_check_required_command $h; then
+			if [ -c /dev/urandom ] && __yf_check_required_command "dd"; then
+				$YF_SIGNIMAGE_DD if=/dev/urandom bs=32 count=1 status=none 2>/dev/null | $h | sed -n -e "s|^\([0-9A-Fa-f]*\).*\$|\1|p" && exit 0
+			fi
+			for f in /proc/self/stat /proc/self/status /proc/interrupts /proc/softirqs /proc/uptime; do
+				if [ -f $f ]; then
+					$h < $f | sed -n -e "s|^\([0-9A-Fa-f]*\).*\$|\1|p" && exit 0
+				fi
+			done
+		fi
+	done
+	__yf_check_required_command "date" && date +%s && exit 0
+	printf "%d" "$$"
+)
+__yf_mktmp()
+(
+	if __yf_check_required_command "mktemp"; then
+		n="$(mktemp "$@" 2>/dev/null)"
+	fi
+	if [ -z "$n" ]; then
+		t="${TMPDIR:-/tmp}"
+		[ "$1" = "-d" ] && d=1 || d=0
+		[ "$1" = "-p" ] && t="$2"
+		[ -z "$t" ] && t="/tmp"
+		n="$t/$(__yf_random)"
+		if [ $d -eq 1 ]; then
+			[ -d "$n" ] && n="$t/$(__yf_random)"
+			mkdir -p "$n" 2>/dev/null
+		else
+			while [ -e "$n" ]; do
+				n="$t/$(__yf_random)"
+			done
+			touch "$n" 2>/dev/null
+		fi
+	fi
+	printf "%s\n" "$n"
+)
+__yf_hex2bin()
+(
+	__yf_hex2bin_read_octal()
+	{
+		i=1
+		h=1
+		z=0
+		while read -r p l o; do
+			[ "$i" -lt "$p" ] && return 1 # zero bytes on input stream are an error
+			i=$(( i + 1 ))
+			if [ "$o" -eq 11 ] || [ "$o" -eq 12 ] || [ "$o" -eq 15 ] || [ "$o" -eq 40 ]; then
+				[ $h -eq 1 ] && continue || return 1 # whitespace after odd hex-digits
+			fi
+			if [ "$o" -ge 60 ] && [ "$o" -le 67 ]; then
+				c=$(( o - 60 ))
+			elif [ "$o" -ge 70 ] && [ "$o" -le 71 ]; then
+				c=$(( o - 62 ))
+			elif [ "$o" -ge 101 ] && [ "$o" -le 106 ]; then
+				c=$(( o - 91 ))
+			elif [ "$o" -ge 141 ] && [ "$o" -le 146 ]; then
+				c=$(( o - 131 ))
+			else
+				return 1 # invalid character found
+			fi
+			if [ $h -eq 0 ]; then
+				v=$(( v + c ))
+				if [ $v -eq 0 ]; then
+					z=$(( z + 1 )) # count consecutive zeros
+				else
+					if [ $z -gt 0 ]; then
+						dd if=/dev/zero bs=$z count=1 2>/dev/null
+						z=0
+					fi
+					printf "%b" "\0$(( v >> 6 ))$(( ( v >> 3 ) & 7 ))$(( v & 7 ))"
+				fi
+				h=1
+			else
+				v=$(( c * 16 ))
+				h=0
+			fi
+		done
+		[ $z -gt 0 ] && dd if=/dev/zero bs="$z" count=1 2>/dev/null
+		return 0
+	}
+
+	command -v cmp 2>/dev/null 1>&2 || return 1
+	command cmp -l -- /dev/zero - 2>/dev/null | __yf_hex2bin_read_octal
+	return $?
+)
+__yf_get_script_lines()
+{
+	sed -n -e "/^#*${1}#\$/,/^#\{20\}.*#\$/p" -- "$0" | \
+	sed -e '1d;$d' | \
+	sed -e 's|# \(.*\) *#$|\1|' | \
+	sed -e 's|^#*#$|--|p' | \
+	sed -e '$d' | \
+	sed -e 's| *$||'
+}
+__yf_show_script_name()
+{
+	[ -n "$1" ] && printf -- '%s' "$1"
+	printf -- '%s' "${0#*/}"
+	[ -n "$1" ] && printf -- "%s" "${__yf_ansi_reset__}"
+}
+__yf_show_license()
+{
+	__yf_get_script_lines 'LIC'
+}
+__yf_show_version()
+{
+	printf "\n${__yf_ansi_bold__}%s${__yf_ansi_reset__}, " "$(__yf_get_script_lines 'VER' | sed -n -e "2s|^\([^,]*\),.*|\1|p")"
+	v_display="$(__yf_get_script_lines 'VER' | sed -n -e "2s|^[^,]*, \(.*\)|\1|p")"
+	[ "$__yf_language__" = "de" ] && v_display="$(printf "%s\n" "$v_display" | sed -e "s|version|Version|g")"
+	printf "%s\n" "$v_display"
+}
+__yf_show_copyright()
+{
+	__yf_get_script_lines 'CPY'
+}
+
+#######################################################################################################
+#######################################################################################################
+##                                                                                                   ##
+##  D o n ' t   c h a n g e   a n y t h i n g   a b o v e   t h i s   p o i n t.                     ##
+##                                                                                                   ##
+##  ( u p   t o   t h e   f i r s t   m a r k )                                                      ##
+##                                                                                                   ##
+#######################################################################################################
+#######################################################################################################
+
+#######################################################################################################
+#                                                                                                     #
+# prepare localized messages                                                                          #
+#                                                                                                     #
+#######################################################################################################
+___yf_localization="$(__yf_mktmp)"
+__yf_localization >"$___yf_localization" <<'EOM'
+# YF_UI localization start
+language en
+
+INF_license					\nLicensed to you according to GPLv2 or a later version, with some additions.\nPlease refer to the usage screen for detailed license terms.\n\n
+ERR_show_error				#RED# FAILED#RSET#\n
+INF_show_ok					#GRN# OK#RSET#\n
+
+INF_ossl_version			Found version: #BBLU#%s#RSET# ...
+INF_copy_stdin				Copying image data from STDIN ...
+INF_data_count_stdin		#GRN# OK#RSET# - #BWHT#%u#RSET# bytes copied#RSET#\n
+INF_read_box_privkey		Trying to read public key from FRITZ!OS private key file (#BOLD#%s#RSET#) ...
+INF_read_box_cert			Trying to read public key from #BOLD#%s#RSET# ...
+INF_check_command			Check #BOLD#%s#RSET# command ...
+INF_check_digest			Verify digest algorithm #BOLD#%s#RSET# is supported ...
+INF_verify_success			#GRN#Verification succeeded.#RSET#\n
+INF_public_key_check		Checking the public key from #BOLD#%s#RSET# ...
+INF_check_supported_hash	Checking support for the used hash algorithm #BOLD#%s#RSET# ...
+INF_probing_keys			Trying to determine the correct key now ...\n
+
+ERR_missing_openssl			#RED#Missing #WHT#openssl#RED# binary, set #WHT#YF_SIGNIMAGE_OPENSSL#RED# variable to its path name.#RSET#\n
+ERR_RSA_key					#RED#Unable to read RSA key (%s) from input file #WHT#%s#RED#.#RSET#\n
+ERR_unexpected_exp			#RED#Unexpected output while reading exponent from public key file #WHT#%s#RED# (%s).#RSET#\n
+ERR_missing_file_for_option	#RED#Missing filename after #WHT#%s#RED# option.#RSET#\n
+ERR_missing_file_with_list	#RED#The specified public key files list #WHT#%s#RED# does not exist.#RSET#\n
+ERR_no_fritzos_device		#RED#The option #WHT#%s#RED# may only be used on a FRITZ!OS device.#RSET#\n
+ERR_pubkey_file_missing		#RED#The specified public key file #WHT#%s#RED# (%s) does not exist.#RSET#\n
+PART_condensed				condensed format
+PART_avmformat				AVMs format
+PART_pkcs1					%s format
+ERR_too_much_keys			#RED#The option #WHT#%s#RED# may only be used without any other keys.#RSET#\n
+ERR_missing_variable_name	#RED#Missing variable name after #WHT#%s#RED# option.#RSET#\n
+ERR_no_public_keys			#RED#None of the specified public keys could be loaded.#RSET#\n
+ERR_wrong_public_keys		#RED#No usable public key was found.#RSET#\n
+ERR_verify_failed			#RED#Signature verification failed.#RSET#\n
+ERR_image_file_missing		#RED#The specified image file #WHT#%s#RED# does not exist.#RSET#\n
+ERR_no_signature_found		#RED#The specified image file #WHT#%s#RED# contains no signature file (#WHT#%s#RED#).#RSET#\n
+ERR_invalid_signature_file	#RED#The specified image file #WHT#%s#RED# contains an invalid signature file (#WHT#%s#RED#).#RSET#\n
+ERR_missing_env_value		#YLLW#The specified environment variable #WHT#%s#YLLW# is missing or has an empty value.#RSET#\n
+ERR_unknown_option			#RED#Unknown option #WHT#%s#RED# specified on command line.#RSET#\n
+ERR_invalid_modulus			#YLLW#Invalid modulus value on line #WHT#%u#YLLW# of file #WHT#%s#YLLW#.#RSET#\n
+ERR_too_much_arguments		#RED#Extra data specified after #WHT#%s#RED# option.#RSET#\n
+ERR_invalid_exponent		#YLLW#Invalid exponent value on line #WHT#%u#YLLW# of file #WHT#%s#YLLW#.#RSET#\n
+ERR_file_read_error			#YLLW#Unable to read modulus value from file #WHT#%s#YLLW#, which was included on line #WHT#%u#YLLW# of file #WHT#%s#YLLW#, file skipped.#RSET#\n
+ERR_file_missing_error		#YLLW#File #WHT#%s#YLLW# from line #WHT#%u#YLLW# of #WHT#%s#YLLW# does not exist, line skipped.#RSET#\n
+ERR_missing_modulus			#RED#Missing #WHT#MOD#RED# value (modulus) on line #WHT#%u#RED# of condensed file #WHT#%s#RED#.#RSET#\n
+ERR_modulus_read_error		#YLLW#Unable to read modulus value from file #WHT#%s#YLLW#, file skipped.#RSET#\n
+ERR_openssl_unsupported		\n#RED#This version of OpenSSL (#BWHT#%s.%s.%s#RED#) is unsupported.#RSET#\n
+ERR_stdin_from_terminal		#RED#Image file shall be read from STDIN, but it is a terminal device.#RSET#\n
+ERR_missing_image_name		#RED#Missing image file name argument.#RSET#\n
+ERR_missing_key_sources		#RED#Missing key source options on command line.#RSET#\n
+ERR_invalid_image_data		#RED#Invalid image data found on STDIN.#RSET#\n
+
+language de
+
+INF_license					\nLizenziert nach den Bestimmungen der GPLv2 oder einer höheren Version, mit ein paar Zusätzen.\nEinzelheiten sind dem Hilfe-Bildschirm (in englischer Sprache) zu entnehmen.\n\n
+ERR_show_error				#RED# FEHLER#RSET#\n
+INF_show_ok					#GRN# OK#RSET#\n
+
+INF_ossl_version			Gefundene Version: #BBLU#%s#RSET# ...
+INF_copy_stdin				Kopiere Image-Daten von STDIN in temporäre Datei ...
+INF_data_count_stdin		#GRN# OK#RSET# - #BWHT#%u#RSET# Bytes kopiert#RSET#\n
+INF_read_box_privkey		Versuche den öffentlichen Schlüssel aus der privaten Schlüsseldatei im FRITZ!OS zu extrahieren (#BOLD#%s#RSET#) ...
+INF_read_box_cert			Versuche den öffentlichen Schlüssel aus dem Zertifikat in #BOLD#%s#RSET# im FRITZ!OS zu extrahieren ...
+INF_check_command			Prüfe Verfügbarkeit des #BOLD#%s#RSET#-Kommandos ...
+INF_check_digest			Prüfe, ob der Digest-Algorithmus #BOLD#%s#RSET# unterstützt ist ...
+INF_verify_success			#GRN#Die Signaturprüfung war erfolgreich.#RSET#\n
+INF_public_key_check		Prüfung des öffentlichen Schlüssels von #BOLD#%s#RSET# ...
+INF_check_supported_hash	Prüfung der Unterstützung des verwendeten Hash-Algorithmus #BOLD#%s#RSET# ...
+INF_probing_keys			Suche nach dem passenden öffentlichen Schlüssel ...\n
+
+ERR_missing_openssl			#RED#Es fehlt die Datei für #WHT#openssl#RED#, bitte die #WHT#YF_SIGNIMAGE_OPENSSL#RED#-Einstellung auf den Pfad zu diesem Kommando setzen.#RSET#\n
+ERR_RSA_key					#RED#Der RSA-Schlüssel (%s) kann nicht aus der Datei #WHT#%s#RED# gelesen werden.#RSET#\n
+ERR_unexpected_exp			#RED#Unerwartetes Ergebnis beim Versuch, den Exponenten des öffentlichen Schlüssels aus der Datei #WHT#%s#RED# (%s) zu lesen.#RSET#\n
+ERR_missing_file_for_option	#RED#Die Angabe eines Dateinamens nach der Option #WHT#%s#RED# fehlt.#RSET#\n
+ERR_missing_file_with_list	#RED#Die angegebene Datei #WHT#%s#RED# für die Liste mit Namen von Schlüsseldateien existiert nicht.#RSET#\n
+ERR_no_fritzos_device		#RED#Die Option #WHT#-b#RED# kann nur auf einem Gerät mit FRITZ!OS von AVM genutzt werden.#RSET#\n
+ERR_pubkey_file_missing		#RED#Die angegebene Datei #WHT#%s#RED# mit öffentlichen Schlüsseln (%s) existiert nicht.#RSET#\n
+PART_condensed				komprimiertes Format
+PART_avmformat				AVM-(Text-)Format
+PART_pkcs1					%s-Format
+ERR_too_much_keys			#RED#Die Option #WHT#%s#RED# kann nicht mit weiteren Optionen/Schlüsseln kombiniert werden.#RSET#\n
+ERR_missing_variable_name	#RED#Der Name der Environment-Variablen fehlt nach der Option #WHT#%s#RED#.#RSET#\n
+ERR_no_public_keys			#RED#Es ist kein öffentlicher Schlüssel für die Prüfung der Signatur verfügbar.#RSET#\n
+ERR_wrong_public_keys		#RED#Es konnte kein passender öffentlicher Schlüssel gefunden werden.#RSET#\n
+ERR_verify_failed			#RED#Die Signaturprüfung ist fehlgeschlagen.#RSET#\n
+ERR_image_file_missing		#RED#Die angegebene Image-Datei #WHT#%s#RED# existiert nicht.#RSET#\n
+ERR_no_signature_found		#RED#Die angegebene Image-Datei #WHT#%s#RED# enthält keine Signatur (#WHT#%s#RED#).#RSET#\n
+ERR_invalid_signature_file	#RED#Die angegebene Image-Datei #WHT#%s#RED# enthält eine Signatur-Datei mit ungültigem Aufbau (#WHT#%s#RED#).#RSET#\n
+ERR_missing_env_value		#YLLW#Die angegebene Environment-Variable #WHT#%s#YLLW# ist nicht gesetzt oder der Wert ist leer (Länge 0).#RSET#\n
+ERR_unknown_option			#RED#Die Option #WHT#%s#RED# is unbekannt.#RSET#\n
+ERR_invalid_modulus			#YLLW#Ungültige Daten für den Wert des Modulus in Zeile #WHT#%u#YLLW# der Datei #WHT#%s#YLLW#.#RSET#\n
+ERR_too_much_arguments		#RED#Zusätzliche Argumente angegeben nach der Option #WHT#%s#RED#.#RSET#\n
+ERR_invalid_exponent		#YLLW#Ungültige Daten für den Wert des Exponenten in Zeile #WHT#%u#YLLW# der Datei #WHT#%s#YLLW#.#RSET#\n
+ERR_file_read_error			#YLLW#Der Modulus-Wert konnte nicht aus der Datei #WHT#%s#YLLW#, die in Zeile #WHT#%u#YLLW# der Datei #WHT#%s#YLLW# hinzugefügt werden sollte, gelesen werden - die Datei wurde ignoriert.#RSET#\n
+ERR_file_missing_error		#YLLW#Die Datei #WHT#%s#YLLW#, die in Zeile #WHT#%u#YLLW# der Datei #WHT#%s#YLLW# hinzugefügt werden sollte, wurde nicht gefunden - die Zeile wurde ignoriert.#RSET#\n
+ERR_missing_modulus			#RED#Der Wert für #WHT#MOD#RED# (den Modulus des öffentlichen Schlüssels) fehlt in Zeile #WHT#%u#RED# der zusammengefassten Datei #WHT#%s#RED#.#RSET#\n
+ERR_modulus_read_error		#YLLW#Der Modulus-Wert konnte nicht aus der Datei #WHT#%s#YLLW# gelesen werden, die Datei wurde ignoriert.#RSET#\n
+ERR_openssl_unsupported		\n#RED#Diese OpenSSL-Version (#BWHT#%s.%s.%s#RED#) wird nicht unterstützt.#RSET#\n
+ERR_stdin_from_terminal		#RED#Die Image-Datei soll von STDIN gelesen werden, dort ist aber das Terminal verbunden.#RSET#\n
+ERR_missing_image_name		#RED#Es wurde keine Image-Datei angegeben beim Aufruf.#RSET#\n
+ERR_missing_key_sources		#RED#Beim Aufruf wurden keine Optionen für Quellen öffentlicher Schlüssel angegeben.#RSET#\n
+ERR_invalid_image_data		#RED#Ungültige Daten in der Image-Datei, die von STDIN gelesen wurde.#RSET#\n
+
+# YF_UI localization end
+EOM
+# shellcheck disable=SC1090
+. "$___yf_localization"
+rm -f "$___yf_localization" 2>/dev/null
+if [ -n "$YF_UI_DEBUG_MESSAGES" ]; then # show all defined messages and exit
+	set | grep "^__YF_L10N" 1>&2
+	exit 0
+fi
+unset ___yf_localization
+#######################################################################################################
+#                                                                                                     #
+# usage screen, caller has to redirect output to STDERR if needed                                     #
+#                                                                                                     #
+#######################################################################################################
+usage()
+(
+	if [ "$__yf_language__" = "de" ]; then
+		__yf_show_version
+		__yf_show_copyright
+		__yf_show_license
+		printf    "\nEine deutsche Version des oben stehenden Textes findet man - nach der Übersetzung des Textes der\n"
+		printf    "Lizenzbestimmungen - unter dieser Adresse im Internet: https://www.gnu.de/documents/gpl-2.0.de.html\n"
+		printf    "\nZweck:\n\n#BOLD#Prüfen, ob die Signatur in einem TAR-Image (nach AVM-Manier) gültig ist.#RSET#\n\n"
+		printf    "Aufruf:\n\n"
+		printf    "#GRN#%s #RSET#" "$0"
+		printf    "#BOLD#imagefile#RSET# #BBLU#public_keys#RSET#\n\n"
+		printf    "#BOLD#imagefile#RSET# ist die zu prüfende Image-Datei, bei Angabe eines Bindestrichs (-) wird der Inhalt der\n"
+		printf    "Standardeingabe (STDIN) in eine temporäre Datei geschrieben und im weiteren Verlauf dann diese\n"
+		printf    "verwendet.\n\n"
+		printf    "Nach dem Namen der Image-Datei kann mittels folgender Optionen festgelegt werden (als #BBLU#public_keys#RSET#),\n"
+		printf    "welche öffentlichen RSA-Schlüssel eine gültige Signatur erstellt haben könnten:\n\n"
+		printf -- "-a #BOLD#filename#RSET# - die Datei #BOLD#filename#RSET# enthält einen öffentlichen Schlüssel im AVM-Format, wobei es sich\n"
+		printf    "              um eine Textdatei handelt, welche in der ersten Zeile den Modulus-Wert als hexadezi-\n"
+		printf    "              male Zeichenkette enthält und in der zweiten Zeile den verwendeten Exponenten\n"
+		printf    "              (üblicherweise 65537, ebenfalls als hexadezimale Zeichenkette: 010001)\n\n"
+		printf -- "-f #BOLD#filename#RSET# - die Datei #BOLD#filename#RSET# enthält pro Zeile den Namen einer Datei, die (in demselben Format,\n"
+		printf    "              welches auch AVM verwendet, s.o.) einen potentiellen öffentlichen Schlüssel enthält\n\n"
+		printf -- "-c #BOLD#filename#RSET# - die Datei #BOLD#filename#RSET# enthält pro Zeile die Angaben für einen öffentlichen Schlüssel,\n"
+		printf    "              wobei die Daten jeweils aus einem Name-/Wert-Paar bestehen, mit folgenden Namen:\n\n"
+		printf    "              MOD  - der Modulus des Schlüssels (diese Angabe MUSS vorhanden sein in der Zeile)\n"
+		printf    "              EXP  - der verwendete Exponent (fehlt die Angabe, wird wieder 65537 angenommen)\n"
+		printf    "              SRC  - wird als Name der Datei angezeigt, wenn der Schlüssel verarbeitet wird, der\n"
+		printf    "                     Wert MUSS in doppelte Anführungszeichen (\") eingeschlossen sein\n"
+		printf    "              DESC - kann zusätzliche Informationen zu diesem Schlüssel enthalten, z.B. woher er\n"
+		printf    "                     stammt; die Angabe wird derzeit noch nicht verwendet, der Wert MUSS aber auch\n"
+		printf    "                     in doppelte Anführungszeichen (\") eingeschlossen sein, wenn er vorhanden ist\n\n"
+		printf    "              Die Werte für SRC und DESC dürfen selbst kein doppeltes Anführungszeichen enthalten,\n"
+		printf    "              es gibt auch keine Möglichkeit, ein solches zu 'maskieren' im Wert.\n\n"
+		printf -- "-e #BOLD#variable#RSET# - die angegebene #BOLD#variable#RSET# im Shell-Environment enthält den Modulus eines öffentlichen\n"
+		printf    "              Schlüssels, der Exponent wird fix als 65537 angenommen\n\n"
+		printf -- "-p #BOLD#filename#RSET# - die Datei #BOLD#filename#RSET# enthält einen PKCS#1-kodierten öffentlichen Schlüssel im PEM-\n"
+		printf    "              Format (Base64-kodiertes DER-Format)\n\n"
+		printf -- "-d #BOLD#filename#RSET# - die Datei #BOLD#filename#RSET# enthält einen PKCS#1-kodierten öffentlichen Schlüssel im DER-\n"
+		printf    "              Format\n\n"
+		printf    "Wird dieses Skript auf einem Gerät mit FRITZ!OS von AVM ausgeführt, stehen auch noch diese beiden\n"
+		printf    "Optionen zur Auswahl:\n\n"
+		printf -- "-b          - alle öffentlichen Schlüssel aus dem laufenden FRITZ!OS werden der Liste potentieller\n"
+		printf    "              Schlüssel hinzugefügt, die Dateien befinden sich im Verzeichnis #BOLD#/etc#RSET# und haben die\n"
+		printf    "              Namen #BOLD#avm_firmware_public_key[1-9]#RSET# bzw. #BOLD#plugin_global_key.pem#RSET#\n\n"
+		printf -- "-s          - es wird ausschließlich der öffentliche Schlüssel akzeptiert, der zu dem privaten\n"
+		printf    "              Schlüssel des Gerätes (in #BOLD#/var/flash/websrv_ssl_key.pem#RSET#) gehört, dieser wird ggf.\n"
+		printf    "              auch noch in der Datei #BOLD#/var/flash/websrv_ssl_cert.pem#RSET# bzw. danach noch in der\n"
+		printf    "              #BOLD#/var/tmp/websrv_ssl_cert.pem#RSET# gesucht, wenn er zuvor nicht gefunden wurde (für das\n"
+		printf    "              Auslesen des Wertes aus einem der beiden Zertifikate muß das vorhandene #BOLD#OpenSSL#RSET#-\n"
+		printf    "              Programm zusätzlich das Kommando #BOLD#x509#RSET# unterstützen); die Option #BOLD#-s#RSET# kann nicht mit\n"
+		printf    "              anderen Optionen kombiniert werden\n\n"
+		printf    "Der erste öffentliche Schlüssel, mit dem sich die Signatur-Datei in der angegebenen Image-Datei\n"
+		printf    "entschlüsseln läßt (sie werden in der Reihenfolge der Angaben beim Aufruf geprüft), wird danach\n"
+		printf    "benutzt, um den Hash-Wert in der Signatur mit dem berechneten Hash-Wert über den restlichen Inhalt\n"
+		printf    "der Image-Datei zu vergleichen.\n\n"
+	else
+		__yf_show_version
+		__yf_show_copyright
+		__yf_show_license
+		printf    "\nPurpose:\n\n#BOLD#Check, whether signature of an image file is valid.#RSET#\n\n"
+		printf    "Usage:\n\n"
+		printf    "#GRN#%s #RSET#" "$0"
+		printf    "#BOLD#imagefile#RSET# #BBLU#public_keys#RSET#\n\n"
+		printf    "#BOLD#imagefile#RSET# is the archive to check, if specified as a dash (-), STDIN stream will be saved to a\n"
+		printf    "temporary location while the script is running.\n\n"
+		printf    "The list of public keys to consider for decryption (the #BBLU#public_keys#RSET# part above) may be built from\n"
+		printf    "the following sources:\n\n"
+		printf -- "-a #BOLD#filename#RSET# - add key from specified file (containing a key in AVM's text format) to the list, the\n"
+		printf    "              file has to contain two lines with hexadecimal strings, where the first line\n"
+		printf    "              represents the modulus value and the second one the exponent\n\n"
+		printf -- "-f #BOLD#filename#RSET# - add keys from files named in the specified file (one file per line), each file has to\n"
+		printf    "              contain a key in AVM's format (see above)\n\n"
+		printf -- "-c #BOLD#filename#RSET# - add lines from specified file to the list, lines have to use a text format with\n"
+		printf    "              key/value pairs to provide at least a MOD and EXP value (if the used exponent isn't\n"
+		printf    "              the default 65537), SRC (optional) as a pseudo filename and DESC (optional, too) as a\n"
+		printf    "              description to be displayed for this key (the DESC value is unused yet)\n\n"
+		printf -- "-e #BOLD#variable#RSET# - add modulus from specified environment variable (hexadecimal string) with a fixed\n"
+		printf    "              exponent of 0x010001\n\n"
+		printf -- "-p #BOLD#filename#RSET# - add key from specified file (PEM format) to the list\n\n"
+		printf -- "-d #BOLD#filename#RSET# - add key from specified file (DER format) to the list\n\n"
+		printf    "If the script is running from a FRITZ!OS-based device, the following options are available, too:\n\n"
+		printf -- "-b          - add key files from current OS to the list\n\n"
+		printf -- "-s          - verify that image file was signed with RSA key from local FRITZ!OS device - this\n"
+		printf    "              option can't be combined with other options\n\n"
+		printf    "The first key from specified sources (which are probed in the specified order) able to decode the\n"
+		printf    "signature file will be used for signature verification.\n\n"
+	fi
+)
+#######################################################################################################
+#                                                                                                     #
+# some subfunctions                                                                                   #
+#                                                                                                     #
+#######################################################################################################
+show_error()
+(
+	__yf_emsg "ERR_show_error"
+)
+show_ok()
+(
+	__yf_info "INF_show_ok"
+)
+show_version()
+(
+	version=$("$YF_SIGNIMAGE_OPENSSL" version 2>/dev/null)
+	if [ $? -eq 127 ]; then
+		__yf_emsg "ERR_missing_openssl"
+		exit 1
+	else
+		__yf_info "INF_ossl_version" "$version"
+		vn="$(expr "$version" : "OpenSSL \([^ ]*\).*")"
+		v_l_major="$(expr "$vn" : "\([^\.]*\).*")"
+		v_l_minor="$(expr "$vn" : "[^\.]*\.\([^\.]*\).*")"
+		v_l_patch="$(expr "$vn" : "[^\.]*\.[^\.]\.\(.*\)")"
+		if [ "$(( v_l_major ))" -lt 1 ]; then
+			show_error
+			__yf_emsg "ERR_openssl_unsupported" "$v_l_major" "$v_l_minor" "$v_l_patch"
+			exit 1
+		fi
+		show_ok
+		printf "v_major=%s v_minor=%s" "$v_l_major" "$v_l_minor"
+		cnf="$("$YF_SIGNIMAGE_OPENSSL" version 2>&1 | sed -n -e "s|WARNING: can't open config file: \(.*\)\$|\1|p")"
+		if [ -n "$cnf" ]; then # OpenSSL configuration file missing
+			touch "$tmp/$openssl_conf_name"
+			printf "; export OPENSSL_CONF=\"%s\"" "$tmp/$openssl_conf_name"
+		fi
+		printf "\n"
+	fi
+)
+openssl_check_command()
+(
+	__yf_info "INF_check_command" "$3"
+	if [ "$1" = "1" ] && [ "$2" = "0" ]; then
+		if printf "" | "$YF_SIGNIMAGE_OPENSSL" "$3" 2>&1 | grep -q "$4" 2>/dev/null 1>&2; then
+			show_ok
+			exit 0
+		else
+			show_error
+			exit 1
+		fi
+	else # newer versions provide the 'list' command and there's no need anymore to look for error messages or expected output
+		if "$YF_SIGNIMAGE_OPENSSL" list -1 -commands | grep -q "^$3\$" 2>/dev/null 1>&2; then
+			show_ok
+			exit 0
+		else
+			show_error
+			exit 1
+		fi
+	fi
+)
+openssl_check_digest()
+(
+	__yf_info "INF_check_digest" "$3"
+	if [ "$1" = "1" ] && [ "$2" = "0" ]; then
+		if printf "" | "$YF_SIGNIMAGE_OPENSSL" dgst -"$3" 2>&1 | grep -q "$4" 2>/dev/null 1>&2; then
+			show_ok
+			exit 0
+		else
+			show_error
+			exit 1
+		fi
+	else # newer versions provide the 'list' command and there's no need anymore to look for error messages or expected output
+		if "$YF_SIGNIMAGE_OPENSSL" list -1 -digest-commands | grep -q "^$3\$" 2>/dev/null 1>&2; then
+			show_ok
+			exit 0
+		else
+			show_error
+			exit 1
+		fi
+	fi
+)
+#######################################################################################################
+#                                                                                                     #
+# try to identify FRITZ!OS as runtime environment (not too sophisticated, but it should be able to    #
+# make this distinction)                                                                              #
+#                                                                                                     #
+#######################################################################################################
+is_fritzos_environment()
+(
+	hwrev_shell="$(eval "printf '%s\n' \$$hwrev_name")"
+	[ ${#hwrev_shell} -eq 0 ] && exit 1
+	[ ${#CONFIG_ENVIRONMENT_PATH} -eq 0 ] && exit 1
+	[ -d "$CONFIG_ENVIRONMENT_PATH" ] || exit 1
+	[ -f "$CONFIG_ENVIRONMENT_PATH/$urlader_environment_file" ] || exit 1
+	prompt_loader="$(sed -n -e "s|^$prompt_name\t\(.*\)\$|\1|p" "$CONFIG_ENVIRONMENT_PATH/$urlader_environment_file")"
+	[ ${#prompt_loader} -eq 0 ] && exit 1
+	[ "$prompt_loader" != "$eva_prompt" ] && exit 1
+	exit 0
+)
+#######################################################################################################
+#                                                                                                     #
+# compute password of private key file from /var/flash/websrv_ssl_key.pem                             #
+#                                                                                                     #
+# meanwhile the cat was let out of the bag - no needs to use privatekeypassword anymore, instead      #
+# we'll compute the hash ourself and translate it to the right string                                 #
+#                                                                                                     #
+#######################################################################################################
+box_key_password()
+(
+	is_fritzos_environment || exit 1
+	maca="$(sed -n -e "$(printf 's|^%s\\t\\(.*\\)|\\1|p' "$maca_name")" "$CONFIG_ENVIRONMENT_PATH/$urlader_environment_file")"
+	if command -v md5sum 2>/dev/null 1>&2; then
+		hash="$(printf "%s" "$maca" | md5sum)"
+	else
+		hash="$(printf "%s" "$maca" | "$YF_SIGNIMAGE_OPENSSL" dgst -md5 -r)"
+	fi
+	md5_bytes="$(printf "%s\n" "$hash" | sed -e "s|^\([0-9a-fA-F]\{16\}\).*|\1|" -e "s|..|& |g")"
+	for b in $md5_bytes; do
+		printf "%c" "$(expr 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!$' : ".\{$(( 0x$b % 64 ))\}\(.\).*")"
+	done
+	printf "\n"
+	exit 0
+)
+#######################################################################################################
+#                                                                                                     #
+# output lines to use the builtin keys from the FRITZ!OS system, this script is running on - any      #
+# further search will be skipped, if the environment does not match the usual characteristics of a    #
+# FRITZ!Box router or a FRITZ!Repeater device                                                         #
+#                                                                                                     #
+#######################################################################################################
+builtin_keys()
+(
+	is_fritzos_environment || exit 1
+	for f in $avm_default_files; do
+		if [ -f "$f" ]; then
+			mod=$(sed -n -e "1p" "$f")
+			exp=$(sed -n -e "2p" "$f")
+			[ ${#exp} -eq 0 ] && exp=010001
+			printf "DESC=\"current system\" SRC=\"%s\" MOD=%s EXP=%s\n" "$f" "$mod" "$exp"
+		fi
+	done
+	exit 0
+)
+#######################################################################################################
+#                                                                                                     #
+# check, whether a valid modulus value was specified for RSA key size of 1024, 2048, 3072 or 4096 bit #
+#                                                                                                     #
+#######################################################################################################
+check_modulus()
+(
+	[ -n "$(expr "$1" : ".*\([^0-9a-fA-F]\).*")" ] && exit 1
+	for i in 256 512 768 1024; do
+		[ ${#1} -eq $i ] && exit 0
+		[ ${#1} -eq $(( i + 2 )) ] && [ "$(expr "$1" : "\(00\).*")" = "00" ] && exit 0
+	done
+	exit 1
+)
+#######################################################################################################
+#                                                                                                     #
+# check, whether the specified value is a hexadecimal string                                          #
+#                                                                                                     #
+#######################################################################################################
+is_hexadecimal()
+(
+	[ -n "$(expr "$1" : ".*\([^0-9a-fA-F]\).*")" ] && exit 1
+	[ $(( ${#1} % 2 )) -eq 0 ] && exit 0
+	exit 1
+)
+#######################################################################################################
+#                                                                                                     #
+# convert modulus (and optional an exponent) from hexadecimal string to DER format, a version with    #
+# comments regarding the structure and single steps may be found in yf_mod2der (a standalone script   #
+# to convert from AVM's text representation to an ASN.1 encoded DER file)                             #
+#                                                                                                     #
+#######################################################################################################
+modulus_to_der()
+(
+	mod="$1"
+	exp="${2:-010001}"
+	t_int=02
+	t_seq=30
+	t_bstr=03
+	t_oid=06
+	t_null=0500
+
+	asn1_len()
+	{
+		x()
+		{
+			v=$1
+			l=$(printf "%x" "$v")
+			[ $(( ${#l} % 2 )) -ne 0 ] && l="0$l"
+			printf "%s" "$l"
+		}
+
+		l=0
+		v=$1
+		l=$(( ${#v} / 2 ))
+		if [ $l -gt 127 ]; then
+			i=$(x $l)
+			l=$(( ( ${#i} / 2 ) + 128 ))
+			printf "%s" "$(x $l)$i"
+		else
+			printf "%s" "$(x $l)"
+		fi
+	}
+
+	m_len="$t_int$(asn1_len "$mod")"
+	e_len="$t_int$(asn1_len "$exp")"
+	pk_c="$m_len$mod$e_len$exp"
+	pk_len="$(asn1_len "$pk_c")"
+	pk_seq="$t_seq$pk_len$pk_c"
+	pk_bit="00$pk_seq"
+	bits="$t_bstr$(asn1_len "$pk_bit")$pk_bit"
+	oid="2A864886F70D010101"
+	o_enc="$t_oid$(asn1_len "$oid")$oid"
+	o_alg="$o_enc$t_null"
+	o_seq="$t_seq$(asn1_len "$o_alg")$o_alg"
+	der="$t_seq$(asn1_len "$o_seq$bits")"
+	res="$der$o_seq$bits"
+	printf "%s" "$res" | __yf_hex2bin
+	return $?
+)
+#######################################################################################################
+#                                                                                                     #
+# convert public key from PKCS#1 formats (DER or the base64 encoded DER -> PEM) according to RFC 8017 #
+# (Appendix A.1.1) to our intermediate text format                                                    #
+#                                                                                                     #
+# seems like an unnecessary conversion, but it makes later handling easier, if we 'normalize' each    #
+# possible public key in front of final search for the proper key                                     #
+#                                                                                                     #
+#######################################################################################################
+pubkey_pkcs1_to_text()
+(
+	file="$1"
+	format="$2"
+	desc="${3:-$format key}"
+	src="${4:-$file}"
+	if ! line="$("$YF_SIGNIMAGE_OPENSSL" rsa -in "$file" -pubin -inform "$format" -modulus -noout 2>/dev/null)"; then
+		__yf_emsg "ERR_RSA_key" "$format" "$file"
+		exit 1
+	else
+		MOD="$(printf "%s\n" "$line" | sed -n -e "s|^Modulus=\(.*\)|\1|p" | sed -e "y/ABCDEF/abcdef/")"
+		if [ ${#MOD} -eq 0 ]; then
+			__yf_emsg "ERR_RSA_key" "$format" "$file"
+			exit 1
+		fi
+		expr "$MOD" : "\([89a-f]\).*" 2>/dev/null 1>&2 && MOD="00$MOD"
+		if ! "$YF_SIGNIMAGE_OPENSSL" rsa -in "$file" -pubin -inform "$format" -text -noout 2>/dev/null | \
+		grep -q "^Exponent: 65537 (0x10001)\$" 2>/dev/null 1>&2; then # different exponent, read it from the output
+			EXP=$("$YF_SIGNIMAGE_OPENSSL" rsa -in "$file" -pubin -inform "$format" -text -noout | \
+			sed -n -e "s|^Exponent: [0-9]* (\(0x[0-9a-fA-F]*\))\$|\1|p")
+			if [ ${#EXP} -eq 0 ]; then
+				__yf_emsg "ERR_unexpected_exp" "$file" "$format"
+				exit 1
+			fi
+			EXP="$(printf "%016x" "$(( EXP ))")"
+			while [ "$(expr "$EXP" : "\(.\).*")" = "0" ]; do
+				EXP="$(expr "$EXP" : ".\(.*\)")"
+			done
+			[ $(( ${#EXP} % 2 )) -ne 0 ] && EXP="0$EXP"
+		else
+			EXP="010001"
+		fi
+		printf "DESC=\"%s\" SRC=\"%s\" MOD=%s EXP=%s\n" "$desc" "$src" "$MOD" "$EXP"
+	fi
+	exit 0
+)
+#######################################################################################################
+#                                                                                                     #
+# output the modulus from RSA key in /var/flash/websrv_ssl_key.pem to the list                        #
+#                                                                                                     #
+# We'll try to extract the modulus from the private key first, if we cannot read this key due to      #
+# missing or wrong password, we'll extract it from the X.509 certificate in /var/flash or /var/tmp.   #
+#                                                                                                     #
+#######################################################################################################
+read_box_key()
+(
+	__yf_info "INF_read_box_privkey" "$box_key_name"
+	if "$YF_SIGNIMAGE_OPENSSL" rsa -in $box_key_name -pubout -passin pass:"$(box_key_password)" -out "$tmp/$tmp_pubkey" 2>/dev/null; then
+		pubkey_pkcs1_to_text "$tmp/$tmp_pubkey" PEM "box key" "FRITZ!OS RSA key" && show_ok && exit 0
+		show_error
+	fi
+	show_error
+	# try to use the certificate to get the public key
+	__yf_info "INF_check_command" "x509"
+	if printf "" | "$YF_SIGNIMAGE_OPENSSL" x509 2>&1 | grep -q '^unable to load certificate' 2>/dev/null 1>&2; then
+		show_ok
+	else
+		show_error
+		exit $YF_CHECK_SIGNATURE_NO_OSSL_X509
+	fi
+	__yf_info "INF_read_box_cert" "$box_cert_name1"
+	if ! "$YF_SIGNIMAGE_OPENSSL" x509 -in "$box_cert_name1" -pubkey -noout >"$tmp/$tmp_pubkey" 2>/dev/null; then
+		show_error
+		__yf_info "INF_read_box_cert" "$box_cert_name2"
+		if ! "$YF_SIGNIMAGE_OPENSSL" x509 -in "$box_cert_name2" -pubkey -noout >"$tmp/$tmp_pubkey" 2>/dev/null; then
+			show_error
+			exit 1
+		else
+			show_ok
+		fi
+	else
+		show_ok
+	fi
+	pubkey_pkcs1_to_text "$tmp/$tmp_pubkey" PEM "box certificate" "FRITZ!OS certificate"
+)
+#######################################################################################################
+#                                                                                                     #
+# TAR file handling functions                                                                         #
+#                                                                                                     #
+#######################################################################################################
+tar_create_table_of_contents()
+(
+	block_no=0
+	max_block=$(( $(wc -c < "$1") / 512 ))
+	magic="$(__yf_mktmp -p "$tmp")"
+	empty="$(__yf_mktmp -p "$tmp")"
+	printf "ustar" >"$magic"
+	dd if=/dev/zero bs=512 count=1 status=none >"$empty"
+	while [ "$block_no" -lt "$max_block" ]; do
+		if dd if="$1" bs=512 skip="$block_no" count=1 status=none | dd bs=1 skip=257 count=5 status=none | cmp -s "$magic" -; then
+			name="$(dd if="$1" bs=512 skip="$block_no" count=1 status=none | dd bs=1 skip=0 count=100 status=none | tr -d '\000')"
+			[ "${#name}" -gt 99 ] && exit 3 # name too long
+			size="$(dd if="$1" bs=512 skip="$block_no" count=1 status=none | dd bs=1 skip=124 count=12 status=none | tr -d '\000')"
+			size=$(( 0$size ))
+			type="$(dd if="$1" bs=512 skip="$block_no" count=1 status=none | dd bs=1 skip=156 count=1 status=none | tr -d '\000')"
+			[ ${#type} -eq 0 ] && type=0
+			{ ! [ "$type" = "0" ] && ! [ "$type" = "5" ]; } && exit 2 # invalid type of entry
+			printf "HEADER=%u START=%u END=%u SIZE=%u BLOCKS=%u TYPE=%s MEMBER=\"%s\"\n" "$(( block_no * 512 ))" "$(( ( block_no + 1 ) * 512 ))" "$(( ( ( block_no + 1 ) * 512 ) + size ))" "$size" "$(( ( size + 511 ) / 512 ))" "$type" "$name"
+			block_no=$(( block_no + 1 + ( ( size + 511 ) / 512 ) ))
+		else
+			! dd if="$1" bs=512 skip="$block_no" count=1 status=none | cmp -s "$empty" - && exit 1
+			[ $block_no -lt 1 ] && exit 1
+			block_no=$(( block_no + 1 ))
+		fi
+	done
+)
+tar_get_member_data()
+(
+	if [ -z "$3" ]; then
+		toc="$(__yf_mktmp -p "$tmp")"
+		tar_create_table_of_contents "$1" >"$toc"
+	else
+		toc="$3"
+	fi
+	while read -r line; do
+		eval "$line"
+		if [ "$2" = "$MEMBER" ]; then
+			if [ "$BLOCKS" -gt 1 ]; then
+				dd if="$1" bs=512 skip=$(( START / 512 )) count=$(( BLOCKS - 1 )) status=none
+			fi
+			# shellcheck disable=SC2153
+			dd if="$1" bs=512 skip=$(( ( START / 512 ) + BLOCKS - 1 )) count=1 status=none | \
+			dd bs=1 count=$(( SIZE % 512 )) status=none
+			exit 0
+		fi
+	done <"$toc"
+	exit 1
+)
+#######################################################################################################
+#                                                                                                     #
+# prepare a temporary directory and cleanup on exit                                                   #
+#                                                                                                     #
+#######################################################################################################
+tmp=$(__yf_mktmp -d)
+trap '[ -d "$tmp" ] && rm -r "$tmp" 2>/dev/null 1>&2' EXIT HUP
+#######################################################################################################
+#                                                                                                     #
+# check arguments for specified options                                                               #
+#                                                                                                     #
+#######################################################################################################
+if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+	usage
+	exit $YF_CHECK_SIGNATURE_SUCCESS
+fi
+#######################################################################################################
+#                                                                                                     #
+# some output due to license terms                                                                    #
+#                                                                                                     #
+#######################################################################################################
+__yf_show_version 1>&2
+__yf_show_copyright 1>&2
+__yf_info "INF_license"
+#######################################################################################################
+#                                                                                                     #
+# check input file                                                                                    #
+#                                                                                                     #
+#######################################################################################################
+if [ -z "$1" ]; then
+	__yf_emsg "ERR_missing_image_name"
+	exit $YF_CHECK_SIGNATURE_MISSING_ARGUMENTS
+fi
+image_file="$1"
+if [ "$image_file" = "-" ]; then
+	if [ -t 0 ]; then
+		__yf_emsg "ERR_stdin_from_terminal"
+		exit $YF_CHECK_SIGNATURE_INVALID_CALL
+	fi
+	image_file="$tmp/$image_file_name"
+	__yf_emsg "INF_copy_stdin"
+	image_size="$(tee "$image_file" | wc -c 2>/dev/null)"
+	if [ "$image_size" -le 512 ]; then
+		show_error
+		__yf_emsg "ERR_invalid_image_data"
+		exit $YF_CHECK_SIGNATURE_INVALID_DATA
+	else
+		__yf_info "INF_data_count_stdin" "$image_size"
+	fi
+fi
+if ! [ -f "$image_file" ]; then
+	__yf_emsg "ERR_image_file_missing" "$image_file"
+	exit $YF_CHECK_SIGNATURE_IMAGE_FILE_MISSING
+fi
+shift
+if [ -z "$1" ]; then
+	__yf_emsg "ERR_missing_key_sources"
+	exit $YF_CHECK_SIGNATURE_MISSING_KEY_OPTIONS
+fi
+#######################################################################################################
+#                                                                                                     #
+# check OpenSSL presence and version                                                                  #
+#                                                                                                     #
+#######################################################################################################
+v_number="$(show_version)" || exit $YF_CHECK_SIGNATURE_NO_OSSL_BINARY
+eval "$v_number"
+# shellcheck disable=SC2154
+openssl_check_command "$v_major" "$v_minor" "dgst" "^(stdin)=" || exit $YF_CHECK_SIGNATURE_NO_OSSL_DIGEST
+openssl_check_command "$v_major" "$v_minor" "rsautl" "to load Private Key" || exit $YF_CHECK_SIGNATURE_NO_OSSL_RSAUTIL
+#######################################################################################################
+#                                                                                                     #
+# build table of contents from provided image file                                                    #
+#                                                                                                     #
+#######################################################################################################
+tar_create_table_of_contents "$image_file" >"$tmp/$tar_toc"
+#######################################################################################################
+#                                                                                                     #
+# get the signature file from the image and check that it is in the expected format, before we waste  #
+# a lot of time with checking an invalid signature file                                               #
+#                                                                                                     #
+#######################################################################################################
+last_sig=0
+i=0
+while read -r line; do
+	i=$(( i + 1 ))
+	eval "$line"
+	if [ "$MEMBER" = "$sig_file_name" ]; then
+		last_sig=$i
+	fi
+done <"$tmp/$tar_toc"
+if [ $last_sig -eq 0 ]; then
+	__yf_emsg "ERR_no_signature_found" "$image_file" "$sig_file_name"
+	exit $YF_CHECK_SIGNATURE_MISSING_SIGNATURE
+fi
+eval "$(sed -n -e "${last_sig}p" "$tmp/$tar_toc")"
+if [ "$SIZE" -eq 0 ] || [ "$SIZE" -gt 512 ]; then
+	__yf_emsg "ERR_invalid_signature_file" "$image_file" "$sig_file_name"
+	exit $YF_CHECK_SIGNATURE_WRONG_SIGNATURE_SIZE
+fi
+tar_get_member_data "$image_file" "$sig_file_name" "$tmp/$tar_toc" >"$tmp/$sig_file_content"
+fs="$(wc -c < "$tmp/$sig_file_content")"
+if [ "$fs" -ne 128 ] && [ "$fs" -ne 256 ] && [ "$fs" -ne 512 ]; then # signature size for 1024-, 2048- and 4096-bit keys
+	__yf_emsg "ERR_invalid_signature_file" "$image_file" "$sig_file_name"
+	exit $YF_CHECK_SIGNATURE_WRONG_SIGNATURE_SIZE
+fi
+seek_image=$(( HEADER / 512 ))
+#######################################################################################################
+#                                                                                                     #
+# copy the specified public keys from different sources to our temporary key list                     #
+#                                                                                                     #
+#######################################################################################################
+touch "$tmp/$public_keys_list"
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		"-a")
+			if [ -z "$2" ]; then
+				__yf_emsg "ERR_missing_file_for_option" "-a"
+				exit $YF_CHECK_SIGNATURE_MISSING_ARGUMENTS
+			fi
+			if ! [ -f "$2" ]; then
+				__yf_emsg "ERR_pubkey_file_missing" "$2" "$(__yf_get_localized PART_avmformat)"
+				exit $YF_CHECK_SIGNATURE_FILE_NOT_FOUND
+			fi
+			fn="$2"
+			unset MOD
+			unset EXP
+			MOD="$(sed -n -e "1p" "$2")"
+			EXP="$(sed -n -e "2p" "$2")"
+			if [ ${#MOD} -gt 0 ]; then
+				[ ${#EXP} -eq 0 ] && exp=010001
+				if ! check_modulus "$MOD"; then
+					__yf_emsg "ERR_invalid_modulus" "1" "$fn"
+					exit $YF_CHECK_SIGNATURE_INVALID_DATA
+				fi
+				if ! is_hexadecimal "$EXP"; then
+					__yf_emsg "ERR_invalid_exponent" "2" "$fn"
+					exit $YF_CHECK_SIGNATURE_INVALID_DATA
+				fi
+				printf "DESC=\"text file from command line\" SRC=\"%s\" MOD=%s EXP=%s\n" "$2" "$MOD" "$EXP" >>"$tmp/$public_keys_list"
+			else
+				__yf_emsg "ERR_modulus_read_error" "$fn"
+			fi
+			shift 2
+			;;
+		"-f")
+			if [ -z "$2" ]; then
+				__yf_emsg "ERR_missing_file_for_option" "-f"
+				exit $YF_CHECK_SIGNATURE_MISSING_ARGUMENTS
+			fi
+			if ! [ -f "$2" ] && ! [ -L "$2" ]; then
+				__yf_emsg "ERR_missing_file_with_list" "$2"
+				exit $YF_CHECK_SIGNATURE_FILE_NOT_FOUND
+			fi
+			i=0
+			fn="$2"
+			while read -r filename; do
+				i=$(( i + 1 ))
+				if [ -f "$filename" ]; then
+					unset MOD
+					unset EXP
+					unset SRC
+					unset DESC
+					MOD=$(sed -n -e "1p" "$filename")
+					if [ ${#MOD} -eq 0 ]; then
+						__yf_info "ERR_file_read_error" "$filename" "$i" "$fn"
+						continue
+					fi
+					EXP=$(sed -n -e "2p" "$filename")
+					[ ${#EXP} -eq 0 ] && EXP=010001
+					DESC="$(printf "line %u of %s\n" "$i" "$fn")"
+					if ! check_modulus "$MOD"; then
+						__yf_info "ERR_invalid_modulus" "$i" "$fn"
+						continue
+					fi
+					if ! is_hexadecimal "$EXP"; then
+						__yf_info "ERR_invalid_exponent" "$i" "$fn"
+						continue
+					fi
+					printf "DESC=\"%s\" SRC=\"%s\" MOD=%s EXP=%s\n" "$DESC" "$filename" "$MOD" "$EXP" >>"$tmp/$public_keys_list"
+				else
+					__yf_emsg "ERR_file_missing_error" "$filename" "$i" "$fn"
+				fi
+			done <"$2"
+			shift 2
+			;;
+		"-c")
+			if [ -z "$2" ]; then
+				__yf_emsg "ERR_missing_file_for_option" "-c"
+				exit $YF_CHECK_SIGNATURE_MISSING_ARGUMENTS
+			fi
+			if ! [ -f "$2" ]; then
+				__yf_emsg "ERR_pubkey_file_missing" "$2" "$(__yf_get_localized PART_condensed)"
+				exit $YF_CHECK_SIGNATURE_FILE_NOT_FOUND
+			fi
+			i=0
+			fn="$2"
+			while read -r line; do
+				i=$(( i + 1 ))
+				unset MOD
+				unset EXP
+				unset SRC
+				unset DESC
+				MOD="$(printf "%s\n" "$line" | sed -n -e "s|.*MOD=\([0-9a-fA-F]*\).*|\1|p")"
+				EXP="$(printf "%s\n" "$line" | sed -n -e "s|.*EXP=\([0-9a-fA-F]*\).*|\1|p")"
+				SRC="$(printf "%s\n" "$line" | sed -n -e "s|.*SRC=\"\([^\"]*\)\".*|\1|p")"
+				DESC="$(printf "%s\n" "$line" | sed -n -e "s|.*DESC=\"\([^\"]*\)\".*|\1|p")"
+				if [ -z "$MOD" ]; then
+					__yf_emsg "ERR_missing_modulus" "$i" "$fn"
+					exit $YF_CHECK_SIGNATURE_INVALID_DATA
+				elif [ -z "$EXP" ]; then
+					EXP="010001"
+				fi
+				if [ -z "$DESC" ]; then
+					[ -n "$SRC" ] && DESC="$(printf "line %u of %2\n" "$i" "$fn")" || DESC="$(printf "line %u\n" "$i")"
+				fi
+				[ -n "$SRC" ] && SRC="$(printf "%s\n" "$fn")"
+				if ! check_modulus "$MOD"; then
+					__yf_info "ERR_invalid_modulus" "$i" "$fn"
+					continue
+				fi
+				if ! is_hexadecimal "$EXP"; then
+					__yf_info "ERR_invalid_exponent" "$i" "$fn"
+					continue
+				fi
+				printf "DESC=\"%s\" SRC=\"%s\" MOD=%s EXP=%s\n" "$DESC" "$SRC" "$MOD" "$EXP" >>"$tmp/$public_keys_list"
+			done <"$2"
+			shift 2
+			;;
+		"-p"|"-d")
+			if [ -z "$2" ]; then
+				__yf_emsg "ERR_missing_file_for_option" "$1"
+				exit $YF_CHECK_SIGNATURE_MISSING_ARGUMENTS
+			fi
+			[ "$1" = "-p" ] && format="PEM" || format="DER"
+			if ! [ -f "$2" ]; then
+				# shellcheck disable=SC2059
+				__yf_emsg "ERR_pubkey_file_missing" "$2" "$(printf "$(__yf_get_localized PART_pkcs1)" "$format")"
+				exit $YF_CHECK_SIGNATURE_FILE_NOT_FOUND
+			fi
+			pubkey_pkcs1_to_text "$2" "$format" >>"$tmp/$public_keys_list" || exit $YF_CHECK_SIGNATURE_INVALID_DATA
+			shift 2
+			;;
+		"-e")
+			if [ -z "$2" ]; then
+				__yf_emsg "ERR_missing_variable_name" "-e"
+				exit $YF_CHECK_SIGNATURE_MISSING_ARGUMENTS
+			fi
+			unset MOD
+			unset EXP
+			MOD="$(env | sed -n -e "s|^$2=\(.*\)|\1|p")"
+			EXP=010001
+			if [ ${#MOD} -gt 0 ]; then
+				if ! check_modulus "$MOD"; then
+					__yf_emsg "ERR_invalid_modulus" "1" "$2"
+					exit $YF_CHECK_SIGNATURE_INVALID_DATA
+				fi
+				printf "DESC=\"environment variable from command line\" SRC=\"%s\" MOD=%s EXP=%s\n" "$2" "$MOD" "$EXP" >>"$tmp/$public_keys_list"
+			else
+				__yf_info "ERR_missing_env_value" "$2"
+			fi
+			shift 2
+			;;
+		"-b")
+			if ! builtin_keys >>"$tmp/$public_keys_list"; then
+				__yf_emsg "ERR_no_fritzos_device" "-b"
+				exit $YF_CHECK_SIGNATURE_NO_BUILTIN_KEYS
+			fi
+			shift
+			;;
+		"-s")
+			if [ -n "$2" ]; then
+				__yf_emsg "ERR_too_much_arguments" "$1"
+				exit $YF_CHECK_SIGNATURE_NO_BOX_KEY
+			fi
+			if ! is_fritzos_environment; then
+				__yf_emsg "ERR_no_fritzos_device" "-s"
+				exit $YF_CHECK_SIGNATURE_NO_BOX_KEY
+			fi
+			if [ -s "$tmp/$public_keys_list" ]; then
+				__yf_emsg "ERR_too_much_keys" "-s"
+				exit $YF_CHECK_SIGNATURE_INVALID_OPTION
+			fi
+			if ! read_box_key >>"$tmp/$public_keys_list"; then
+				rc=$?
+				__yf_emsg "ERR_RSA_key"
+				[ "$rc" -eq 1 ] && exit $YF_CHECK_SIGNATURE_NO_BOX_KEY || exit $rc
+			fi
+			shift
+			;;
+		*)
+			__yf_emsg "ERR_unknown_option" "$1"
+			exit $YF_CHECK_SIGNATURE_INVALID_OPTION
+			;;
+	esac
+done
+if ! [ -s "$tmp/$public_keys_list" ]; then
+	__yf_emsg "ERR_no_public_keys"
+	exit $YF_CHECK_SIGNATURE_NO_KEYS_DEFINED
+fi
+#######################################################################################################
+#                                                                                                     #
+# find the public key corresponding to the private key, which was used to sign the image              #
+#                                                                                                     #
+#######################################################################################################
+[ "$YF_CHECK_SIGNATURE_SHOW_KEYS" = "1" ] && { printf "\n=== public keys collected ===\n" && cat "$tmp/$public_keys_list" && printf "=============================\n\n"; } 1>&2
+[ "$(wc -l <"$tmp/$public_keys_list")" -gt 1 ] && __yf_info "INF_probing_keys"
+key_found=0
+while read -r line; do
+	eval "$line"
+	__yf_info "INF_public_key_check" "$SRC"
+	modulus_to_der "$MOD" "$EXP" >"$tmp/$tmp_pubkey"
+	if output="$("$YF_SIGNIMAGE_OPENSSL" rsautl -verify -pubin -inkey "$tmp/$tmp_pubkey" -keyform der -asn1parse -in "$tmp/$sig_file_content" 2>&1)"; then
+		key_found=1
+		show_ok
+		algo=$(printf "%s\n" "$output" | sed -n -e "s|^.*OBJECT.*:\(.*\)\$|\1|p" 2>/dev/null)
+		if [ ${#algo} -gt 0 ]; then
+			__yf_info "INF_check_supported_hash" "$algo"
+			if printf "" | "$YF_SIGNIMAGE_OPENSSL" dgst -"$algo" 2>&1 2>/dev/null 1>&2; then
+				show_ok
+				break
+			else
+				show_error
+				exit $YF_CHECK_SIGNATURE_UNSUPPORTED_HASH
+			fi
+		else
+			show_error
+			exit $YF_CHECK_SIGNATURE_INVALID_SIGNATURE_DATA
+		fi
+	else
+		show_error
+	fi
+done <"$tmp/$public_keys_list"
+if [ $key_found -eq 0 ]; then
+	__yf_emsg "ERR_wrong_public_keys"
+	exit $YF_CHECK_SIGNATURE_WRONG_PUBLIC_KEY
+fi
+#######################################################################################################
+#                                                                                                     #
+# now we check the signature with the openssl binary, we prepare the changed image file in a subshell #
+# and pipe its output to openssl                                                                      #
+#                                                                                                     #
+#######################################################################################################
+if ! res="$( ( dd if="$image_file" bs=512 count=$seek_image status=none 2>/dev/null;
+	dd if=/dev/zero bs=512 count=2 status=none 2>/dev/null;
+	dd if="$image_file" bs=512 skip=$(( seek_image + 2 )) status=none 2>/dev/null ) | \
+	"$YF_SIGNIMAGE_OPENSSL" dgst -"$algo" -verify "$tmp/$tmp_pubkey" -keyform der -signature "$tmp/$sig_file_content")"; then
+	__yf_emsg "ERR_verify_failed"
+	exit $YF_CHECK_SIGNATURE_VERIFICATION_FAILED
+fi
+#######################################################################################################
+#                                                                                                     #
+# all done                                                                                            #
+#                                                                                                     #
+#######################################################################################################
+__yf_info "INF_verify_success"
+exit $YF_CHECK_SIGNATURE_SUCCESS
+#######################################################################################################
+#                                                                                                     #
+# end of file                                                                                         #
+#                                                                                                     #
+#######################################################################################################

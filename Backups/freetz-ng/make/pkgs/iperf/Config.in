@@ -1,0 +1,42 @@
+config FREETZ_PACKAGE_IPERF
+	bool "iPerf3 3.3/3.15 (binary only)"
+	default n
+	help
+		iPerf3 is a tool for active measurements of the maximum achievable
+		bandwidth on IP networks. It supports tuning of various parameters
+		related to timing, buffers and protocols (TCP, UDP, SCTP with IPv4
+		and IPv6). For each test it reports the bandwidth, loss, and other
+		parameters. S. https://github.com/esnet/iperf for more details.
+
+if FREETZ_PACKAGE_IPERF
+
+	choice
+		prompt "Version"
+			default FREETZ_PACKAGE_IPERF_VERSION_CURRENT
+
+		config FREETZ_PACKAGE_IPERF_VERSION_ABANDON
+			bool "3.3"
+			depends on !FREETZ_TARGET_IPV6_SUPPORT || (FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29)
+			help
+				Version 3.3 is the last with IPv4-only support.
+				Also this version is compatible with old uClibc.
+
+		config FREETZ_PACKAGE_IPERF_VERSION_CURRENT
+			bool "3.15"
+			depends on FREETZ_TARGET_IPV6_SUPPORT && !(FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29)
+
+	endchoice
+
+	config FREETZ_PACKAGE_IPERF_WITH_OPENSSL
+		bool "build with SSL support"
+		select FREETZ_LIB_libcrypto if !FREETZ_PACKAGE_IPERF_STATIC
+		default n
+		help
+			This option enables OpenSSL support in iperf.
+
+		config FREETZ_PACKAGE_IPERF_STATIC
+			bool "Link statically"
+			depends on FREETZ_PACKAGE_IPERF_WITH_OPENSSL
+
+endif # FREETZ_PACKAGE_IPERF
+

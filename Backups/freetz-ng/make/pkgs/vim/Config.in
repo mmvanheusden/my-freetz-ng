@@ -1,0 +1,37 @@
+config FREETZ_PACKAGE_VIM
+	bool "Vim 9.1.0000 (binary only)"
+	select FREETZ_LIB_libdl  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libm   if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libncurses
+	default n
+	help
+		An improved version of VI
+
+choice
+	prompt "vim executable feature set"
+		default FREETZ_PACKAGE_VIM_TINY
+		depends on FREETZ_PACKAGE_VIM
+		help
+			Select your vim flavour here.
+
+			tiny = simple (v) improved editing functionality.
+			normal = simple (v) improved editing functionality + colors + folding
+			huge = simple (v) improved editing functionality + colors + folding + scripts + plugins
+
+			This option only makes the executable larger,
+			it does not copy the runtime files. Those would not fit on your box either.
+			It's up to you to get it to /usr/share/vim, eg. bind mounts.
+
+		config FREETZ_PACKAGE_VIM_TINY
+			bool "tiny"
+
+		config FREETZ_PACKAGE_VIM_NORMAL
+			depends on FREETZ_SHOW_EXPERT
+			bool "normal - EXPERIMENTAL"
+
+		config FREETZ_PACKAGE_VIM_HUGE
+			depends on FREETZ_SHOW_EXPERT
+			bool "huge - EXPERIMENTAL"
+
+endchoice
+

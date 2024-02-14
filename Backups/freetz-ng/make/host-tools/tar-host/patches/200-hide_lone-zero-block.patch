@@ -1,0 +1,12 @@
+--- src/list.c
++++ src/list.c
+@@ -247,9 +247,6 @@
+ 	                            read_header_auto);
+ 	      if (status == HEADER_ZERO_BLOCK)
+ 		break;
+-	      WARNOPT (WARN_ALONE_ZERO_BLOCK,
+-		       (0, 0, _("A lone zero block at %s"),
+-			STRINGIFY_BIGINT (current_block_ordinal (), buf)));
+ 	      break;
+ 	    }
+ 	  status = prev_status;

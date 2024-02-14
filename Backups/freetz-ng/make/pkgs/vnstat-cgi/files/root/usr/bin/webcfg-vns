@@ -1,0 +1,18 @@
+#!/bin/sh
+
+. /var/env.mod.daemon
+
+DAEMON=vnstat
+SUBDAEMON=vns
+DAEMON_BIN=httpd-${SUBDAEMON}
+DAEMON_ENV="PATH=$PATH"
+
+if [ ! -r "/mod/etc/conf/${DAEMON}.cfg" ]; then
+	echo "Error[$DAEMON]: not configured" 1>&2
+	exit 1
+fi
+. /mod/etc/conf/${DAEMON}.cfg
+
+homedir=/mod/pkg/${DAEMON}/usr/mww-${SUBDAEMON}/
+
+exec env - $DAEMON_ENV $DAEMON_BIN "$@" -p "$VNSTAT_WEB_PORT" -c /mod/etc/httpd-${SUBDAEMON}.conf -h "$homedir" -r "vnstat"

@@ -1,0 +1,176 @@
+#!/bin/sh
+
+DAEMON=xmail
+DAEMON_LONG_NAME="XMail SMTP/POP3 server"
+DAEMON_BIN=XMail
+PID_FILE=/var/run/$DAEMON_BIN.pid
+. /etc/init.d/modlibrc
+
+CMDOPTS="-F- -MM -Ms /mod/etc/$DAEMON/"
+
+cleanup() {
+	rm -rf /mod/etc/$DAEMON
+	rm -rf /var/run/$DAEMON
+}
+
+configure() {
+	cleanup
+
+	[ -r /etc/options.cfg ] && . /etc/options.cfg
+	mkdir -p /mod/etc/$DAEMON
+
+	if [ "$XMAIL_UNPRIV" = "yes" ]; then
+		modlib_add_user_and_group $DAEMON
+
+		#do a simple test if a linux filesystem is present
+		touch $XMAIL_MAILLOCATION/.filesystemtest 2>/dev/null
+		chown xmail:xmail $XMAIL_MAILLOCATION/.filesystemtest 2>/dev/null
+		exitval=$?
+		[ "$exitval" -eq 0 ] && fat=0 || fat=1
+		rm $XMAIL_MAILLOCATION/.filesystemtest 2>/dev/null
+
+		[ "$fat" = "0" ] && chmod 700 $XMAIL_MAILLOCATION || chmod 777 $XMAIL_MAILLOCATION
+		chmod 700 /mod/etc/$DAEMON
+		chown xmail:xmail /mod/etc/$DAEMON
+
+		mkdir /var/run/$DAEMON
+		chown xmail:xmail /var/run/$DAEMON
+		ln -s xmail/XMail.pid /var/run/XMail.pid
+	fi
+	if [ ! -e "$XMAIL_MAILLOCATION/server.tab" ]; then
+		echo -n 'initialzing mail location folder with default values ... '
+		tar -C $XMAIL_MAILLOCATION -xf /mod/etc/default.$DAEMON/default_config/default_config.tar
+		echo 'done.'
+	else
+		for i in $(tar -tf /mod/etc/default.$DAEMON/default_config/default_config.tar); do
+			[ "${i:0:2}" == "./" ] && ii=${i:2}
+			[ ! -z "$ii" ] && [ ! -e "$XMAIL_MAILLOCATION/$ii" ] && tar -C $XMAIL_MAILLOCATION \
+				-xf /mod/etc/default.$DAEMON/default_config/default_config.tar $i
+		done
+	fi
+	[ -e "$XMAIL_MAILLOCATION/tmp" ] || mkdir $XMAIL_MAILLOCATION/tmp
+	ln -s $XMAIL_MAILLOCATION/* /mod/etc/$DAEMON/
+	ln -sf /usr/lib/MailRoot/bin /mod/etc/$DAEMON/
+	if [ "$XMAIL_UNPRIV" = "yes" ]; then
+		[ "$fat" = "0" ] && chown -hR xmail:xmail $XMAIL_MAILLOCATION || chmod -R 777 $XMAIL_MAILLOCATION
+	fi
+
+	[ ! -z "$XMAIL_SPECIAL" ] && CMDOPTS="$CMDOPTS $XMAIL_SPECIAL"
+	if [ "$XMAIL_POP3" = "yes" ]; then
+		[ -n "$XMAIL_POP3PORT" ] && CMDOPTS="$CMDOPTS -Pp $XMAIL_POP3PORT"
+		[ "$XMAIL_POP3LOG" = "yes" ] && CMDOPTS="$CMDOPTS -Pl"
+	else
+		CMDOPTS="$CMDOPTS -P-"
+	fi
+	if [ "$XMAIL_POP3S" = "yes" -a "$FREETZ_PACKAGE_XMAIL_WITH_SSL" == "y" ]; then
+		[ -n "$XMAIL_POP3SPORT" ] && CMDOPTS="$CMDOPTS -Bp $XMAIL_POP3SPORT"
+	else
+		CMDOPTS="$CMDOPTS -B-"
+	fi
+	if [ "$XMAIL_SMTP" = "yes" ]; then
+		[ -n "$XMAIL_SMTPPORT" ] && CMDOPTS="$CMDOPTS -Sp $XMAIL_SMTPPORT"
+		[ "$XMAIL_SMTPLOG" = "yes" ] && CMDOPTS="$CMDOPTS -Sl"
+	else
+		CMDOPTS="$CMDOPTS -S-"
+	fi
+	if [ "$XMAIL_SSMTP" = "yes" -a "$FREETZ_PACKAGE_XMAIL_WITH_SSL" == "y" ]; then
+		[ -n "$XMAIL_SSMTPPORT" ] && CMDOPTS="$CMDOPTS -Xp $XMAIL_SSMTPPORT"
+	else
+		CMDOPTS="$CMDOPTS -X-"
+	fi
+	[ "$XMAIL_SYSTEMLOG" = "yes" ] && CMDOPTS="$CMDOPTS -Ql -Qg -Ll -Yl"
+	if [ "$XMAIL_CTRL" = "yes" ]; then
+		CMDOPTS="$CMDOPTS -CI 127.0.0.1"
+		[ "$XMAIL_SYSTEMLOG" = "yes" ] && CMDOPTS="$CMDOPTS -Cl"
+	else
+		CMDOPTS="$CMDOPTS -C-"
+	fi
+	if [ "$XMAIL_CTRLS" = "yes" -a "$FREETZ_PACKAGE_XMAIL_WITH_SSL" == "y" ]; then
+		[ "$XMAIL_SYSTEMLOG" = "yes" -a "$XMAIL_CTRL" = "no" ] && CMDOPTS="$CMDOPTS -Cl"
+	else
+		CMDOPTS="$CMDOPTS -W-"
+	fi
+}
+
+start() {
+	trap "rm -f /var/run/rc.$DAEMON.pid; exit 255" 0 1 2 3 15
+	echo -n "Starting $DAEMON_LONG_NAME ... "
+	if modlib_check_running; then
+		echo "already running."
+		exit 0
+	fi
+
+	if [ -z "$XMAIL_MAILLOCATION" ]; then
+		echo "set up mail location ... failed."
+		exit 1
+	fi
+
+	if [ ! -d "$XMAIL_MAILLOCATION" ]; then
+		echo "directory $XMAIL_MAILLOCATION not available ... failed."
+		exit 1
+	fi
+
+	configure
+
+	compartment=""
+	[ "$XMAIL_UNPRIV" = "yes" ] && compartment="/usr/lib/MailRoot/bin/compartment --user $DAEMON --group $DAEMON"
+	$compartment /usr/lib/MailRoot/bin/$DAEMON_BIN $CMDOPTS
+	exitval=$?
+
+	if [ "$exitval" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		exit $exitval
+	fi
+}
+
+trap "rm -f /var/run/rc.$DAEMON.pid; exit 255" 1 2 3 15
+case $1 in
+	""|load)
+		modreg cgi 'xmail' 'XMail'
+		modreg daemon $DAEMON
+
+		if [ "$XMAIL_ENABLED" != "yes" ]; then
+			echo "$DAEMON is disabled." 1>&2
+			exit 1
+		fi
+
+		( start ) &
+		echo $! > /var/run/rc.$DAEMON.pid
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi xmail
+		[ -s /var/run/rc.$DAEMON.pid ] && PID_FILE=/var/run/rc.$DAEMON.pid
+		modlib_stop && cleanup
+		;;
+	start)
+		if [ -s /var/run/rc.$DAEMON.pid ]; then
+			kill -0 $(cat /var/run/rc.$DAEMON.pid)
+			if [ $? -eq 0 ]; then
+				echo "Startup of $DAEMON already performed."
+				exit 0
+			fi
+			rm -f /var/run/rc.$DAEMON.pid
+		fi
+		( start ) &
+		echo $! > /var/run/rc.$DAEMON.pid
+		;;
+	stop)
+		[ -s /var/run/rc.$DAEMON.pid ] && PID_FILE=/var/run/rc.$DAEMON.pid
+		modlib_stop && cleanup
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|reload|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,70 @@
+#!/bin/sh
+
+DAEMON=xrelayd
+DAEMON_LONG_NAME="xrelayd services"
+DAEMON_CHECK="xrelayd"
+. /etc/init.d/modlibrc
+
+start() {
+	echo "Starting xrelayd services:"
+
+	if [ ! -r "/tmp/flash/xrelayd/xrelayd_svcs" ]; then
+		echo 'Error: services not found'
+		exit 1;
+	fi
+
+	cat /tmp/flash/xrelayd/xrelayd_svcs | grep -v "^#" | while read -r remote local comment; do
+		if [ -n "$remote" -a -n "$local" ]; then
+			echo -n "Starting xrelayd ($remote>$local $comment) ... "
+			$DAEMON -D$XRELAYD_VERBOSE -d $remote -r $local -p $XRELAYD_KEY -A $XRELAYD_CERTCHAIN
+			if [ "$?" -eq 0 ]; then
+				echo 'done.'
+			else
+				echo 'failed.'
+			fi
+		fi
+	done
+}
+
+stop() {
+	killall -15 $DAEMON > /dev/null 2>&1
+}
+
+case $1 in
+	""|load)
+		[ ! -d "/tmp/flash/xrelayd" ] && mkdir /tmp/flash/xrelayd
+
+		modreg cgi 'xrelayd' 'XRelayd'
+		modreg daemon $DAEMON
+
+		modreg file xrelayd certchain 'Certificate' 0 "xrelayd_certchain"
+		modreg file xrelayd key 'Private Key' 0 "xrelayd_key"
+		modreg file xrelayd svcs 'services' 0 "xrelayd_svcs"
+
+		modlib_start $XRELAYD_ENABLED
+		;;
+	unload)
+		modunreg file xrelayd
+		modunreg daemon $DAEMON
+		modunreg cgi xrelayd
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

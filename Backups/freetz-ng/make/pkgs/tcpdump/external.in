@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_PACKAGE_TCPDUMP
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_TCPDUMP
+	bool "tcpdump"
+	default n
+	help
+		externals the following file(s):
+		 /usr/bin/tcpdump
+

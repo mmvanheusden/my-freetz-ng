@@ -1,0 +1,48 @@
+#!/bin/sh
+
+DAEMON=oidentd
+DAEMON_LONG_NAME=Oidentd
+DAEMON_CONFIG=/tmp/flash/$DAEMON/oidentd.conf
+. /etc/init.d/modlibrc
+
+start() {
+	modlib_startdaemon oidentd -C $DAEMON_CONFIG $OIDENTD_CMDLINE
+}
+
+case $1 in
+	""|load)
+		modlib_defaults
+		[ ! -e "$DAEMON_CONFIG" ] && /mod/etc/default.$DAEMON/oidentd_conf > $DAEMON_CONFIG
+
+		modreg file $DAEMON conf 'oidentd.conf' 1 "oidentd_conf"
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+
+		modlib_start $OIDENTD_ENABLED
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,7 @@
+config FREETZ_LIB_libyaml
+	bool "libyaml (libyaml.so)"
+	default n
+	help
+		LibYAML is a YAML 1.1 configuration file parser and
+		emitter.
+

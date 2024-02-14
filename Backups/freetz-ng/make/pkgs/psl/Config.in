@@ -1,0 +1,8 @@
+config FREETZ_PACKAGE_PSL
+	bool "psl 0.21.2 (binary only)"
+	select FREETZ_LIB_libpsl
+	default n
+	help
+		Public Suffix List library functions
+		This includes psl binary and public_suffix_list.dat
+

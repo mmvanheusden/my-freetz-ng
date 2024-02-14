@@ -1,0 +1,94 @@
+#!/bin/sh
+
+BOOTFILE="/tmp/flash/nhiptboot.cfg"
+DEFAULT_MODULES="ip_tables iptable_filter x_tables ip_conntrack ip_conntrack_ftp ipt_LOG ipt_REJECT xt_multiport xt_state"
+DAEMON=nhipt
+
+# Liest Paketkonfiguration ein und definiert einige Hilsfunktionen
+. /etc/init.d/modlibrc
+#	echo "MAIN ENTERING ---$1" >> /var/tmp/log.log
+
+config() {
+	[ ! -r "/var/tmp/nhipt.par" -a -e $BOOTFILE ] && . $BOOTFILE
+}
+
+start() {
+	config
+	# HIER KOMMEN DIE VERARBEITUNGEN REIN
+	echo "configuring nhipt gui ... $NHIPT_ROOT"
+	# Save settings to RAM-parameter file
+
+	if [ -z "$(lsmod | grep x_tables)" ]; then
+		for i in $DEFAULT_MODULES; do
+			modprobe $i
+		done
+	fi
+	if [ -n "$(ps | grep ip[t]logger)" ]; then
+		log_run='yes'; else log_run='no'
+	fi
+	if [ -n "$(ps | grep nh[i]pd.pid)" ]; then
+		cgi_run='yes'
+	else
+		cgi_run='no'
+	fi
+	if [ "$NHIPT_START_CGI" = "stopped" ]; then
+		if [ "$cgi_run" = "yes" ]; then
+			ps | grep nh[i]pd.pid | awk '{print $1}' | xargs kill
+		fi
+	fi
+	if [ "$NHIPT_START_LOG" = "stopped" ]; then
+		if [ "$log_run" = "yes" ]; then
+			ps | grep ip[t]logger | awk '{print $1}' | xargs kill
+			ps | grep lo[g]fw | awk '{print $1}' | xargs kill
+		fi
+	fi
+	if [ "$NHIPT_START_CGI" = "running" ]; then
+		if [ "$cgi_run" = "no" ]; then
+			httpd -P /var/run/nhipd.pid -p $NHIPT_SERVERIP:$NHIPT_PORT -h $NHIPT_ROOT -c /mod/etc/webcfg.conf -r Freetz
+		fi
+	fi
+	if [ "$NHIPT_START_LOG" = "running" ]; then
+		if [ "$log_run" = "no" ]; then
+			export NHIPT_START_LOG='start'
+		fi
+	fi
+	export NHIPT_CONFIG='box'
+	. $NHIPT_ROOT/cgi-bin/nhipt.cgi
+}
+
+stop() {
+	# HIER KOMMEN DIE VERARBEITUNGEN REIN
+	echo "Configuring services ..."
+}
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON NHIPT
+		modreg daemon --hide $DAEMON
+		start
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi 'nhipt'
+		stop
+		;;
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start
+		;;
+	status)
+		echo 'running'
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,38 @@
+--- configure.org	2023-11-03 14:41:02.000000000 +0100
++++ configure	2023-11-07 22:07:55.000000000 +0100
+@@ -9821,8 +9821,6 @@
+ 	RtlSecureZeroMemory \
+ 	SecureZeroMemory \
+ 	accept4 \
+-	backtrace \
+-	backtrace_symbols_fd \
+ 	eventfd \
+ 	explicit_bzero \
+ 	timingsafe_memcmp \
+@@ -14001,7 +13999,6 @@
+ 		  unistd.h \
+ 		  arpa/inet.h \
+ 		  crt_externs.h \
+-		  execinfo.h \
+ 		  gnu/libc-version.h \
+ 		  grp.h \
+ 		  ifaddrs.h \
+--- configure.ac.org	2023-11-03 14:41:02.000000000 +0100
++++ configure.ac	2023-11-07 22:08:35.000000000 +0100
+@@ -687,8 +687,6 @@
+ 	RtlSecureZeroMemory \
+ 	SecureZeroMemory \
+ 	accept4 \
+-	backtrace \
+-	backtrace_symbols_fd \
+ 	eventfd \
+ 	explicit_bzero \
+ 	timingsafe_memcmp \
+@@ -1611,7 +1609,6 @@
+ 		  unistd.h \
+ 		  arpa/inet.h \
+ 		  crt_externs.h \
+-		  execinfo.h \
+ 		  gnu/libc-version.h \
+ 		  grp.h \
+ 		  ifaddrs.h \

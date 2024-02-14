@@ -1,0 +1,11 @@
+--- src/lib/usbip_common.h
++++ src/lib/usbip_common.h
+@@ -19,7 +19,7 @@
+ #include <sys/socket.h>
+ 
+ #ifndef USBIDS_FILE
+-#define USBIDS_FILE "/usr/share/hwdata/usb.ids"
++#define USBIDS_FILE "/usr/share/usb.ids"
+ #endif
+ 
+ #ifndef VHCI_STATE_PATH

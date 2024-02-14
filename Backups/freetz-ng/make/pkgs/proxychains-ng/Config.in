@@ -1,0 +1,21 @@
+config FREETZ_PACKAGE_PROXYCHAINS_NG
+	bool "ProxyChains-NG 4.17"
+	select FREETZ_LIB_libpthread if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	default n
+	help
+		A preloader which hooks calls to sockets in dynamically
+		linked programs and redirects it through one or more
+		socks/http proxies, tor is also supported.
+
+		Usage: proxychains4 telnet mail.example.com 25
+
+if FREETZ_PACKAGE_PROXYCHAINS_NG
+
+	config FREETZ_PACKAGE_PROXYCHAINS_NG_SELECT_TOR
+		bool "Select Tor"
+		depends on FREETZ_OPENSSL_VERSION_1_MIN
+		select FREETZ_PACKAGE_TOR
+		default n
+
+endif # FREETZ_PACKAGE_PROXYCHAINS_NG
+

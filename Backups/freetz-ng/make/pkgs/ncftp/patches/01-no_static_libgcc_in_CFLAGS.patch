@@ -1,0 +1,34 @@
+--- configure
++++ configure
+@@ -2122,6 +2122,7 @@
+ fi
+ 
+ echo "$ac_t""$wi_cv_shared_libgcc" 1>&6
++if false; then
+ 	if test "$wi_cv_shared_libgcc" != no ; then
+ 		
+ 	if test "x$ac_cv_prog_gcc" = "xyes" ; then
+@@ -2208,6 +2209,7 @@
+ 	fi
+ 
+ 	fi
++fi
+ 
+ 	add_O0="no"
+ 	if [ "$NOOPTCFLAGS" = "" ] ; then
+@@ -3310,6 +3312,7 @@
+ fi
+ 
+ echo "$ac_t""$wi_cv_shared_libgcc" 1>&6
++if false; then
+ 	if test "$wi_cv_shared_libgcc" != no ; then
+ 		
+ 	if test "x$ac_cv_prog_gcc" = "xyes" ; then
+@@ -3396,6 +3399,7 @@
+ 	fi
+ 
+ 	fi
++fi
+ 
+ 	add_O0="no"
+ 	if [ "$NOOPTCFLAGS" = "" ] ; then

@@ -1,0 +1,33 @@
+--- Makefile
++++ Makefile
+@@ -614,7 +614,7 @@
+ gitwebstaticdir = $(gitwebdir)/static
+ perllibdir = $(sharedir)/perl5
+ localedir = $(sharedir)/locale
+-template_dir = share/git-core/templates
++template_dir = lib/git-core/templates
+ htmldir = $(prefix)/share/doc/git-doc
+ ETC_GITCONFIG = $(sysconfdir)/gitconfig
+ ETC_GITATTRIBUTES = $(sysconfdir)/gitattributes
+--- config.mak.in
++++ config.mak.in
+@@ -16,7 +16,7 @@
+ bindir = @bindir@
+ gitexecdir = @libexecdir@/git-core
+ datarootdir = @datarootdir@
+-template_dir = @datadir@/git-core/templates
++template_dir = @libexecdir@/git-core/templates
+ sysconfdir = @sysconfdir@
+ docdir = @docdir@
+ 
+--- templates/Makefile
++++ templates/Makefile
+@@ -6,7 +6,7 @@
+ TAR ?= tar
+ RM ?= rm -f
+ prefix ?= $(HOME)
+-template_instdir ?= $(prefix)/share/git-core/templates
++template_instdir ?= $(prefix)/lib/git-core/templates
+ # DESTDIR=
+ 
+ ifndef SHELL_PATH

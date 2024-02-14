@@ -1,0 +1,148 @@
+#!/bin/sh
+
+DAEMON=bluez-utils
+DAEMON_LONG_NAME=bluetooth
+DAEMON_CHECK=hcid
+. /etc/init.d/modlibrc
+
+start() {
+	echo -n "Starting $DAEMON_LONG_NAME ... "
+
+	# create PIN-File
+	echo $BLUEZ_UTILS_PIN >/tmp/bluetooth/pin
+
+	# create PIN-Helper
+	echo -e '#!/bin/sh'"\nPIN:$BLUEZ_UTILS_PIN" >/tmp/bluetooth/bluepin
+	chmod 755 /tmp/bluetooth/bluepin
+
+	# create Linkkeys for prepaired devices
+	if [ "$BLUEZ_UTILS_USE_LINKKEYS" = "yes" ]; then
+		[ ! -d "/var/lib/bluetooth/$BLUEZ_UTILS_MAC" ] && mkdir -p /var/lib/bluetooth/$BLUEZ_UTILS_MAC
+		ln -sf /tmp/flash/bluez/linkkeys /var/lib/bluetooth/$BLUEZ_UTILS_MAC/linkkeys
+	fi
+
+	# /wtc/hotplug/net.pandu set rights
+	[ -e /tmp/flash/bluez/netpandu ] && chmod 755 /tmp/flash/bluez/netpandu
+
+	# Insert bfusb (bluefritz driver), btusb, hci_usb and rfcomm module
+	modprobe -q bfusb >/dev/null 2>&1
+	modprobe -q btusb >/dev/null 2>&1
+	modprobe -q hci_usb >/dev/null 2>&1
+
+	if [ "$BLUEZ_UTILS_RFCOMM_START" = "yes" ]; then
+		echo -n "starting rfcomm ... "
+		modprobe -q rfcomm >/dev/null 2>&1
+	fi
+
+	# start daemons
+	hcid
+	exitval1=$?
+
+	if [ "$BLUEZ_UTILS_SDPD_START" = "yes" ]; then
+		echo -n "starting sdpd ... "
+		sdpd $BLUEZ_UTILS_SDPD_OPTIONS
+		exitval2=$?
+	else
+		exitval2=0
+	fi
+
+	if [ "$BLUEZ_UTILS_RFCOMMPRG_START" = "yes" ]; then
+		echo -n "set rfcomm (rfcomm "$BLUEZ_UTILS_RFCOMMPRG_OPTIONS") ... "
+		rfcomm $BLUEZ_UTILS_RFCOMMPRG_OPTIONS
+	fi
+
+	if [ "$BLUEZ_UTILS_BNEP_START" = "yes" ]; then
+		echo -n "starting bnep ... "
+		modprobe -q bnep $BLUEZ_UTILS_BNEP_OPTIONS >/dev/null 2>&1
+	fi
+
+	if [ "$BLUEZ_UTILS_SDPTOOL_START" = "yes" ]; then
+		echo -n "starting sdptool ... "
+		sdptool $BLUEZ_UTILS_SDPDTOOL_OPTIONS
+	fi
+
+	if [ "$BLUEZ_UTILS_PAND_START" = "yes" ]; then
+		echo -n "starting sdptool (sdptool "$BLUEZ_UTILS_PAND_SDPDTOOL_OPTIONS") ... "
+		sdptool $BLUEZ_UTILS_PAND_SDPDTOOL_OPTIONS
+		echo -n "starting pand (pand "$BLUEZ_UTILS_PAND_OPTIONS") ... "
+		pand $BLUEZ_UTILS_PAND_OPTIONS
+	fi
+
+	if [ "$BLUEZ_UTILS_DUND_START" = "yes" ]; then
+		echo -n "starting sdptool (sdptool "$BLUEZ_UTILS_DUND_SDPDTOOL_OPTIONS") ... "
+		sdptool $BLUEZ_UTILS_DUND_SDPDTOOL_OPTIONS
+		echo -n "starting dund (dund "$BLUEZ_UTILS_DUND_OPTIONS") ... "
+		dund $BLUEZ_UTILS_DUND_OPTIONS
+	fi
+
+	if [ "$exitval1" -eq 0 -a "$exitval2" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		return 1
+	fi
+}
+
+stop() {
+	killall -9 dund pand rfcomm >/dev/null 2>&1
+
+	if [ "$(ps | grep s[d]pd)" ]; then
+		killall -9 sdpd >/dev/null 2>&1
+		exitval2=$?
+	else
+		exitval2=0
+	fi
+
+	killall -9 hcid >/dev/null 2>&1
+	exitval1=$?
+
+	rmmod bnep rfcomm l2cap bluetooth bfusb btusb hci_usb >/dev/null 2>&1
+
+	[ "$exitval1" -eq 0 -a "$exitval2" -eq 0 ] && return 0
+}
+
+case $1 in
+	""|load)
+		# create directories
+		[ ! -d "/tmp/flash/bluez " ] && mkdir -p /tmp/flash/bluez
+		[ ! -d "/mod/etc/ppp/peers" ] && mkdir -p /mod/etc/ppp/peers
+		[ ! -d "/tmp/bluetooth" ] && mkdir -p /tmp/bluetooth
+
+		modreg cgi 'bluez-utils' 'Bluez-Utils'
+		modreg daemon $DAEMON
+
+		modreg extra bluez-utils bluez-utils-help 2 bluez-utils-help
+		modreg file bluez-utils dun 'Bluez-Dun' 0 "dun"
+		modreg file bluez-utils rfcomm 'Bluez-Rfcomm' 0 "rfcomm"
+		modreg file bluez-utils linkkeys 'Bluez-Linkkeys' 0 "linkkeys"
+		modreg file bluez-utils netpandu 'Bluez-Netpandu' 0 "netpandu"
+		modreg file bluez-utils hcidconf 'Bluez-Hcidconf' 0 "hcidconf"
+
+		modlib_start $BLUEZ_UTILS_ENABLED
+		;;
+	unload)
+		modunreg file bluez-utils
+		modunreg daemon $DAEMON
+		modunreg cgi bluez-utils
+		modunreg extra bluez-utils
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

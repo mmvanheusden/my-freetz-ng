@@ -1,0 +1,157 @@
+#!/bin/sh
+
+DAEMON=multid
+DAEMON_BIN=multid
+DAEMON_LONG_NAME="AVM-$DAEMON"
+CONF_NAME=avm
+. /etc/init.d/modlibrc
+
+TMPFILE="/tmp/.multid."
+
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+# include environment required for multid restart
+. /bin/env.mod.rcconf avm
+
+start() {
+	echo -n "Starting ${DAEMON_LONG_NAME} ... "
+
+	if [ -e ${TMPFILE}IGD ]; then
+		DAEMON_CMD_IGD=$(cat ${TMPFILE}IGD)
+	else
+		if [ "$FREETZ_AVMDAEMON_DISABLE_IGD" == "y" ]; then
+			DAEMON_CMD_IGD="$(multid -? 2>&1 | sed -nr 's/^[ \t]*([^ ]*).*upnp.[^p][^l][^u][^g].*/\1/p')"
+		fi
+		echo "$DAEMON_CMD_IGD" > ${TMPFILE}IGD
+	fi
+
+	if [ -e ${TMPFILE}NTP ]; then
+		DAEMON_CMD_NTP=$(cat ${TMPFILE}NTP)
+	else
+		if [ "$FREETZ_AVMDAEMON_DISABLE_NTP" == "y" ]; then
+			DAEMON_CMD_NTP="$(multid -? 2>&1 | sed -nr 's/^[ \t]*([^ ]*).*NTP client.*/\1/p')"
+		fi
+		echo "$DAEMON_CMD_NTP" > ${TMPFILE}NTP
+	fi
+
+	if [ -e ${TMPFILE}IGM ]; then
+		DAEMON_CMD_IGM=$(cat ${TMPFILE}IGM)
+	else
+		if [ "$FREETZ_AVMDAEMON_DISABLE_IGM" == "y" ]; then
+			DAEMON_CMD_IGM="$(multid -? 2>&1 | sed -nr 's/^[ \t]*([^ ]*).*IGMP proxy.*/\1/p')"
+		fi
+		echo "$DAEMON_CMD_IGM" > ${TMPFILE}IGM
+	fi
+
+	if [ -e ${TMPFILE}069 ]; then
+		DAEMON_CMD_069=$(cat ${TMPFILE}069)
+	else
+		if [ "$FREETZ_AVMDAEMON_DISABLE_TR069" == "y" ]; then
+			DAEMON_CMD_069="$(multid -? 2>&1 | sed -nr 's/^[ \t]*([^ ]*).*without tr069.*/\1/p')"
+		fi
+		echo "$DAEMON_CMD_069" > ${TMPFILE}069
+	fi
+
+	#save ipv6 for 'lan' (since fw 04.86)
+	if [ -e /proc/sys/net/ipv6/conf/lan/disable_ipv6 ]; then
+		local addresses_ipv6_lan="$(ifconfig lan | sed -rn 's/.*inet6 addr: (.*) Scope:Global/\1/p')"
+		local disable_ipv6_lan="$(cat /proc/sys/net/ipv6/conf/lan/disable_ipv6)"
+	fi
+
+	rm -rf /var/tmp/avm-resolv.conf /var/tmp/resolv.conf 2>/dev/null
+	if [ "$FREETZ_AVMDAEMON_DISABLE_MULTIDPORTS" == "y" ]; then
+		local _resolv_conf_dns="$(modconf value MOD_RESOLV_DNS mod 2>/dev/null)"
+		local _bind_enabled="$(modconf value BIND_ENABLED bind 2>/dev/null)"
+		local _dnsmasq_enabled="$(modconf value DNSMASQ_ENABLED dnsmasq 2>/dev/null)"
+		local _dnsmasq_port="$(modconf value DNSMASQ_DNS_PORT dnsmasq 2>/dev/null)"
+		local _dnsmasq_dns_enabled=$([ "$_dnsmasq_enabled" = yes -a "$_dnsmasq_port" -eq 53 ] 2>/dev/null && echo yes || echo no)
+		local _unbound_enabled="$(modconf value UNBOUND_ENABLED unbound 2>/dev/null)"
+		if [ "$_resolv_conf_dns" == "127.0.0.1" -a "$_bind_enabled" != yes -a "$_dnsmasq_dns_enabled" != yes -a "$_unbound_enabled" != yes ]; then
+			echo -n "discarded libmultid, no enabled dns server ... "
+		else
+			export LD_PRELOAD=libmultid.so
+		fi
+	fi
+	if modlib_check_supervisor; then
+		nohup $DAEMON_BIN $DAEMON_CMD_IGD $DAEMON_CMD_NTP $DAEMON_CMD_069 $DAEMON_CMD_IGM 0</dev/null 1>/dev/null 2>&1 &
+		exitval=0
+	else
+		$DAEMON_BIN $DAEMON_CMD_IGD $DAEMON_CMD_NTP $DAEMON_CMD_069 $DAEMON_CMD_IGM 2>/dev/null
+		exitval=$?
+	fi
+	unset LD_PRELOAD
+	sleep 1
+	[ -f /tmp/flash/mod/multid.start ] && . /tmp/flash/mod/multid.start
+
+	#load ipv6 for 'lan' (since fw 04.86)
+	if [ -n "$disable_ipv6_lan" ]; then
+		if [ "$(cat /proc/sys/net/ipv6/conf/lan/disable_ipv6)" != "$disable_ipv6_lan" ]; then
+			ifconfig lan down
+			echo $disable_ipv6_lan > /proc/sys/net/ipv6/conf/lan/disable_ipv6
+			ifconfig lan up
+		fi
+		for address_ipv6_lan in $addresses_ipv6_lan; do
+			ifconfig lan add $address_ipv6_lan 2>/dev/null
+		done
+	fi
+
+	# do we have another local dns-sever? multid doesn't create /var/tmp/avm-resolv.conf itself if port 53 is in use.
+	# some (older?) boxes uses /var/tmp/resolv.conf for upstream-dnsserver.
+	for resolv_file in /var/tmp/avm-resolv.conf /var/tmp/resolv.conf; do
+		[ ! -e $resolv_file ] && echo "nameserver 127.0.0.1" > $resolv_file
+	done
+
+	if [ "$exitval" -eq 0 ]; then
+		echo 'done.'
+	else
+		echo 'failed.'
+		exit $exitval
+	fi
+}
+
+stop() {
+	$DAEMON_BIN -s
+}
+
+reload() {
+	local ret
+	if [ "$FREETZ_AVM_HAS_SVCTL" == "y" ]; then
+		msgsend -a $DAEMON reload
+		ret=$?
+	else
+		$DAEMON_BIN -I
+		ret=$?
+	fi
+	return $ret
+}
+
+case $1 in
+	""|load)
+		modreg pkg $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon -p avm $DAEMON
+		;;
+	unload)
+		modunreg daemon avm $DAEMON
+		modunreg pkg $DAEMON
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [start|stop|restart|reload|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

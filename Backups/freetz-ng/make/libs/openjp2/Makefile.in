@@ -1,0 +1,3 @@
+ifeq ($(strip $(FREETZ_LIB_libopenjp2)),y)
+LIBS+=openjp2
+endif

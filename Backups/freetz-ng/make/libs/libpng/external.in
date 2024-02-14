@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libpng16
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libpng16
+	bool "libpng16"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libpng16.so.16.40.0
+

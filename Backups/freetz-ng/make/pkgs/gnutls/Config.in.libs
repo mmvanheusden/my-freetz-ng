@@ -1,0 +1,23 @@
+config FREETZ_LIB_libgnutls
+	bool "GnuTLS library (libgnutls.so)"
+	select FREETZ_LIB_libgmp
+	select FREETZ_LIB_libhogweed
+	select FREETZ_LIB_libnettle
+	select FREETZ_LIB_libtasn1
+	select FREETZ_LIB_libz
+	default n
+	help
+		GnuTLS is a project that aims to develop a library which provides a
+		secure layer, over a reliable transport layer. Currently the GnuTLS
+		library implements TLS 1.3, 1.2, 1.1, 1.0 protocols and SSL 3.0.
+
+if FREETZ_LIB_libgnutls
+
+	config FREETZ_LIB_libgnutls_openssl
+		bool "GnuTLS openssl compatibility library (libgnutls-openssl.so)"
+		default n
+		help
+			GnuTLS OpenSSL compatibility layer library
+
+endif # FREETZ_LIB_libgnutls
+

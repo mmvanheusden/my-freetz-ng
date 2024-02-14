@@ -1,0 +1,5 @@
+#[ "$EXTERNAL_FREETZ_PACKAGE_APACHE2" = y ] && EXTERNAL_FILES+="$(find "$PACKAGES_DIR/apache2-2.4.xx/root" -type f -printf ' /%P' 2>/dev/null)"
+[ "$EXTERNAL_FREETZ_PACKAGE_APACHE2" = y ] && EXTERNAL_FILES+=" /usr/sbin/apache2 /usr/sbin/apachectl /usr/sbin/checkgid /usr/sbin/envvars"
+[ "$EXTERNAL_FREETZ_PACKAGE_APACHE2" = y ] && EXTERNAL_FILES+=" /usr/sbin/fcgistarter /usr/sbin/htcacheclean /usr/sbin/rotatelogs /usr/sbin/suexec2"
+[ "$EXTERNAL_FREETZ_PACKAGE_APACHE2" = y ] && EXTERNAL_FILES+=" /etc/apache2/ /usr/lib/apache2/ /usr/share/apache2/"
+

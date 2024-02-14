@@ -1,0 +1,16 @@
+link readline directly to $(TERMCAP_LIB) since it needs symbols from it
+
+upstream readline does this on purpose (no direct linking), but
+it doesn't make much sense in a Linux world
+
+--- shlib/Makefile.in
++++ shlib/Makefile.in
+@@ -86,7 +86,7 @@
+ SHOBJ_LIBS = @SHOBJ_LIBS@
+ 
+ SHLIB_XLDFLAGS = @LDFLAGS@ @SHLIB_XLDFLAGS@
+-SHLIB_LIBS = @SHLIB_LIBS@
++SHLIB_LIBS = @SHLIB_LIBS@ $(TERMCAP_LIB)
+ 
+ SHLIB_DOT = @SHLIB_DOT@
+ SHLIB_LIBPREF = @SHLIB_LIBPREF@

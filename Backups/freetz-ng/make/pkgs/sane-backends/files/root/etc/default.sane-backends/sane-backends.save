@@ -1,0 +1,5 @@
+
+pkg_apply() {
+	/mod/etc/init.d/rc.sane-backends config
+}
+

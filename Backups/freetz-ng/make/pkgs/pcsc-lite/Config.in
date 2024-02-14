@@ -1,0 +1,33 @@
+config FREETZ_PACKAGE_PCSC_LITE
+	bool "PCSC-lite 1.9.5/2.0.1 (binary only)"
+	select FREETZ_LIB_libdl       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libpthread  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_librt       if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libusb_1
+	select FREETZ_LIB_libpcsclite # loaded per dlopen
+	default n
+	help
+		The purpose of PCSC Lite is to provide a Windows(R)
+		SCard interface in a very small form factor for
+		communicating to smart cards and readers.
+
+if FREETZ_PACKAGE_PCSC_LITE
+
+	choice
+		prompt "Version"
+			default FREETZ_PACKAGE_PCSC_LITE_VERSION_CURRENT
+
+		config FREETZ_PACKAGE_PCSC_LITE_VERSION_ABANDON
+			bool "1.9.5"
+			depends on FREETZ_LIB_libusb_1_WITH_ABANDON
+			help
+				The C11 atomics are available since GCC v4.9 only.
+
+		config FREETZ_PACKAGE_PCSC_LITE_VERSION_CURRENT
+			bool "2.0.1"
+			depends on !FREETZ_LIB_libusb_1_WITH_ABANDON
+
+	endchoice
+
+endif # FREETZ_PACKAGE_PCSC_LITE
+

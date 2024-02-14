@@ -1,0 +1,14 @@
+--- acinclude.m4
++++ acinclude.m4
+@@ -774,9 +774,9 @@
+ if test "$use_crypto" = "auto" && test "$found_crypto" = "none" || test "$use_crypto" = "$1"; then
+ m4_case([$1],
+ [openssl], [
+-  LIBSSH2_LIB_HAVE_LINKFLAGS([ssl], [crypto], [#include <openssl/ssl.h>], [
++  LIBSSH2_LIB_HAVE_LINKFLAGS([crypto],    [], [#include <openssl/ssl.h>], [
+     AC_DEFINE(LIBSSH2_OPENSSL, 1, [Use $1])
+-    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libssl libcrypto"
++    LIBSREQUIRED="$LIBSREQUIRED${LIBSREQUIRED:+ }libcrypto"
+     found_crypto="$1"
+     found_crypto_str="OpenSSL"
+   ])

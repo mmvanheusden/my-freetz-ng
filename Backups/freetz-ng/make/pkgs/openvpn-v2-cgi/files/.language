@@ -1,0 +1,10 @@
+languages
+{ de en }
+default
+{ en }
+files
+{
+	etc/default.openvpn/*.def
+	etc/init.d/rc.openvpn
+	usr/lib/cgi-bin/openvpn.cgi
+}

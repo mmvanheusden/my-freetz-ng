@@ -1,0 +1,144 @@
+#!/bin/sh
+
+DAEMON=dnsmasq
+DAEMON_LONG_NAME=Dnsmasq
+PID_FILE=/var/run/$DAEMON/$DAEMON.pid
+. /etc/init.d/modlibrc
+
+
+[ -e /etc/init.d/rc.rextd ] && MASTER=rextd || MASTER=multid
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+if [ "$FREETZ_AVMDAEMON_DISABLE_DNS" != "y" ]; then
+	[ "$(/etc/init.d/rc.$MASTER status)" != "running" -o "$DNSMASQ_MULTID_RESTART" != "yes" ] && nomultid=y
+else
+	nomultid=y
+fi
+
+config() {
+	modlib_config
+}
+
+startdaemon_pre() {
+	[ "$nomultid" == "y" ] || /etc/init.d/rc.$MASTER stop >/dev/null
+}
+
+start() {
+	local OPTIONS="--pid-file=$PID_FILE $DNSMASQ_OPTIONS"
+	[ "$DNSMASQ_DNS_PORT" ] && OPTIONS="$OPTIONS -p $DNSMASQ_DNS_PORT"
+	modlib_startdaemon $DAEMON $OPTIONS
+}
+
+startdaemon_post() {
+	[ "$nomultid" == "y" ] || /etc/init.d/rc.$MASTER start >/dev/null
+
+	if [ ! -L "/var/flash/multid.leases" -a "$DNSMASQ_DHCP" = "yes" ]; then
+		rm -f /var/flash/multid.leases
+		touch /var/tmp/multid.leases
+		ln -s /var/tmp/multid.leases /var/flash/multid.leases
+	fi
+
+	# this could pose problems when a client comes too fast
+	local lease
+	for lease in /var/tmp/multid.leases /var/tmp/dnsmasq.leases; do
+		if [ -f $lease ]; then
+			chmod 0664 $lease
+			chown root:nobody $lease
+		fi
+	done
+}
+
+stop_pre() {
+	[ "$nomultid" == "y" ] || /etc/init.d/rc.$MASTER stop >/dev/null
+}
+
+stop_post() {
+	[ "$nomultid" == "y" ] || /etc/init.d/rc.$MASTER start >/dev/null
+
+	if [ -L "/var/flash/multid.leases" ]; then
+		major=$(grep tffs /proc/devices)
+		rm -f /var/flash/multid.leases
+		mknod /var/flash/multid.leases c ${major%%tffs} $((0x70))
+	fi
+}
+
+cgireg() {
+	modunreg file $DAEMON dhcphosts
+	modunreg file $DAEMON leases
+
+	if [ "$DNSMASQ_DHCP" == "yes" ] && [ "$DNSMASQ_DHCPHOSTFILE" == "yes" ]; then
+		modreg file $DAEMON dhcphosts 'DHCP-hosts' 0 dnsmasq_dhcphosts
+	fi
+	if [ "$DNSMASQ_DHCP" == "yes" ]; then
+		modreg file $DAEMON leases 'DHCP-Leases' 0 dnsmasq_leases
+	fi
+}
+
+get_leases() {
+	if [ -s "/tmp/dnsmasq.leases" ]; then
+		echo "#### IPv4 Leases:"
+		grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' /tmp/dnsmasq.leases | sort -n -t . -k 2,2 -k 3,3 -k 4,4 | awk 'NF>1{ $1=strftime("%Y-%m-%d %H:%M:%S", $1);}1'
+		duid=$(grep duid /tmp/dnsmasq.leases | awk '{print $2}')
+		[ -n "$duid" ] && echo $'\n'"#### IPv6 Leases: (duid: $duid)" || echo $'\n#### IPv6 Leases:'
+		grep -Ev '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' /tmp/dnsmasq.leases | grep -v "duid" | sort -n -t : -k 5,5 -k 6,6 -k 7,7 -k 8,8 | awk 'NF>1{ $1=strftime("%Y-%m-%d %H:%M:%S", $1);}1'
+	fi
+}
+
+case $1 in
+	""|load|multid|rextd)
+		if [ "$1" == "multid" -o "$1" == "rextd" ]; then
+			[ "$DNSMASQ_WRAPPER" != "yes" ] && exit
+		else
+			[ "$DNSMASQ_WRAPPER" == "yes" ] && [ "$FREETZ_AVM_HAS_AVMSERVICES_PRELOAD" != "y" ] && exit
+		fi
+
+		modlib_defaults
+
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+		modreg file $DAEMON extra 'extra' 0 dnsmasq_extra
+		cgireg
+
+		modlib_add_user_and_group nobody
+		mkdir -p ${PID_FILE%/*}
+		chown nobody:nobody ${PID_FILE%/*}
+
+		modlib_start $DNSMASQ_ENABLED
+		;;
+	unload)
+		modunreg file $DAEMON
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		if [ "$FREETZ_AVMDAEMON_DISABLE_DNS" != "y" ]; then
+			modlib_check_running && nomultid=y
+		fi
+		modlib_restart
+		;;
+	reload)
+		modlib_reload
+		;;
+	status)
+		modlib_status
+		;;
+	cgireg)
+		cgireg
+		;;
+	get_leases)
+		get_leases
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|reload|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0
+

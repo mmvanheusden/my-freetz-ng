@@ -1,0 +1,12 @@
+config FREETZ_LIB_libslang
+	bool "libslang"
+	select FREETZ_LIB_libdl  if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_libm   if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_SHARE_terminfo
+	default n
+	help
+		S-Lang is a multi-platform programmer's library designed to allow a developer
+		to create robust multi-platform software. It provides facilities required
+		by interactive applications such as display/screen management, keyboard input,
+		keymaps, and so on.
+

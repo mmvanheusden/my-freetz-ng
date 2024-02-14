@@ -1,0 +1,392 @@
+#! /usr/bin/env bash
+KERNEL_CONFIG="${1:-.}/.config"
+FREETZ_CONFIG="${FREETZ_BASE_DIR:-.}/.config"
+MODULE_CONFIG="$(sed -rn "s/^FREETZ_MODULE_(.*)=y$/\1/p" "$FREETZ_CONFIG")"
+
+koon() {
+	local arg="$1"
+	shift
+	[ $# -gt 0 ] && koon "$@"
+
+	local state="m"
+	if [ "$arg" == "${arg/=}" ]; then
+		grep -q "^CONFIG_$arg=y$" "$KERNEL_CONFIG" && echo "#### Fail, kernel builtin: $arg" && return
+		grep -q "^CONFIG_$arg=m$" "$KERNEL_CONFIG" && echo "#### Skip, already module: $arg" && return
+	else
+		grep -q "^CONFIG_${arg}$" "$KERNEL_CONFIG" && echo "#### Skip, yet as desired: $arg" && return
+		state="${arg#*=}"
+	fi
+
+	sed -i "/^CONFIG_$arg=/d;/^# CONFIG_$arg /d;\$aCONFIG_$arg=$state" "$KERNEL_CONFIG"
+	echo "#### Done, changed symbol: $arg"
+}
+
+main() {
+	for kmod in $MODULE_CONFIG; do
+		case "$kmod" in
+
+
+			block2mtd)			koon  MTD_BLOCK2MTD			MTD ;;
+
+			aead)				koon  CRYPTO_AEAD			 ;;
+			arc4)				koon  CRYPTO_ARC4			 ;;
+			aes)				koon  CRYPTO_AES			 ;;
+			cbc)				koon  CRYPTO_CBC			 ;;
+			crypto_blkcipher)		koon  CRYPTO_BLKCIPHER			 ;;
+			crypto_hash)			koon  CRYPTO_HASH			 ;;
+			crypto_wq)			koon  CRYPTO_WORKQUEUE			 ;;
+			cryptomgr)			koon  CRYPTO_MANAGER			 ;;
+			rng)				koon  CRYPTO_ANSI_CPRNG			 ;;
+			sha1)				koon  CRYPTO_SHA1			 ;;
+			sha1_generic)			koon  CRYPTO_SHA1			 ;;
+			sha256)				koon  CRYPTO_SHA256			 ;;
+			sha256_generic)			koon  CRYPTO_SHA256			 ;;
+			pcompress)			koon  CRYPTO_PCOMP			 ;;
+
+			bfusb)				koon  BT_HCIBFUSB			BT ;;
+			btusb)				koon  BT_HCIBTUSB			BT BT_HCIBTUSB_RTL=y BT_HCIUART_INTEL=y ;;
+			btintel)			koon  BT_INTEL				BT ;;
+			btbcm)				koon  BT_HCIBCM203X			BT ;;
+			btrtl)				koon  BT_RTL 				BT ;;
+
+			capiconn)			koon  ISDN_CAPI_CAPICONN		 ;;
+			cdrom)				koon  CDROM				 ;;
+			dummy)				koon  DUMMY				 ;;
+			dm_mod)				koon  BLK_DEV_DM			MD=y ;;
+			dm_crypt)			koon  DM_CRYPT				 ;;
+			firmware_class)			koon  FW_LOADER				 ;;
+			hci_usb)			koon  BT_HCIUSB				BT ;;
+			loop)				koon  BLK_DEV_LOOP			BLK_DEV=y ;;
+			nand)				koon  MTD_NAND				 ;;
+			musb_hdrc)			koon  USB_MUSB_HDRC			 ;;
+			nbd)				koon  BLK_DEV_NBD			 ;;
+			ohio_nand)			koon  MTD_NAND_OHIO			 ;;
+			scsi_mod)			koon  SCSI				 ;;
+			sd_mod)				koon  BLK_DEV_SD			 ;;
+			sg)				koon  CHR_DEV_SG			 ;;
+			slhc)				koon  PPP				 ;;
+			sr_mod)				koon  BLK_DEV_SR			BLK_DEV_SR_VENDOR=n ;;
+			usb_storage)			koon  USB_STORAGE			 ;;
+			usbcore)			koon  USB				 ;;
+			usbip)				koon  USBIP_CORE			 ;;
+			usbip_common_mod)		koon  USB_IP_COMMON			STAGING=y STAGING_EXCLUDE_BUILD=n ;;
+			usblp)				koon  USB_PRINTER			 ;;
+			usbmon)				koon  USB_MON				 ;;
+
+			ppp_generic)			koon  PPP				 ;;
+			ppp_async)			koon  PPP_ASYNC				PPP ;;
+			ppp_deflate)			koon  PPP_DEFLATE			PPP ;;
+			ppp_mppe)			koon  PPP_MPPE				PPP ;;
+			ppp_mppe_mppc)			koon  PPP_MPPE_MPPC			PPP ;;
+			pppoe)				koon  PPPOE				PPP ;;
+			pppox)				koon  PPPOX				PPP ;;
+
+			ch341)				koon  USB_SERIAL_CH341			 ;;
+			cp2101)				koon  USB_SERIAL_CP2101			 ;;
+			cp210x)				koon  USB_SERIAL_CP210X			 ;;
+			ftdi_sio)			koon  USB_SERIAL_FTDI_SIO		 ;;
+			ipaq)				koon  USB_SERIAL_IPAQ			 ;;
+			option)				koon  USB_SERIAL_OPTION			 ;;
+			pl2303)				koon  USB_SERIAL_PL2303			 ;;
+			usbserial)			koon  USB_SERIAL			 ;;
+
+			ext2)				koon  EXT2_FS				 ;;
+			ext3)				koon  EXT3_FS				 ;;
+			jbd)				koon  JBD				 ;;
+			mbcache)			koon  FS_MBCACHE			 ;;
+			crc16)				koon  CRC16				 ;;
+			ext4)				koon  EXT4_FS				 ;;
+			jbd2)				koon  JBD2				 ;;
+			fat)				koon  FAT_FS				 ;;
+			vfat)				koon  VFAT_FS				 ;;
+			hfs)				koon  HFS_FS				MISC_FILESYSTEMS=y ;;
+			hfsplus)			koon  HFSPLUS_FS			MISC_FILESYSTEMS=y ;;
+			iso9660)			koon  ISO9660_FS			 ;;
+			jffs2)				koon  JFFS2_FS				 ;;
+			mini_fo)			koon  MINI_FO				 ;;
+			minix)				koon  MINIX_FS				MISC_FILESYSTEMS=y ;;
+			msdos)				koon  MSDOS_FS				 ;;
+			reiserfs)			koon  REISERFS_FS			 ;;
+			udf)				koon  UDF_FS				 ;;
+			unionfs)			koon  UNION_FS				 ;;
+
+			autofs4)			koon  AUTOFS4_FS			 ;;
+			cifs)				koon  CIFS				NETWORK_FILESYSTEMS=y CIFS_DEBUG=n ;;
+			des_generic)			koon  CRYPTO_DES			 ;;
+			cmac)				koon  CRYPTO_CMAC			 ;;
+			ecb)				koon  CRYPTO_ECB			 ;;
+			hmac)				koon  CRYPTO_HMAC			 ;;
+			md4)				koon  CRYPTO_MD4			 ;;
+			md5)				koon  CRYPTO_MD5			 ;;
+			coda)				koon  CODA_FS				NETWORK_FILESYSTEMS=y ;;
+			fuse)				koon  FUSE_FS				 ;;
+			lockd)				koon  LOCKD				 ;;
+			grace)				koon  GRACE_PERIOD			 ;;
+			sunrpc)				koon  SUNRPC				 ;;
+			nfs)				koon  NFS_FS				NETWORK_FILESYSTEMS=y ;;
+			nfsv2)				koon  NFS_V2				 ;;
+			nfsv3)				koon  NFS_V3				 ;;
+			nfsd)				koon  NFSD				NETWORK_FILESYSTEMS=y NFSD_V3=y ;;
+			nls_cp437)			koon  NLS_CODEPAGE_437			 ;;
+			nls_cp850)			koon  NLS_CODEPAGE_850			 ;;
+			nls_iso8859_1)			koon  NLS_ISO8859_1			 ;;
+			nls_iso8859_15)			koon  NLS_ISO8859_15			 ;;
+			nls_utf8)			koon  NLS_UTF8				 ;;
+			crc_ccitt)			koon  CRC_CCITT				 ;;
+			tun)				koon  TUN				 ;;
+			exportfs)			koon  EXPORTFS				 ;;
+			lzo_compress)			koon  CRYPTO_LZO			 ;;
+			lzo_decompress)			koon  CRYPTO_LZO			 ;;
+
+			bluetooth)			koon  BT				 ;;
+			bnep)				koon  BT_BNEP				BT_BREDR=y ;;
+			l2cap)				koon  BT_L2CAP				 ;;
+			rfcomm)				koon  BT_RFCOMM				BT_BREDR=y ;;
+
+			cls_u32)			koon  NET_CLS_U32			NET_SCHED=y ;;
+			sch_cbq)			koon  NET_SCH_CBQ			NET_SCHED=y ;;
+			sch_htb)			koon  NET_SCH_HTB			NET_SCHED=y ;;
+			sch_llq)			koon  NET_SCH_LLQ			NET_SCHED=y ;;
+			sch_sfq)			koon  NET_SCH_SFQ			NET_SCHED=y ;;
+			sch_tbf)			koon  NET_SCH_TBF			NET_SCHED=y ;;
+
+
+			x_tables)			koon  NETFILTER_XTABLES			NETFILTER=y ;;
+
+			xt_nat)				koon  NF_NAT				 ;;
+			xt_tcpudp)			koon  NETFILTER_XTABLES			 ;;
+			xt_CLASSIFY)			koon  NETFILTER_XT_TARGET_CLASSIFY	 ;;
+			xt_DSCP)			koon  NETFILTER_XT_TARGET_DSCP		NETFILTER_ADVANCED=y ;;
+			xt_HL)				koon  NETFILTER_XT_TARGET_HL		 ;;
+			xt_LOG)				koon  NETFILTER_XT_TARGET_LOG		 ;;
+			xt_MARK)			koon  NETFILTER_XT_TARGET_MARK		 ;;
+			xt_NFQUEUE)			koon  NETFILTER_XT_TARGET_NFQUEUE	 ;;
+			xt_NOTRACK)			koon  NETFILTER_XT_TARGET_NOTRACK	 ;;
+			xt_comment)			koon  NETFILTER_XT_MATCH_COMMENT	 ;;
+			xt_conntrack)			koon  NETFILTER_XT_MATCH_CONNTRACK	 ;;
+			xt_esp)				koon  NETFILTER_XT_MATCH_ESP		 ;;
+			xt_helper)			koon  NETFILTER_XT_MATCH_HELPER		 ;;
+			xt_hl)				koon  NETFILTER_XT_MATCH_HL		 ;;
+			xt_iprange)			koon  NETFILTER_XT_MATCH_IPRANGE	 ;;
+			xt_length)			koon  NETFILTER_XT_MATCH_LENGTH		 ;;
+			xt_limit)			koon  NETFILTER_XT_MATCH_LIMIT		NETFILTER_ADVANCED=y ;;
+			xt_mac)				koon  NETFILTER_XT_MATCH_MAC		NETFILTER_ADVANCED=y ;;
+			xt_mark)			koon  NETFILTER_XT_MATCH_MARK		 ;;
+			xt_multiport)			koon  NETFILTER_XT_MATCH_MULTIPORT	 ;;
+			xt_physdev)			koon  NETFILTER_XT_MATCH_PHYSDEV	 ;;
+			xt_pkttype)			koon  NETFILTER_XT_MATCH_PKTTYPE	 ;;
+			xt_quota)			koon  NETFILTER_XT_MATCH_QUOTA		 ;;
+			xt_realm)			koon  NETFILTER_XT_MATCH_REALM		 ;;
+			xt_state)			koon  NETFILTER_XT_MATCH_STATE		 ;;
+			xt_statistic)			koon  NETFILTER_XT_MATCH_STATISTIC	 ;;
+			xt_string)			koon  NETFILTER_XT_MATCH_STRING		 ;;
+			xt_tcpmss)			koon  NETFILTER_XT_MATCH_TCPMSS		 ;;
+			xt_time)			koon  NETFILTER_XT_MATCH_TIME		 ;;
+
+			nf_conntrack_ipv6)		koon  NF_CONNTRACK_IPV6			 ;;
+			nf_conntrack)			koon  NF_CONNTRACK			 ;;
+			nf_conntrack_ftp)		koon  NF_CONNTRACK_FTP			NF_CONNTRACK ;;
+			nf_conntrack_h323)		koon  NF_CONNTRACK_H323			NF_CONNTRACK ;;
+			nf_conntrack_irc)		koon  NF_CONNTRACK_IRC			NF_CONNTRACK ;;
+			nf_conntrack_ipv4)		koon  NF_CONNTRACK_IPV4			NF_CONNTRACK ;;
+			nf_conntrack_pptp)		koon  NF_CONNTRACK_PPTP			NF_CONNTRACK ;;
+			nf_conntrack_tftp)		koon  NF_CONNTRACK_TFTP			NF_CONNTRACK ;;
+			nf_conntrack_proto_gre)		koon  NF_NAT_PROTO_GRE			 ;;
+			nf_nat_ipv4)			koon  NF_NAT_IPV4			 ;;
+			nf_nat_ipv6)			koon  NF_NAT_IPV6			.;;
+			nf_nat)				koon  NF_NAT				 ;;
+			nf_nat_amanda)			koon  NF_NAT_AMANDA			 ;;
+			nf_nat_ftp)			koon  NF_NAT_FTP			 ;;
+			nf_nat_h323)			koon  NF_NAT_H323			 ;;
+			nf_nat_irc)			koon  NF_NAT_IRC			 ;;
+			nf_nat_pptp)			koon  NF_NAT_PPTP			 ;;
+			nf_nat_sip)			koon  NF_NAT_SIP			 ;;
+			nf_nat_snmp_basic)		koon  NF_NAT_SNMP_BASIC			 ;;
+			nf_nat_tftp)			koon  NF_NAT_TFTP			 ;;
+			nf_nat_proto_gre)		koon  NF_NAT_PROTO_GRE			 ;;
+			nf_nat_proto_dccp)		koon  NF_NAT_PROTO_DCCP			 ;;
+			nf_nat_proto_udplite)		koon  NF_NAT_PROTO_UDPLITE		 ;;
+			nf_nat_proto_sctp)		koon  NF_NAT_PROTO_SCTP			 ;;
+			nf_defrag_ipv4)			koon  NF_DEFRAG_IPV4			 ;;
+			nf_log_common)			koon  NF_LOG_COMMON			 ;;
+			nf_log_ipv4)			koon  NF_LOG_IPV4			 ;;
+			nf_log_ipv6)			koon  NF_LOG_IPV6			 ;;
+
+			ipt_CLASSIFY)			koon  IP_NF_TARGET_CLASSIFY		 ;;
+			ipt_CLUSTERIP)			koon  IP_NF_TARGET_CLUSTERIP		 ;;
+			ipt_CONNMARK)			koon  IP_NF_TARGET_CONNMARK		 ;;
+			ipt_DSCP)			koon  IP_NF_TARGET_DSCP			 ;;
+			ipt_ECN)			koon  IP_NF_TARGET_ECN			 ;;
+			ipt_IDLETIMER)			koon  IP_NF_TARGET_IDLETIMER		 ;;
+			ipt_LOG)			koon  IP_NF_TARGET_LOG			 ;;
+			ipt_MARK)			koon  IP_NF_TARGET_MARK			 ;;
+			ipt_MASQUERADE)			koon  IP_NF_TARGET_MASQUERADE		 ;;
+			ipt_NETMAP)			koon  IP_NF_TARGET_NETMAP		 ;;
+			ipt_NOTRACK)			koon  IP_NF_TARGET_NOTRACK		 ;;
+			ipt_REDIRECT)			koon  IP_NF_TARGET_REDIRECT		 ;;
+			ipt_REJECT)			koon  IP_NF_TARGET_REJECT		 ;;
+			ipt_SAME)			koon  IP_NF_TARGET_SAME			 ;;
+			ipt_SYNPROXY)			koon  IP_NF_TARGET_SYNPROXY		 ;;
+			ipt_TCPMSS)			koon  IP_NF_TARGET_TCPMSS		 ;;
+			ipt_TOS)			koon  IP_NF_TARGET_TOS			 ;;
+			ipt_TRIGGER)			koon  IP_NF_TARGET_TRIGGER		 ;;
+			ipt_TTL)			koon  IP_NF_TARGET_TTL			 ;;
+			ipt_ULOG)			koon  IP_NF_TARGET_ULOG			 ;;
+
+			ipt_addrtype)			koon  IP_NF_MATCH_ADDRTYPE		 ;;
+			ipt_ah)				koon  IP_NF_MATCH_AH			 ;;
+			ipt_comment)			koon  IP_NF_MATCH_COMMENT		 ;;
+			ipt_connmark)			koon  IP_NF_MATCH_CONNMARK		 ;;
+			ipt_conntrack)			koon  IP_NF_MATCH_CONNTRACK		 ;;
+			ipt_dscp)			koon  IP_NF_MATCH_DSCP			 ;;
+			ipt_ecn)			koon  IP_NF_MATCH_ECN			 ;;
+			ipt_esp)			koon  IP_NF_MATCH_AH_ESP		IP_NF_MATCH_AH ;;
+			ipt_hashlimit)			koon  IP_NF_MATCH_HASHLIMIT		 ;;
+			ipt_helper)			koon  IP_NF_MATCH_HELPER		 ;;
+			ipt_ifxattack)			koon  IP_NF_MATCH_LTQATTACK		 ;;
+			ipt_ipp2p)			koon  IP_NF_MATCH_IPP2P			 ;;
+			ipt_iprange)			koon  IP_NF_MATCH_IPRANGE		 ;;
+			ipt_layer7)			koon  IP_NF_MATCH_LAYER7		 ;;
+			ipt_length)			koon  IP_NF_MATCH_LENGTH		 ;;
+			ipt_limit)			koon  IP_NF_MATCH_LIMIT			 ;;
+			ipt_mac)			koon  IP_NF_MATCH_MAC			 ;;
+			ipt_mark)			koon  IP_NF_MATCH_MARK			 ;;
+			ipt_multiport)			koon  IP_NF_MATCH_MULTIPORT		 ;;
+			ipt_owner)			koon  IP_NF_MATCH_OWNER			 ;;
+			ipt_physdev)			koon  IP_NF_MATCH_PHYSDEV		 ;;
+			ipt_pkttype)			koon  IP_NF_MATCH_PKTTYPE		 ;;
+			ipt_realm)			koon  IP_NF_MATCH_REALM			 ;;
+			ipt_recent)			koon  IP_NF_MATCH_RECENT		 ;;
+			ipt_rpfilter)			koon  IP_NF_MATCH_RPFILTER		 ;;
+			ipt_sctp)			koon  IP_NF_MATCH_SCTP			 ;;
+			ipt_state)			koon  IP_NF_MATCH_STATE			 ;;
+			ipt_stealth)			koon  IP_NF_MATCH_STEALTH		 ;;
+			ipt_synflood)			koon  IP_NF_MATCH_SYNFLOOD		 ;;
+			ipt_tcpmss)			koon  IP_NF_MATCH_TCPMSS		 ;;
+			ipt_tos)			koon  IP_NF_MATCH_TOS			 ;;
+			ipt_ttl)			koon  IP_NF_MATCH_TTL			 ;;
+			ipt_webstr)			koon  IP_NF_MATCH_WEBSTR		 ;;
+
+
+			ip6table_filter)		koon  IP6_NF_FILTER			 ;;
+			ip6table_mangle)		koon  IP6_NF_MANGLE			 ;;
+			ip6table_raw)			koon  IP6_NF_RAW			 ;;
+			ip6table_nat)			koon  NF_NAT_IPV6			 ;;
+			ip6table_security)		koon  IP6_NF_SECURITY			 ;;
+
+			ip6_tables)			koon  IP6_NF_IPTABLES			 ;;
+
+			ip6t_HL)			koon  IP6_NF_TARGET_HL			 ;;
+			ip6t_LOG)			koon  IP6_NF_TARGET_LOG			 ;;
+			ip6t_MASQUERADE)		koon  IP6_NF_TARGET_MASQUERADE		 ;;
+			ip6t_MARK)			koon  IP6_NF_TARGET_MARK		 ;;
+			ip6t_NPT)			koon  IP6_NF_TARGET_NPT			 ;;
+			ip6t_REJECT)			koon  IP6_NF_TARGET_REJECT		 ;;
+			ip6t_SYNPROXY)			koon  IP6_NF_TARGET_SYNPROXY		 ;;
+			ip6t_ah)			koon  IP6_NF_MATCH_AH			 ;;
+			ip6t_dst)			koon  IP6_NF_MATCH_OPTS			 ;;
+			ip6t_esp)			koon  IP6_NF_MATCH_AHESP		IP6_NF_MATCH_AH ;;
+			ip6t_eui64)			koon  IP6_NF_MATCH_EUI64		 ;;
+			ip6t_frag)			koon  IP6_NF_MATCH_FRAG			 ;;
+			ip6t_hbh)			koon  IP6_NF_MATCH_OPTS			 ;;
+			ip6t_hl)			koon  IP6_NF_MATCH_HL			 ;;
+			ip6t_ipv6header)		koon  IP6_NF_MATCH_IPV6HEADER		 ;;
+			ip6t_length)			koon  IP6_NF_MATCH_LENGTH		 ;;
+			ip6t_limit)			koon  IP6_NF_MATCH_LIMIT		 ;;
+			ip6t_mac)			koon  IP6_NF_MATCH_MAC			 ;;
+			ip6t_mark)			koon  IP6_NF_MATCH_MARK			 ;;
+			ip6t_mh)			koon  IP6_NF_MATCH_MH			 ;;
+			ip6t_multiport)			koon  IP6_NF_MATCH_MULTIPORT		 ;;
+			ip6t_owner)			koon  IP6_NF_MATCH_OWNER		 ;;
+			ip6t_physdev)			koon  IP6_NF_MATCH_PHYSDEV		 ;;
+			ip6t_rpfilter)			koon  IP6_NF_MATCH_RPFILTER		 ;;
+			ip6t_rt)			koon  IP6_NF_MATCH_RT			 ;;
+
+
+			iptable_filter)			koon  IP_NF_FILTER			 ;;
+			iptable_mangle)			koon  IP_NF_MANGLE			 ;;
+			iptable_raw)			koon  IP_NF_RAW				 ;;
+			iptable_nat)			koon  NF_NAT_IPV4			 ;;
+			iptable_security)		koon  IP_NF_SECURITY			 ;;
+
+			ip_tables)			koon  IP_NF_IPTABLES			 ;;
+			ip_queue)			koon  IP_NF_QUEUE			 ;;
+			ip_gre)				koon  NET_IPGRE				 ;;
+			ip_tunnel)			koon  NET_IP_TUNNEL			 ;;
+			ip_vti)				koon  NET_IPVTI				 ;;
+
+			ip_conntrack)			koon  IP_NF_CONNTRACK			 ;;
+			ip_conntrack_amanda)		koon  IP_NF_AMANDA			 ;;
+			ip_conntrack_ftp)		koon  IP_NF_FTP				 ;;
+			ip_conntrack_h323)		koon  IP_NF_H323			 ;;
+			ip_conntrack_irc)		koon  IP_NF_IRC				 ;;
+			ip_conntrack_netbios_ns)	koon  IP_NF_NETBIOS_NS			 ;;
+			ip_conntrack_netlink)		koon  IP_NF_CONNTRACK_NETLINK		 ;;
+			ip_conntrack_pptp)		koon  IP_NF_PPTP			 ;;
+			ip_conntrack_proto_sctp)	koon  IP_NF_CT_PROTO_SCTP		 ;;
+			ip_conntrack_rtsp)		koon  IP_NF_RTSP			 ;;
+			ip_conntrack_sip)		koon  IP_NF_SIP				 ;;
+			ip_conntrack_tftp)		koon  IP_NF_TFTP			 ;;
+
+			ip_nat)				koon  IP_NF_NAT				 ;;
+			ip_nat_amanda)			koon  IP_NF_NAT_AMANDA			 ;;
+			ip_nat_ftp)			koon  IP_NF_NAT_FTP			 ;;
+			ip_nat_h323)			koon  IP_NF_NAT_H323			 ;;
+			ip_nat_irc)			koon  IP_NF_NAT_IRC			 ;;
+			ip_nat_pptp)			koon  IP_NF_NAT_PPTP			 ;;
+			ip_nat_rtsp)			koon  IP_NF_NAT_RTSP			 ;;
+			ip_nat_sip)			koon  IP_NF_NAT_SIP			 ;;
+			ip_nat_snmp_basic)		koon  IP_NF_NAT_SNMP_BASIC		 ;;
+			ip_nat_tftp)			koon  IP_NF_NAT_TFTP			 ;;
+
+			ip_set)				koon  IP_SET				 ;;
+			ip_set_bitmap_ip)		koon  IP_SET_BITMAP_IP			 ;;
+			ip_set_bitmap_ipmac)		koon  IP_SET_BITMAP_IPMAC		 ;;
+			ip_set_bitmap_port)		koon  IP_SET_BITMAP_PORT		 ;;
+			ip_set_hash_ip)			koon  IP_SET_HASH_IP			 ;;
+			ip_set_hash_ipmark)		koon  IP_SET_HASH_IPMARK		 ;;
+			ip_set_hash_ipportip)		koon  IP_SET_HASH_IPPORTIP		 ;;
+			ip_set_hash_ipport)		koon  IP_SET_HASH_IPPORT		 ;;
+			ip_set_hash_ipportnet)		koon  IP_SET_HASH_IPPORTNET		 ;;
+			ip_set_hash_mac)		koon  IP_SET_HASH_MAC			 ;;
+			ip_set_hash_netiface)		koon  IP_SET_HASH_NETIFACE		 ;;
+			ip_set_hash_net)		koon  IP_SET_HASH_NET			 ;;
+			ip_set_hash_netnet)		koon  IP_SET_HASH_NETNET		 ;;
+			ip_set_hash_netport)		koon  IP_SET_HASH_NETPORT		 ;;
+			ip_set_hash_netportnet)		koon  IP_SET_HASH_NETPORTNET		 ;;
+			ip_set_list_set)		koon  IP_SET_LIST_SET			 ;;
+
+			ip_vs)				koon  IP_VS				 ;;
+			ip_vs_dh)			koon  IP_VS_DH				 ;;
+			ip_vs_fo)			koon  IP_VS_FO				 ;;
+			ip_vs_ftp)			koon  IP_VS_FTP				 ;;
+			ip_vs_lblc)			koon  IP_VS_LBLC			 ;;
+			ip_vs_lblcr)			koon  IP_VS_LBLCR			 ;;
+			ip_vs_lc)			koon  IP_VS_LC				 ;;
+			ip_vs_nfct)			koon  IP_VS_NFCT			 ;;
+			ip_vs_nq)			koon  IP_VS_NQ				 ;;
+			ip_vs_ovf)			koon  IP_VS_OVF				 ;;
+			ip_vs_pe_sip)			koon  IP_VS_PE_SIP			 ;;
+			ip_vs_proto_ah_esp)		koon  IP_VS_PROTO_AH_ESP		 ;;
+			ip_vs_proto_ah)			koon  IP_VS_PROTO_AH			 ;;
+			ip_vs_proto_esp)		koon  IP_VS_PROTO_ESP			 ;;
+			ip_vs_proto_sctp)		koon  IP_VS_PROTO_SCTP			 ;;
+			ip_vs_proto_tcp)		koon  IP_VS_PROTO_TCP			 ;;
+			ip_vs_proto_udp)		koon  IP_VS_PROTO_UDP			 ;;
+			ip_vs_rr)			koon  IP_VS_RR				 ;;
+			ip_vs_sed)			koon  IP_VS_SED				 ;;
+			ip_vs_sh)			koon  IP_VS_SH				 ;;
+			ip_vs_wlc)			koon  IP_VS_WLC				 ;;
+			ip_vs_wrr)			koon  IP_VS_WRR				 ;;
+
+
+			*)		echo "#### Warn, not configured: $kmod"	 ;;
+		esac
+	done
+}
+
+echo "#### Koon: vvvvvvvvvvvvvv "
+main
+echo "#### Koon: ^^^^^^^^^^^^^^ "
+exit 0
+

@@ -1,0 +1,10 @@
+--- linux-2.6.19/scripts/mod/sumversion.c
++++ linux-2.6.19/scripts/mod/sumversion.c
+@@ -8,6 +8,7 @@
+ #include <errno.h>
+ #include <string.h>
+ #include "modpost.h"
++#include <linux/limits.h>
+ 
+ /*
+  * Stolen form Cryptographic API.

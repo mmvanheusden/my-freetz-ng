@@ -1,0 +1,30 @@
+config FREETZ_PACKAGE_STRACE
+	bool "strace 4.9/5.0/6.7 (binary only)"
+	default n
+	help
+		strace - trace system calls and signals
+
+		strace is a system call tracer, i.e. a debugging tool which prints out
+		a trace of all the system calls made by a another process/program.
+
+if FREETZ_PACKAGE_STRACE
+
+	choice
+		prompt "Version"
+
+		config FREETZ_PACKAGE_STRACE_VERSION_4
+			bool "4.9"
+			depends on  (                                FREETZ_KERNEL_VERSION_2_6_13)
+
+		config FREETZ_PACKAGE_STRACE_VERSION_5
+			bool "5.0"
+			depends on  (FREETZ_KERNEL_VERSION_2_MAX && !FREETZ_KERNEL_VERSION_2_6_13)
+
+		config FREETZ_PACKAGE_STRACE_VERSION_6
+			bool "6.7"
+			depends on !(FREETZ_KERNEL_VERSION_2_MAX                                 )
+
+	endchoice
+
+endif # FREETZ_PACKAGE_STRACE
+

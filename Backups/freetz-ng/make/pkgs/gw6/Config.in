@@ -1,0 +1,15 @@
+config FREETZ_PACKAGE_GW6
+	bool "Gateway6 client 5.1"
+	depends on FREETZ_TARGET_IPV6_SUPPORT
+	select FREETZ_BUSYBOX_IP
+	select FREETZ_BUSYBOX_FEATURE_IP_ADDRESS
+	select FREETZ_LIB_libpthread if FREETZ_TARGET_UCLIBC_HAS_multiple_libs
+	select FREETZ_LIB_STDCXXLIB
+	select FREETZ_BUSYBOX_FEATURE_PS_WIDE
+	default n
+	help
+		Client to build a tunnel to the ipv6 network (see http://go6.net).
+		The binary will be installed as /usr/sbin/gw6c and CGI frontend
+		will be provided for a simple configuration. A sample can be
+		found in /usr/share/gw6/.
+

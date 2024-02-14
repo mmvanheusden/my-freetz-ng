@@ -1,0 +1,13 @@
+
+rc_status() { :; }
+
+apply_changes() { :; }
+
+pkg_post_save() {
+	/mod/etc/init.d/rc.avm-rules apply
+}
+
+pkg_post_def() {
+	/mod/etc/init.d/rc.avm-rules apply default
+}
+

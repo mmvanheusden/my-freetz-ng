@@ -1,0 +1,8 @@
+CAPTION='Screen: screenrc'
+DESCRIPTION="$(lang de:"Dokumentation" en:"Documentation"): <a target=blank href=https://git.savannah.gnu.org/cgit/screen.git/tree/src/etc/screenrc>https://git.savannah.gnu.org/cgit/screen.git/tree/src/etc/screenrc</a>"
+
+CONFIG_FILE='/tmp/flash/screen/screenrc'
+CONFIG_SAVE='modsave flash'
+CONFIG_TYPE='text'
+
+TEXT_ROWS=25

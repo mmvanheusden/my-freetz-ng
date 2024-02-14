@@ -1,0 +1,51 @@
+$(call PKG_INIT_LIB, $(MPC_HOST_VERSION))
+$(PKG)_LIB_VERSION:=3.1.0
+$(PKG)_SOURCE:=$(MPC_HOST_SOURCE)
+$(PKG)_HASH:=$(MPC_HOST_HASH)
+$(PKG)_SITE:=$(MPC_HOST_SITE)
+### VERSION:=1.1.0
+
+$(PKG)_BINARY:=$($(PKG)_DIR)/src/.libs/libmpc.so.$($(PKG)_LIB_VERSION)
+$(PKG)_STAGING_BINARY:=$(TARGET_TOOLCHAIN_STAGING_DIR)/usr/lib/libmpc.so.$($(PKG)_LIB_VERSION)
+$(PKG)_TARGET_BINARY:=$($(PKG)_TARGET_DIR)/libmpc.so.$($(PKG)_LIB_VERSION)
+
+$(PKG)_DEPENDS_ON += gmp mpfr
+
+$(PKG)_CONFIGURE_OPTIONS += --enable-static
+$(PKG)_CONFIGURE_OPTIONS += --enable-shared
+$(PKG)_CONFIGURE_OPTIONS += --with-gmp=$(TARGET_TOOLCHAIN_STAGING_DIR)
+$(PKG)_CONFIGURE_OPTIONS += --with-mpfr=$(TARGET_TOOLCHAIN_STAGING_DIR)
+
+$(PKG)_CONFIGURE_PRE_CMDS += $(call PKG_PREVENT_RPATH_HARDCODING,./configure)
+
+#$(PKG_SOURCE_DOWNLOAD)
+$(PKG_UNPACKED)
+$(PKG_CONFIGURED_CONFIGURE)
+
+$($(PKG)_BINARY): $($(PKG)_DIR)/.configured
+	$(SUBMAKE) -C $(MPC_DIR)
+
+$($(PKG)_STAGING_BINARY): $($(PKG)_BINARY)
+	$(SUBMAKE) -C $(MPC_DIR) \
+		DESTDIR="$(TARGET_TOOLCHAIN_STAGING_DIR)" \
+		install
+	$(PKG_FIX_LIBTOOL_LA) \
+		$(TARGET_TOOLCHAIN_STAGING_DIR)/usr/lib/libmpc.la
+
+$($(PKG)_TARGET_BINARY): $($(PKG)_STAGING_BINARY)
+	$(INSTALL_LIBRARY_STRIP)
+
+$(pkg): $($(PKG)_STAGING_BINARY)
+
+$(pkg)-precompiled: $($(PKG)_TARGET_BINARY)
+
+$(pkg)-clean:
+	-$(SUBMAKE) -C $(MPC_DIR) clean
+	$(RM) \
+		$(TARGET_TOOLCHAIN_STAGING_DIR)/usr/lib/libmpc.* \
+		$(TARGET_TOOLCHAIN_STAGING_DIR)/usr/include/mpc*.h
+
+$(pkg)-uninstall:
+	$(RM) $(MPC_TARGET_DIR)/libmpc*.so*
+
+$(PKG_FINISH)

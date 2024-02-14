@@ -1,0 +1,33 @@
+config FREETZ_PACKAGE_UNRAR
+	bool "UnRAR 6.1.7/6.2.12 (binary only)"
+	select FREETZ_STDCXXLIB_FORCE_GNULIBSTDCXX
+	select FREETZ_LIB_STDCXXLIB if ! FREETZ_PACKAGE_UNRAR_STATIC
+	default n
+	help
+		Unarchiver for .rar files
+
+if FREETZ_PACKAGE_UNRAR
+
+
+	choice
+		prompt "Version"
+			default FREETZ_PACKAGE_UNRAR_VERSION_CURRENT
+
+		config FREETZ_PACKAGE_UNRAR_VERSION_ABANDON
+			bool "6.1.7"
+			depends on !FREETZ_TARGET_GCC_4_8_MIN
+
+		config FREETZ_PACKAGE_UNRAR_VERSION_CURRENT
+			bool "6.2.12"
+			depends on FREETZ_TARGET_GCC_4_8_MIN
+
+	endchoice
+
+	config FREETZ_PACKAGE_UNRAR_STATIC
+		bool "Link statically"
+		depends on FREETZ_PACKAGE_UNRAR
+		default n
+		help
+			Causes all libraries unrar depends on to be linked in statically
+
+endif # FREETZ_PACKAGE_UNRAR

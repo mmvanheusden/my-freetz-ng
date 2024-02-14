@@ -1,0 +1,20 @@
+--- configure
++++ configure
+@@ -19587,6 +19587,9 @@
+ 
+ 
+ 
++if true; then
++CFLAGS="$CFLAGS -DXML_POOR_ENTROPY"
++else
+ # Check whether --with-libbsd was given.
+ if test ${with_libbsd+y}
+ then :
+@@ -19712,6 +19715,7 @@
+ fi
+ rm -f core conftest.err conftest.$ac_objext conftest.beam \
+     conftest$ac_exeext conftest.$ac_ext
++fi
+ 
+ 
+ # Check whether --with-getrandom was given.

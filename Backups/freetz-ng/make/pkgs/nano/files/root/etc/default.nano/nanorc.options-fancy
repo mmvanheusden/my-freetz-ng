@@ -1,0 +1,12 @@
+#set autoindent
+#set brackets ""')>]}"
+#set fill -8
+#set matchbrackets "(<[{)>]}"
+#set nowrap
+#set punct "!.?"
+#set smarthome
+#set smooth
+#set tabstospaces
+#set wordbounds
+#set undo
+#set softwrap

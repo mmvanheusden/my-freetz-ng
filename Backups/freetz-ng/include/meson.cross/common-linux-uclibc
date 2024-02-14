@@ -1,0 +1,39 @@
+
+
+
+
+
+
+
+
+
+
+[built-in options]
+prefix            = '/usr'
+c_args            = [%TARGET_CFLAGS%]
+c_link_args       = [%TARGET_LDFLAGS%]
+cpp_args          = [%TARGET_CFLAGS%]
+cpp_link_args     = [%TARGET_LDFLAGS%]
+
+[properties]
+needs_exe_wrapper = true
+pkg_config_libdir = '%PKGCONFIG%'
+
+[binaries]
+ar                = arch + '-ar'
+as                = arch + '-as'
+c                 = arch + '-gcc'
+cc                = arch + '-gcc'
+cpp               = arch + '-g++-wrapper'
+cxx               = arch + '-g++-wrapper'
+ld                = arch + '-ld'
+ldconfig          = arch + '-ldconfig'
+nm                = arch + '-nm'
+ranlib            = arch + '-ranlib'
+objcopy           = arch + '-objcopy'
+readelf           = arch + '-readelf'
+strip             = arch + '-strip --remove-section={.comment,.note,.pdr}'
+pkgconfig         = 'pkg-config'
+python            = 'python3'
+cmake             = 'cmake'
+

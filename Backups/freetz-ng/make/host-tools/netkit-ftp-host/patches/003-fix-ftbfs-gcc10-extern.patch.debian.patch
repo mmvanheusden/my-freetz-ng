@@ -1,0 +1,16 @@
+Description: Fix FTBFS: hashstep should always be extern
+ and sometimes Extern macro is defined to nothing.
+Author: Dimitri John Ledkov <xnox@ubuntu.com>
+Bug-Debian: https://bugs.debian.org/957600
+
+--- netkit-ftp-0.17.orig/ftp/ftp_var.h
++++ netkit-ftp-0.17/ftp/ftp_var.h
+@@ -75,7 +75,7 @@
+ Extern int	rl_inhibit;	/* disable readline support */
+ Extern int	traceflag;	/* trace packets exchanged */
+ Extern int	hash;		/* print # for each buffer transferred */
+-Extern size_t	hashstep;	/* Increment between hash markings */
++extern size_t	hashstep;	/* Increment between hash markings */
+ Extern int	tick;		/* print byte counter during transfers */
+ Extern int	sendport;	/* use PORT cmd for each data connection */
+ Extern int	verbose;	/* print messages coming back from server */

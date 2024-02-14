@@ -1,0 +1,86 @@
+#!/bin/sh
+
+DAEMON=telnetd
+DAEMON_LONG_NAME="Telnetd"
+CONF_NAME=avm
+CONF_ENABLED=AVM_TELNETD
+. /etc/init.d/modlibrc
+
+start() {
+	modlib_startdaemon $DAEMON -l /sbin/ar7login
+}
+
+stop() {
+	killall $DAEMON > /dev/null 2>&1
+}
+
+case $1 in
+	""|load)
+		modreg daemon -p avm telnetd
+		;;
+	unload)
+		modunreg daemon avm telnetd
+		;;
+	start|stop|restart|status)
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+
+modlib_check_running
+case $? in
+	3)
+		pidof telnetd >/dev/null && telnetd_phone=y
+		;;
+	5)
+		if [ "$(/mod/etc/init.d/rc.inetd status)" == "running" ]; then
+			# Note negative grep doesn't necessarily mean that telnetd is started by phone.
+			# We could be in the process of switching telnetd to inetd-mode: the (old) inetd
+			# instance might still be running, the config it uses has however no telnetd entry,
+			# thus no ":23 LISTEN inetd"-entry.
+			netstat -apn 2>&1 | grep -q ":23 .*LISTEN .*inetd$" && telnetd_phone=n
+		fi
+		if [ -z "$telnetd_phone" ]; then
+			pidof telnetd >/dev/null && telnetd_phone=y
+		fi
+		;;
+esac
+if [ "$telnetd_phone" == "y" ]; then
+	if [ "$1" == "status" ]; then
+		echo "byphone"
+	else
+		echo "$DAEMON_LONG_NAME was started by phone, failed."
+	fi
+	exit 1
+fi
+
+
+case $1 in
+	""|load)
+		modreg pkg $DAEMON "$DAEMON_LONG_NAME"
+
+		modlib_start $AVM_TELNETD
+		;;
+	unload)
+		modunreg pkg $DAEMON
+
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+esac
+
+exit 0

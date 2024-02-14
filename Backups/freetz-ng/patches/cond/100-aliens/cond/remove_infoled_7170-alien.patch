@@ -1,0 +1,16 @@
+--- usr/www/all/menus/menu_data.lua
++++ usr/www/all/menus/menu_data.lua
+@@ -391,13 +391,6 @@
+ }
+ ----------------------------------------------------------
+ menu.add_item{
+-page = "/system/infoled.lua",
+-text = [[{?3505:3094?}]],
+-menu = "system",
+-subpages = {}
+-}
+-----------------------------------------------------------
+-menu.add_item{
+ text = [[{?3505:301?}]],
+ menu = "system",
+ page = "/system/nacht.lua",

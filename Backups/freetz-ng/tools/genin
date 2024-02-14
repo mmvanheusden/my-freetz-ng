@@ -1,0 +1,159 @@
+#! /usr/bin/env bash
+
+PKGDIR=make/pkgs
+CFILE=$PKGDIR/Config.in.generated
+EFILE=$PKGDIR/external.in.generated
+SUBCATS=tools/genin.cat
+
+[ ! -d $PKGDIR/mod ] && exit 1
+
+# collect categories & their packages
+#echo -n "genin "
+CATs=""
+CATTABLE=""
+NONHIDDEN="#"
+[ "$1" != "legacy" ] && CATMARK="0123456789"
+
+for PKG_DIR in $(find -L $PKGDIR -mindepth 2 -maxdepth 2 -type f -name Config.in -printf "%h\n" | sort); do
+	PKG="${PKG_DIR#$PKGDIR/}"
+
+	# ignore libs
+	[ "$PKG" == "libs" ] && continue
+
+	c=$((c+1))
+	[ "$((c%3))" == "0" ] && echo -n "."
+
+	# extract CATEGORY from the .mk file
+	CAT=$(sed -r -n -e 's,^[ \t]*\$\(PKG\)_CATEGORY[ \t]*:?=[ \t]*(.*),\1,p' ${PKG_DIR}/${PKG}.mk 2>/dev/null)
+	if [ -z "$CATMARK" ]; then
+		[ -z "$CAT" ] && CAT=Packages
+	else
+		[ -z "$CAT" ] && CAT="$CATMARK${PKG:0:1}" && CAT="${CAT^^}"
+	fi
+
+	NONHIDDEN="${NONHIDDEN//%$CAT/}%${CAT}"
+
+	# append <Category>##<PKG> to the category-table
+	CATTABLE="$CATTABLE\n${CAT}##${PKG}"
+done
+
+echo ""
+
+#################################################################
+# Build "complete" categories by prepending "parent" categories #
+#################################################################
+
+# read in "parent##child"-pairs and replace newlines by %
+SUBCAT=$(cat $SUBCATS)
+
+# fill variable for the complete prefixes and replace newlines by % for later "in string replacement"
+NEW="%"$(cat $SUBCATS | grep -v "^#"| tr '\n' '%')
+# we have to find out whether we are "finished" by determining, whether replacement happened
+OLD=""
+
+# we use values with whitespaces inside, so change IFS to be only "\n"
+buIFS=$IFS
+IFS='
+'
+while [ "$NEW" != "$OLD" ]; do
+	OLD=$NEW
+	for row in $SUBCAT; do
+		CHILD=${row#*\#\#}
+		# replace a "leading" entry of "CHILD" by "PARENT##CHILD"
+		NEW=${NEW//\%${CHILD}/\%$row}
+	done
+done
+# fix leading "%" and replace "%" by newline
+NEW=${NEW/#\%/}
+NEW="$(echo $NEW | tr '%' '\n')"
+
+
+# o.k., now NEW contains a full chain of category dependencies...
+# a file containing
+#
+# Network##Firewall
+# Network##E-mail
+# Network##Chat
+# Network##Tools
+# Tools##USB
+# Tools##Ethernet
+# Ethernet##IPv6
+#
+#
+# will lead to "NEW" like this:
+#
+# Network##E-mail
+# Network##Chat
+# Network##Tools
+# Network##Tools##USB
+# Network##Tools##Ethernet
+# Network##Tools##Ethernet##IPv6
+#
+#
+#
+# we now will expand the entries in NONHIDDEN
+
+for row in $NEW; do
+	CHILD=${row##*\#\#}
+	NONHIDDEN=${NONHIDDEN//%$CHILD/%$row}
+done
+
+
+##################################################################
+#                END Building "complete" categories              #
+##################################################################
+
+# remove leading "#%" in "NONHIDDEN"
+NONHIDDEN=${NONHIDDEN/\#%/}
+
+# sort "nonhidden" categories
+CATs=$( echo -e "${NONHIDDEN//%/\\n}" | sort -uV )
+#CATTABLE_NEW=$( echo -e "${CATTABLE// /\n}" | sort -u )
+
+#echo -e "CATTABLE=$CATTABLE"
+#echo "########################################"
+#echo "CATS=$CATs"
+#echo "########################################"
+#echo
+
+
+# now everything is ready to start ;-)
+# just walk through the CATs and build a "new menu" for every entry found.
+# We will add child-menus at the end and have to determine, when a menu is finished
+# so we will not write an endmenu but save it for the next entry to see, whether this one is a child ...
+
+# build menus
+SAVEMENU=""
+echo -n ""                                                                                              >  $CFILE
+echo -e "\ncomment \"packages\"\n\tdepends on EXTERNAL_ENABLED"                                         >  $EFILE
+for CAT in $CATs; do
+	while [ -n "$SAVEMENU" -a -n "${SAVEMENU##*${CAT%##*}}" ]; do
+		# the actual CAT is NO subCAT of previous, so close menu(s)
+		echo "endmenu"                                                                          >> $CFILE
+		SAVEMENU=${SAVEMENU%\%%*}
+	done
+	CATONLY=${CAT##*##}
+	CATREAL="${CATONLY/$CATMARK/}"
+	if [ "$CATONLY" == "$CATREAL" -a -z "$CATDIV" -a -n "$CATMARK" ]; then
+		echo "comment \"----------------------------------------\""                             >> $CFILE
+		CATDIV=y
+	fi
+	echo -e "\nmenu \"${CATREAL}\""                                                                 >> $CFILE
+	for PKG in $(echo -e "${CATTABLE}"| sed "/^${CATONLY/\//\\/}##/ !d ; s/^[^#]*##// "); do
+		[ -e "$PKGDIR/$PKG/external.in" ] && echo "source \"$PKGDIR/$PKG/external.in\""         >> $EFILE
+		case "$PKG" in asterisk-*|iptables-cgi|nhipt|python-*|ruby-fcgi|sg3_utils) continue ;; esac
+		[ -e "$PKGDIR/$PKG/Config.in" ] && echo -e "\tsource \"$PKGDIR/$PKG/Config.in\""        >> $CFILE
+	done
+	SAVEMENU="$SAVEMENU%%$CAT"
+done
+# close menu(s), if there are some open ones
+while [ -n "$SAVEMENU" ]; do
+	echo "endmenu"                                                                                  >> $CFILE
+	SAVEMENU=${SAVEMENU%\%%*}
+done
+
+echo ""                                                                                                 >> $CFILE
+echo ""                                                                                                 >> $EFILE
+
+IFS=$buIFS # restore IFS
+

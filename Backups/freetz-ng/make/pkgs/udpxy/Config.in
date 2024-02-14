@@ -1,0 +1,7 @@
+config FREETZ_PACKAGE_UDPXY
+	bool "udpxy 1.0.23-9 (binary only)"
+	default n
+	help
+		Small-footprint UNIX/Linux daemon to relay multicast
+		UDP traffic to client's TCP (HTTP) connection.
+

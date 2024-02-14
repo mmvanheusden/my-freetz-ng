@@ -1,0 +1,58 @@
+$(call TOOLS_INIT, 4.3)
+$(PKG)_SOURCE:=squashfs$($(PKG)_VERSION).tar.gz
+$(PKG)_HASH:=0d605512437b1eb800b4736791559295ee5f60177e102e4d4ccd0ee241a5f3f6
+$(PKG)_SITE:=@SF/squashfs
+
+$(PKG)_DEPENDS_ON+=lzma2-host
+
+# Enable legacy SquashFS formats support (SquashFS-1/2/3, ZLIB/LZMA1 compressed)
+# 1 - to enable
+# 0 - to disable
+$(PKG)_ENABLE_LEGACY_FORMATS_SUPPORT:=1
+
+$(PKG)_BUILD_DIR:=$($(PKG)_DIR)/squashfs-tools
+
+$(PKG)_TOOLS:=mksquashfs unsquashfs
+$(PKG)_TOOLS_BUILD_DIR:=$(addprefix $($(PKG)_BUILD_DIR)/,$($(PKG)_TOOLS))
+$(PKG)_TOOLS_TARGET_DIR:=$($(PKG)_TOOLS:%=$(TOOLS_DIR)/%4-avm-be)
+
+
+#
+$(TOOLS_SOURCE_DOWNLOAD)
+#
+$(TOOLS_UNPACKED)
+$(TOOLS_CONFIGURED_NOP)
+
+$($(PKG)_TOOLS_BUILD_DIR): $($(PKG)_DIR)/.unpacked $(LZMA2_HOST_DIR)/liblzma.a
+	$(TOOLS_SUBMAKE) -C $(SQUASHFS4_BE_HOST_BUILD_DIR) \
+		CC="$(TOOLS_CC)" \
+		CXX="$(TOOLS_CXX)" \
+		EXTRA_CFLAGS="-fcommon -DTARGET_FORMAT=AVM_BE" \
+		EXTRA_LDFLAGS="" \
+		LEGACY_FORMATS_SUPPORT=$(SQUASHFS4_BE_HOST_ENABLE_LEGACY_FORMATS_SUPPORT) \
+		GZIP_SUPPORT=$(SQUASHFS4_BE_HOST_ENABLE_LEGACY_FORMATS_SUPPORT) \
+		LZMA_XZ_SUPPORT=$(SQUASHFS4_BE_HOST_ENABLE_LEGACY_FORMATS_SUPPORT) \
+		XZ_SUPPORT=1 \
+		XZ_DIR="$(abspath $(LZMA2_HOST_DIR))" \
+		COMP_DEFAULT=xz \
+		XATTR_SUPPORT=0 \
+		XATTR_DEFAULT=0 \
+		$(SQUASHFS4_BE_HOST_TOOLS)
+	touch -c $@
+
+$($(PKG)_TOOLS_TARGET_DIR): $(TOOLS_DIR)/%4-avm-be: $($(PKG)_BUILD_DIR)/%
+	$(INSTALL_FILE)
+
+$(pkg)-precompiled: $($(PKG)_TOOLS_TARGET_DIR)
+
+
+$(pkg)-clean:
+	-$(MAKE) -C $(SQUASHFS4_BE_HOST_BUILD_DIR) clean
+
+$(pkg)-dirclean:
+	$(RM) -r $(SQUASHFS4_BE_HOST_DIR)
+
+$(pkg)-distclean: $(pkg)-dirclean
+	$(RM) $(SQUASHFS4_BE_HOST_TOOLS_TARGET_DIR)
+
+$(TOOLS_FINISH)

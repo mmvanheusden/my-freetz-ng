@@ -1,0 +1,27 @@
+config FREETZ_PACKAGE_OPENDD
+	bool "OpenDD 0.7.9"
+	default n
+	help
+		opendd is a DynDNS client, written in C, and especially designed
+		for small gateway machines, like a Soekris box. Its main feature
+		is that it does not require any Perl or Python interpreter.
+		It supports HTTPS, can send a mail report, and can run as daemon.
+		It is also very easy to deploy.
+		WWW: http://www.bsdmon.com/wakka/OpenDD
+
+if FREETZ_PACKAGE_OPENDD
+
+	comment "SSL not available, needs OpenSSL 1.0 or older"
+		depends on !FREETZ_OPENSSL_VERSION_1_MAX
+
+	config FREETZ_PACKAGE_OPENDD_WITH_SSL
+		bool "with SSL encryption (port 443)"
+		depends on FREETZ_OPENSSL_VERSION_1_MAX
+		select FREETZ_LIB_libcrypto
+		select FREETZ_LIB_libssl
+		default y
+		help
+			Build with SSL encryption (port 443)
+
+endif # FREETZ_PACKAGE_OPENDD
+

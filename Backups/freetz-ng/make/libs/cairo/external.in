@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_LIB_libcairo
+	depends on EXTERNAL_ENABLED && FREETZ_LIB_libcairo
+	bool "libcairo"
+	default n
+	help
+		externals the following file(s):
+		 ${FREETZ_LIBRARY_DIR}/libcairo.so.2.11800.0
+

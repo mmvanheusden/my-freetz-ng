@@ -1,0 +1,8 @@
+config EXTERNAL_FREETZ_PACKAGE_DROPBEAR
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_DROPBEAR
+	bool "Dropbear"
+	default n
+	help
+		externals the following file(s):
+		 /usr/sbin/dropbearmulti
+

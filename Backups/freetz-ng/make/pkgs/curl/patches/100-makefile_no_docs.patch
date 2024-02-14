@@ -1,0 +1,60 @@
+--- Makefile.am
++++ Makefile.am
+@@ -134,7 +134,7 @@
+ bin_SCRIPTS = curl-config
+ 
+ SUBDIRS = lib src
+-DIST_SUBDIRS = $(SUBDIRS) tests packages scripts include docs
++DIST_SUBDIRS = $(SUBDIRS)       packages scripts include
+ 
+ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = libcurl.pc
+@@ -248,14 +248,14 @@
+ # We extend the standard install with a custom hook:
+ install-data-hook:
+ 	(cd include && $(MAKE) install)
+-	(cd docs && $(MAKE) install)
+-	(cd docs/libcurl && $(MAKE) install)
++#	(cd docs && $(MAKE) install)
++#	(cd docs/libcurl && $(MAKE) install)
+ 
+ # We extend the standard uninstall with a custom hook:
+ uninstall-hook:
+ 	(cd include && $(MAKE) uninstall)
+-	(cd docs && $(MAKE) uninstall)
+-	(cd docs/libcurl && $(MAKE) uninstall)
++#	(cd docs && $(MAKE) uninstall)
++#	(cd docs/libcurl && $(MAKE) uninstall)
+ 
+ ca-bundle: $(srcdir)/scripts/mk-ca-bundle.pl
+ 	@echo "generating a fresh ca-bundle.crt"
+--- Makefile.in
++++ Makefile.in
+@@ -661,7 +661,7 @@
+ 
+ bin_SCRIPTS = curl-config
+ SUBDIRS = lib src
+-DIST_SUBDIRS = $(SUBDIRS) tests packages scripts include docs
++DIST_SUBDIRS = $(SUBDIRS)       packages scripts include
+ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = libcurl.pc
+ LIB_VAUTH_CFILES = \
+@@ -1781,14 +1781,14 @@
+ # We extend the standard install with a custom hook:
+ install-data-hook:
+ 	(cd include && $(MAKE) install)
+-	(cd docs && $(MAKE) install)
+-	(cd docs/libcurl && $(MAKE) install)
++#	(cd docs && $(MAKE) install)
++#	(cd docs/libcurl && $(MAKE) install)
+ 
+ # We extend the standard uninstall with a custom hook:
+ uninstall-hook:
+ 	(cd include && $(MAKE) uninstall)
+-	(cd docs && $(MAKE) uninstall)
+-	(cd docs/libcurl && $(MAKE) uninstall)
++#	(cd docs && $(MAKE) uninstall)
++#	(cd docs/libcurl && $(MAKE) uninstall)
+ 
+ ca-bundle: $(srcdir)/scripts/mk-ca-bundle.pl
+ 	@echo "generating a fresh ca-bundle.crt"

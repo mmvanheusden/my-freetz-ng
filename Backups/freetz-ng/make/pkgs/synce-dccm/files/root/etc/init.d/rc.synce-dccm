@@ -1,0 +1,41 @@
+#!/bin/sh
+
+DAEMON=synce-dccm
+PID_FILE=/mod/root/.synce/dccm.pid
+. /etc/init.d/modlibrc
+
+start() {
+	modlib_startdaemon dccm -r
+}
+
+case $1 in
+	""|load)
+		modreg cgi 'synce-dccm' 'SynCE DCCM'
+		modreg daemon $DAEMON
+
+		modlib_start $SYNCE_DCCM_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi 'synce-dccm'
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

@@ -1,0 +1,11 @@
+--- src/rwconf.c
++++ src/rwconf.c
+@@ -120,7 +120,7 @@
+   { "BUSY",		0,   "mnocon2" },
+   { "NO DIALTONE",	0,   "mnocon3" },
+   { "VOICE",		0,   "mnocon4" },
+-  { "~~+++~~ATH^M",	0,   "mhangup" },
++  { "",			0,   "mhangup" },
+   { "^M",		0,   "mdialcan" },
+   { "45",		0,   "mdialtime" },
+   { "2",		0,   "mrdelay" },

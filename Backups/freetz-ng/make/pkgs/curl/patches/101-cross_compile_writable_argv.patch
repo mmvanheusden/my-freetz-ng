@@ -1,0 +1,12 @@
+--- configure
++++ configure
+@@ -25423,7 +25423,9 @@
+      darwin*)
+       if test "$cross_compiling" = yes
+ then :
++     if test "${curl_cv_writable_argv+set}" != set; then :
+   curl_cv_writable_argv=cross
++     fi
+ 
+ else $as_nop
+   cat confdefs.h - <<_ACEOF >conftest.$ac_ext

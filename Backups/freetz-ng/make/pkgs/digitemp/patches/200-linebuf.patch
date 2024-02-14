@@ -1,0 +1,12 @@
+--- src/digitemp.c
++++ src/digitemp.c
+@@ -2365,7 +2365,8 @@
+ 
+   /* Make sure the structure is erased */
+   bzero( &sensor_list, sizeof( struct _roms ) );
+- 
++
++  setlinebuf(stdout);
+ 
+   if( argc <= 1 )
+   {

@@ -1,0 +1,22 @@
+--- Makefile.am
++++ Makefile.am
+@@ -3,7 +3,7 @@
+ #AUTOMAKE_OPTIONS = 1.7 foreign dist-zip dist-bzip2
+ AUTOMAKE_OPTIONS = foreign 1.11 dist-zip dist-xz
+ 
+-SUBDIRS = m4 include vq lib test doc
++SUBDIRS = include lib
+ 
+ if BUILD_EXAMPLES 
+ SUBDIRS += examples 
+--- Makefile.in
++++ Makefile.in
+@@ -388,7 +388,7 @@
+ 
+ #AUTOMAKE_OPTIONS = 1.7 foreign dist-zip dist-bzip2
+ AUTOMAKE_OPTIONS = foreign 1.11 dist-zip dist-xz
+-SUBDIRS = m4 include vq lib test doc $(am__append_1)
++SUBDIRS = include lib $(am__append_1)
+ m4datadir = $(datadir)/aclocal
+ m4data_DATA = vorbis.m4
+ pkgconfigdir = $(libdir)/pkgconfig

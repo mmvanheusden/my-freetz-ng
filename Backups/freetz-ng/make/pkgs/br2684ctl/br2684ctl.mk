@@ -1,0 +1,44 @@
+$(call PKG_INIT_BIN,20040226)
+$(PKG)_SOURCE:=br2684ctl_$($(PKG)_VERSION).orig.tar.gz
+$(PKG)_HASH:=9ea24c3b843349c5defd6060c569554ae626b065e96ad577714dc9172bfbff88
+$(PKG)_SITE:=http://ftp.debian.org/debian/pool/main/b/br2684ctl
+
+$(PKG)_BINARY:=$($(PKG)_DIR)/br2684ctl
+$(PKG)_TARGET_BINARY:=$($(PKG)_DEST_DIR)/sbin/br2684ctl
+
+$(PKG)_DEPENDS_ON += linux-atm
+
+$(PKG)_REBUILD_SUBOPTS += FREETZ_SYSTEM_TYPE
+
+$(PKG_SOURCE_DOWNLOAD)
+$(PKG_UNPACKED)
+$(PKG_CONFIGURED_NOP)
+
+ifeq ($(strip $(FREETZ_SYSTEM_TYPE_AR9)),y)
+BR2684CTL_OPTS := -DCONFIG_AR9
+else ifeq ($(strip $(FREETZ_SYSTEM_TYPE_UR8)),y)
+BR2684CTL_OPTS := -DCONFIG_MIPS_UR8
+else ifeq ($(strip $(FREETZ_SYSTEM_TYPE_IKS)),y)
+BR2684CTL_OPTS := -DCONFIG_MACH_IKAN_MIPS -DCONFIG_MACH_FUSIV
+endif
+
+$($(PKG)_BINARY): $($(PKG)_DIR)/.configured
+	$(SUBMAKE) -C $(BR2684CTL_DIR) \
+		CC="$(TARGET_CC)" \
+		CFLAGS="$(TARGET_CFLAGS)" \
+		OPTS="$(BR2684CTL_OPTS)"
+
+$($(PKG)_TARGET_BINARY): $($(PKG)_BINARY)
+	$(INSTALL_BINARY_STRIP)
+
+$(pkg):
+
+$(pkg)-precompiled: $($(PKG)_TARGET_BINARY)
+
+$(pkg)-clean:
+	-$(SUBMAKE) -C $(BR2684CTL_DIR) clean
+
+$(pkg)-uninstall:
+	$(RM) $(BR2684CTL_TARGET_BINARY)
+
+$(PKG_FINISH)

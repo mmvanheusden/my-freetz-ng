@@ -1,0 +1,53 @@
+--- pppd/Makefile.linux
++++ pppd/Makefile.linux
+@@ -48,7 +48,7 @@
+ # Uncomment the next line to include support for PPP packet filtering.
+ # This requires that the libpcap library and headers be installed
+ # and that the kernel driver support PPP packet filtering.
+-FILTER=y
++#FILTER=y
+ 
+ # Uncomment the next line to enable multilink PPP (enabled by default)
+ # Linux distributions: Please leave multilink ENABLED in your builds
+@@ -60,9 +60,11 @@
+ # Linux distributions: Please leave TDB ENABLED in your builds.
+ USE_TDB=y
+ 
+-HAS_SHADOW=y
++#HAS_SHADOW=y
+ #USE_PAM=y
++ifdef FREETZ_USE_INET6
+ HAVE_INET6=y
++endif
+ 
+ # Enable plugins
+ PLUGIN=y
+@@ -77,13 +79,15 @@
+ USE_LIBUTIL=y
+ 
+ # Enable EAP-TLS authentication (requires libssl and libcrypto)
++ifdef FREETZ_USE_EAPTLS
+ USE_EAPTLS=y
++endif
+ 
+ MAXOCTETS=y
+ 
+ INCLUDE_DIRS= -I../include
+ 
+-COMPILE_FLAGS= -DHAVE_PATHS_H -DIPX_CHANGE -DHAVE_MMAP
++COMPILE_FLAGS= -DHAVE_PATHS_H              -DHAVE_MMAP
+ 
+ CFLAGS= $(COPTS) $(COMPILE_FLAGS) $(INCLUDE_DIRS) '-DDESTDIR="@DESTDIR@"'
+ 
+--- pppd/plugins/Makefile.linux
++++ pppd/plugins/Makefile.linux
+@@ -5,7 +5,9 @@
+ INSTALL	= install
+ 
+ # EAP-TLS (this setting should match the one in ../Makefile.linux)
++ifdef FREETZ_USE_EAPTLS
+ USE_EAPTLS=y
++endif
+ 
+ ifdef USE_EAPTLS
+ CFLAGS += -DUSE_EAPTLS=1

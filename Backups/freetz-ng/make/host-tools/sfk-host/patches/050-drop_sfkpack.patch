@@ -1,0 +1,58 @@
+--- Makefile.in
++++ Makefile.in
+@@ -53,7 +53,7 @@
+ am__installdirs = "$(DESTDIR)$(bindir)"
+ PROGRAMS = $(bin_PROGRAMS)
+ am__dirstamp = $(am__leading_dot)dirstamp
+-am_sfk_OBJECTS = sfk.$(OBJEXT) sfkext.$(OBJEXT) sfkpack.$(OBJEXT)
++am_sfk_OBJECTS = sfk.$(OBJEXT) sfkext.$(OBJEXT)
+ sfk_OBJECTS = $(am_sfk_OBJECTS)
+ sfk_LDADD = $(LDADD)
+ SCRIPTS = $(dist_noinst_SCRIPTS)
+@@ -171,7 +171,7 @@
+ AUTOMAKE_OPTIONS = subdir-objects
+ ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS}
+ sfk_SOURCES = sfkbase.hpp sfkext.hpp \
+-              sfk.cpp sfkext.cpp sfkpack.cpp
++              sfk.cpp sfkext.cpp
+ 
+ dist_noinst_SCRIPTS = autogen.sh
+ all: config.h
+--- sfkbase.hpp
++++ sfkbase.hpp
+@@ -321,6 +321,7 @@
+ #define WITH_CASE_XNN
+ #define SFKDEEPZIP   // sfk175
+ 
++#define SFKNOPACK
+ #ifndef SFKNOPACK
+  #define SFKPACK     // sfk191
+  #define SFKOFFICE   // sfk194
+--- sfk.cpp
++++ sfk.cpp
+@@ -46972,6 +46972,7 @@
+       bDone = 1;
+    }
+ 
++   #ifdef SFKPACK
+    if (!strcmp(pszCmd, "testcrc"))
+    {
+       int n = 100;
+@@ -46982,6 +46983,7 @@
+       delete [] buf;
+       bDone = 1;
+    }
++   #endif // SFKPACK
+ 
+    if (!strcmp(pszCmd, "testabs"))
+    {
+@@ -47489,7 +47491,9 @@
+       cs.precachezip = 1;
+       #endif // VFILEBASE
+ 
++      #ifdef SFKPACK
+       cs.hidezipcomment = 1; // snapto
++      #endif // SFKPACK
+ 
+       const char *poutmode = "w";
+ 

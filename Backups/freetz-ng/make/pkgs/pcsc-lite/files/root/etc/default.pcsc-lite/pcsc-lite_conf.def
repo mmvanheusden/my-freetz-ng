@@ -1,0 +1,7 @@
+CAPTION='PCSC-Lite: reader.conf'
+DESCRIPTION="$(lang de:"Dokumentation" en:"Documentation"): <a target=blank href=https://linux.die.net/man/5/reader.conf>https://linux.die.net/man/5/reader.conf</a>"
+
+CONFIG_FILE='/tmp/flash/pcsc-lite/reader.conf'
+CONFIG_SAVE='modsave flash; killall -0 pcscd && /mod/etc/init.d/rc.pcsc-lite restart'
+CONFIG_TYPE='text'
+

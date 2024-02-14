@@ -1,0 +1,7 @@
+config FREETZ_LIB_libpixman_1
+	bool "Pixman (libpixman-1.so)"
+	default n
+	help
+		Pixman is a low-level software library for pixel manipulation, providing
+		features such as image compositing and trapezoid rasterization.
+

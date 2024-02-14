@@ -1,0 +1,6 @@
+config FREETZ_LIB_libfribidi
+	bool "FriBidi (libfribidi.so)"
+	default n
+	help
+		The Free Implementation of the Unicode Bidirectional Algorithm.
+

@@ -1,0 +1,4 @@
+[ "$EXTERNAL_FREETZ_PACKAGE_PSL" == "y" ] && EXTERNAL_FILES+=" /usr/bin/psl /usr/share/psl/public_suffix_list.dat"
+
+[ "$EXTERNAL_FREETZ_LIB_libpsl" == "y" ] && EXTERNAL_FILES+=" ${FREETZ_LIBRARY_DIR}/libpsl.so.5.3.4"
+

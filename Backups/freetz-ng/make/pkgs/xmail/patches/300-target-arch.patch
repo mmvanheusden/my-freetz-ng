@@ -1,0 +1,54 @@
+--- SysMachine.h
++++ SysMachine.h
+@@ -0,0 +1,32 @@
++#ifndef _MACHDEFS_H
++#define _MACHDEFS_H
++
++#include <endian.h>
++
++#if __BYTE_ORDER == __LITTLE_ENDIAN
++  #undef MACH_BIG_ENDIAN_WORDS
++  #undef MACH_BIG_ENDIAN_BITFIELD
++#elif __BYTE_ORDER == __BIG_ENDIAN
++  #define MACH_BIG_ENDIAN_WORDS
++  #define MACH_BIG_ENDIAN_BITFIELD
++#else
++  #error unsupported byte order!
++#endif
++
++typedef signed char MachInt8;
++typedef unsigned char MachUInt8;
++#define MACH_TYPE_8BIT char
++
++typedef signed short MachInt16;
++typedef unsigned short MachUInt16;
++#define MACH_TYPE_16BIT short
++
++typedef signed int MachInt32;
++typedef unsigned int MachUInt32;
++#define MACH_TYPE_32BIT int
++
++typedef signed long long MachInt64;
++typedef unsigned long long MachUInt64;
++#define MACH_TYPE_64BIT long long
++
++#endif
+--- Makefile.common
++++ Makefile.common
+@@ -79,7 +79,7 @@
+ $(OUTDIR)/%.o: %.cpp
+ 	${CC} ${CPPFLAGS} ${CFLAGS} -o $(OUTDIR)/$*.o -c $*.cpp
+ 
+-all: ${OUTDIR} ${MKMACHDEPINC} ${MAILSVR} ${CRTLCLNT} ${XMCRYPT} ${MKUSERS} ${SENDMAIL}
++all: ${OUTDIR}                 ${MAILSVR} ${CRTLCLNT} ${XMCRYPT} ${MKUSERS} ${SENDMAIL}
+ 
+ ${OUTDIR}:
+ 	@mkdir ${OUTDIR}
+@@ -115,6 +115,6 @@
+ 
+ clean:
+ 	rm -f .depend a.out core ${MAILSVR} ${CRTLCLNT} ${XMCRYPT} ${MKUSERS} ${SENDMAIL}
+-	rm -f *.o *~ ${MKMACHDEPINC} ${MKMACHDEP}
++	rm -f *.o *~
+ 	rm -rf ${OUTDIR}
+ 

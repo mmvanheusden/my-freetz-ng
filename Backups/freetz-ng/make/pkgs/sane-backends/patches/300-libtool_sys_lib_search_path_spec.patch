@@ -1,0 +1,10 @@
+--- configure
++++ configure
+@@ -11729,7 +11729,6 @@
+   esac
+   shlibpath_var=LD_LIBRARY${shlibsuff}_PATH
+   shlibpath_overrides_runpath=no
+-  sys_lib_search_path_spec="/usr/lib${libsuff} /lib${libsuff} /usr/local/lib${libsuff}"
+   sys_lib_dlsearch_path_spec="/usr/lib${libsuff} /lib${libsuff}"
+   hardcode_into_libs=yes
+   ;;

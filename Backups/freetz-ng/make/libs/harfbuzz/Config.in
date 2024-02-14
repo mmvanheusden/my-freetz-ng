@@ -1,0 +1,9 @@
+config FREETZ_LIB_libharfbuzz
+	bool "HarfBuzz (libharfbuzz.so)"
+	select FREETZ_STDCXXLIB_FORCE_GNULIBSTDCXX
+	select FREETZ_LIB_libfreetype
+	default n
+	help
+		HarfBuzz is a text shaping engine. It primarily supports
+		OpenType, but also Apple Advanced Typography.
+

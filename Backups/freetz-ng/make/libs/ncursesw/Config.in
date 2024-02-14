@@ -1,0 +1,49 @@
+
+
+
+config FREETZ_LIB_libncursesw
+	bool "ncursesw (libncursesw.so)"
+	select FREETZ_SHARE_terminfo
+	default n
+	help
+		ncurses is a programming library providing an API, allowing the
+		programmer to write text user interfaces in a terminal-independent
+		manner. It also optimizes screen changes, in order to reduce the
+		latency experienced when using remote shells.
+
+		Ncurses stands for "new curses", and is a replacement for the
+		discontinued 4.4 BSD classic curses.
+		
+		Ncursesw has additional wide-character (unicode) support.
+		Ncurses and Ncursesw libraries are source-compatible, but
+		not binary-compatible. 
+
+if FREETZ_LIB_libncursesw
+
+config FREETZ_LIB_libformw
+	bool "libformw (libformw.so)"
+	default n
+	help
+		The form library is a curses extension that supports easy programming of
+		on-screen forms for data entry and program control.
+
+config FREETZ_LIB_libmenuw
+	bool "libmenuw (libmenuw.so)"
+	default n
+	help
+		The menu library is a curses extension that supports easy programming of
+		menu hierarchies with a uniform but flexible interface.
+
+config FREETZ_LIB_libpanelw
+	bool "libpanelw (libpanelw.so)"
+	default n
+	help
+		The ncurses library by itself provides good support for screen displays
+		in which the windows are tiled (non-overlapping).
+		When your interface design is such that windows may dive deeper into
+		the visibility stack or pop to the top at runtime, the resulting book-
+		keeping can be tedious and difficult to get right. Hence the panels
+		library.
+
+endif # FREETZ_LIB_libncursesw
+

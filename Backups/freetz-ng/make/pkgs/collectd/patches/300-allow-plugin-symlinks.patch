@@ -1,0 +1,15 @@
+--- src/plugin.c
++++ src/plugin.c
+@@ -641,12 +641,6 @@
+ 					sstrerror (errno, errbuf, sizeof (errbuf)));
+ 			continue;
+ 		}
+-		else if (!S_ISREG (statbuf.st_mode))
+-		{
+-			/* don't follow symlinks */
+-			WARNING ("stat %s: not a regular file", filename);
+-			continue;
+-		}
+ 
+ 		if (plugin_load_file (filename, flags) == 0)
+ 		{

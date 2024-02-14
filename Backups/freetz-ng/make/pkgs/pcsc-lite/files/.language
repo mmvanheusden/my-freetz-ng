@@ -1,0 +1,9 @@
+languages
+{ de en }
+default
+{ en }
+files
+{
+	etc/default.pcsc-lite/pcsc-lite_conf.def
+	usr/lib/cgi-bin/pcsc-lite.cgi
+}

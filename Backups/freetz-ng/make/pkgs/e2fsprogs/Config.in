@@ -1,0 +1,104 @@
+config FREETZ_PACKAGE_E2FSPROGS
+	bool "e2fsprogs 1.42.13 (binary only)"
+	depends on FREETZ_REMOVE_AVM_E2FSPROGS
+	default n
+	help
+		This package contains essential ext2, ext3 and ext4 filesystem
+		utilities which consists of e2fsck, mke2fs, debugfs, dumpe2fs,
+		tune2fs, and most of the other core ext2 filesystem utilities.
+		Homepage: http://e2fsprogs.sourceforge.net/
+
+config FREETZ_PACKAGE_E2FSPROGS_E2FSCK
+	bool "Checking Tools"
+	default n
+	depends on FREETZ_PACKAGE_E2FSPROGS
+	select FREETZ_LIB_libblkid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libcom_err	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libe2p	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libext2fs	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libuuid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	help
+		Copy e2fsck, fsck and the fsck.ext* symlinks to image
+
+config FREETZ_PACKAGE_E2FSPROGS_E2MAKING
+	bool "Making tools"
+	default n
+	depends on FREETZ_PACKAGE_E2FSPROGS
+	select FREETZ_LIB_libblkid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libcom_err	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libe2p	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libext2fs	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libuuid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	help
+		Copy mke2fs, the mkfs.ext* symlinks and mklost+found to image
+
+config FREETZ_PACKAGE_E2FSPROGS_E2TUNING
+	bool "Tuning tools"
+	default n
+	depends on FREETZ_PACKAGE_E2FSPROGS
+	select FREETZ_LIB_libblkid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libcom_err	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libe2p	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libext2fs	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libuuid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	help
+		Copy tune2fs, chattr, lsattr and dumpe2fs to image
+
+config FREETZ_PACKAGE_E2FSPROGS_E2DEBUG
+	bool "Debugging tools"
+	default n
+	depends on FREETZ_PACKAGE_E2FSPROGS
+	select FREETZ_LIB_libblkid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libcom_err	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libe2p	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libext2fs	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libss		if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libuuid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	help
+		Copy e2image, e2undo, debugfs and logsave to image
+
+config FREETZ_PACKAGE_E2FSPROGS_BLKID
+	bool "blkid"
+	default n
+	depends on FREETZ_PACKAGE_E2FSPROGS
+	select FREETZ_LIB_libblkid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libext2fs	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	help
+		Copy blkid to image
+
+config FREETZ_PACKAGE_E2FSPROGS_E2FIXING
+	bool "Repair and misc. tools"
+	default n
+	depends on FREETZ_PACKAGE_E2FSPROGS
+	select FREETZ_PACKAGE_E2FSPROGS_BLKID if ! FREETZ_BUSYBOX_BLKID
+	select FREETZ_LIB_libext2fs	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libcom_err	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libuuid	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	help
+		Copy badblocks, filefrag, e2freefrag, uuidd and uuidgen to image
+
+config FREETZ_PACKAGE_E2FSPROGS_E2RESIZE
+	bool "Resize tools"
+	default n
+	depends on FREETZ_PACKAGE_E2FSPROGS
+	select FREETZ_LIB_libe2p	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libext2fs	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	select FREETZ_LIB_libcom_err	if FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+	help
+		Copy resize2fs to image
+
+choice
+	depends on FREETZ_PACKAGE_E2FSPROGS
+	prompt "Link"
+	default FREETZ_PACKAGE_E2FSPROGS_PKG_STAT
+
+	config FREETZ_PACKAGE_E2FSPROGS_ALL_DYN
+		bool "all libraries dynamically"
+
+	config FREETZ_PACKAGE_E2FSPROGS_PKG_STAT
+		bool "e2fsprogs libraries statically"
+
+	config FREETZ_PACKAGE_E2FSPROGS_ALL_STAT
+		bool "all libraries statically"
+endchoice
+

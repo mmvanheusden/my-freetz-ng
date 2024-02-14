@@ -1,0 +1,11 @@
+--- compat.h
++++ compat.h
+@@ -99,7 +99,7 @@
+ #endif
+ 
+ #ifndef _PATH_TMP
+-#define _PATH_TMP	"/tmp/"
++#define _PATH_TMP	"/var/tmp/"
+ #endif
+ 
+ #ifndef _PATH_DEVNULL

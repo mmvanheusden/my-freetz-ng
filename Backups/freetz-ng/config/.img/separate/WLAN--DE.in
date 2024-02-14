@@ -1,0 +1,30 @@
+if FREETZ_TYPE_WLAN && FREETZ_TYPE_LANG_DE
+
+config FREETZ_AVM_PROP_NAME
+	string
+	default "FRITZ!Box Fon WLAN"
+
+config FREETZ_AVM_PROP_HWREV
+	string
+	default "61"
+
+config FREETZ_AVM_HAS_MULTIPLE_BRANDINGS
+	def_bool y
+
+config FREETZ_AVM_HAS_BRANDING_1und1
+	def_bool y
+
+config FREETZ_AVM_HAS_BRANDING_aol
+	def_bool y
+
+config FREETZ_AVM_HAS_BRANDING_avm
+	def_bool y
+
+config FREETZ_AVM_HAS_TELNETD
+	def_bool y
+
+config FREETZ_AVM_HAS_WEBSRV
+	def_bool y
+
+endif
+

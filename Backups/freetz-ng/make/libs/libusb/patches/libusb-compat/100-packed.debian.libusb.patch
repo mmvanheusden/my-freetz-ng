@@ -1,0 +1,46 @@
+--- libusb/usb.h
++++ libusb/usb.h
+@@ -100,14 +100,14 @@
+ struct usb_descriptor_header {
+ 	uint8_t  bLength;
+ 	uint8_t  bDescriptorType;
+-};
++} __attribute__ ((packed));
+ 
+ /* String descriptor */
+ struct usb_string_descriptor {
+ 	uint8_t  bLength;
+ 	uint8_t  bDescriptorType;
+ 	uint16_t wData[1];
+-};
++} __attribute__ ((packed));
+ 
+ /* HID descriptor */
+ struct usb_hid_descriptor {
+@@ -119,7 +119,7 @@
+ 	/* uint8_t  bReportDescriptorType; */
+ 	/* uint16_t wDescriptorLength; */
+ 	/* ... */
+-};
++} __attribute__ ((packed));
+ 
+ /* Endpoint descriptor */
+ #define USB_MAXENDPOINTS	32
+@@ -206,7 +206,7 @@
+ 	uint8_t  iProduct;
+ 	uint8_t  iSerialNumber;
+ 	uint8_t  bNumConfigurations;
+-};
++} __attribute__ ((packed));
+ 
+ struct usb_ctrl_setup {
+ 	uint8_t  bRequestType;
+@@ -214,7 +214,7 @@
+ 	uint16_t wValue;
+ 	uint16_t wIndex;
+ 	uint16_t wLength;
+-};
++} __attribute__ ((packed));
+ 
+ /*
+  * Standard requests

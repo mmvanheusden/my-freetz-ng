@@ -1,0 +1,2 @@
+#!/bin/sh
+[ -n "$HP_UTILS_USER" ] && echo "/:$HP_UTILS_USER:$(httpd -m "$HP_UTILS_PLAIN_PASSWD")"

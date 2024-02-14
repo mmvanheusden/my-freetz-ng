@@ -1,0 +1,22 @@
+--- lib/ext2fs/closefs.c
++++ lib/ext2fs/closefs.c
+@@ -295,7 +295,7 @@
+ 	fs_state = fs->super->s_state;
+ 	feature_incompat = fs->super->s_feature_incompat;
+ 
+-	fs->super->s_wtime = fs->now ? fs->now : time(NULL);
++	fs->super->s_wtime = 0;
+ 	fs->super->s_block_group_nr = 0;
+ #ifdef WORDS_BIGENDIAN
+ 	retval = EXT2_ET_NO_MEMORY;
+--- lib/ext2fs/mmp.c
++++ lib/ext2fs/mmp.c
+@@ -99,7 +99,7 @@
+ 
+ 	gettimeofday(&tv, 0);
+ 	mmp_s->mmp_time = tv.tv_sec;
+-	fs->mmp_last_written = tv.tv_sec;
++	fs->mmp_last_written = 0;
+ 
+ 	if (fs->super->s_mmp_block < fs->super->s_first_data_block ||
+ 	    fs->super->s_mmp_block > ext2fs_blocks_count(fs->super))

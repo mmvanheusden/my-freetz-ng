@@ -1,0 +1,18 @@
+--- src/auto/configure
++++ src/auto/configure
+@@ -14179,6 +14179,7 @@
+ fi
+ rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+ 
++if false; then
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for timer_create without -lrt" >&5
+ printf %s "checking for timer_create without -lrt... " >&6; }
+ if test ${vim_cv_timer_create+y}
+@@ -14305,6 +14306,7 @@
+ 
+   LIBS="$LIBS -lrt"
+ fi
++fi
+ 
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether stat() ignores a trailing slash" >&5
+ printf %s "checking whether stat() ignores a trailing slash... " >&6; }

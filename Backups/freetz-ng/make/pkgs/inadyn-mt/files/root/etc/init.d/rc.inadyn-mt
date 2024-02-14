@@ -1,0 +1,138 @@
+#!/bin/sh
+
+DAEMON=inadyn-mt
+. /etc/init.d/modlibrc
+
+ivalueof () {
+	eval "echo -n \$${1}${2}"
+}
+
+escvalue () {
+	echo "$@" | sed 's,\([\ ]\),\\\1,g'
+}
+
+configure () {
+	local ii value
+
+	echo background
+	echo verbose $INADYN_MT_VERBOSE
+	[ -x /mod/etc/init.d/rc.syslogd ] && running=$(/mod/etc/init.d/rc.syslogd status)
+	if [ "$running" = "running" ]; then
+		echo syslog
+	else
+		echo log_file /var/log/${DAEMON}.log
+	fi
+	echo pid_file /var/run/${DAEMON}.pid
+
+	ii=0
+	# inadyn-mt -> dyndns.h can maintain maximal 5 servers
+	while [ 5 -gt $ii ]; do
+		if [ yes = "$(ivalueof INADYN_MT_ACTIVE $ii)" ]; then
+
+			local url=$(ivalueof INADYN_MT_URL $ii | sed 's,\([^/]*\)\(.*\),\1 \2,')
+			case $(ivalueof INADYN_MT_SERVICE $ii) in
+				dyndns.org)
+					echo -e '\ndyndns_system dyndns@dyndns.org'
+					;;
+				dyndns.org-statdns)
+					echo -e '\ndyndns_system statdns@dyndns.org'
+					;;
+				dyndns.org-custom)
+					echo -e '\ndyndns_system custom@dyndns.org'
+					;;
+				afraid.org)
+					echo -e '\ndyndns_system default@freedns.afraid.org'
+					;;
+				zoneedit.com)
+					echo -e '\ndyndns_system default@zoneedit.com'
+					;;
+				no-ip.com)
+					echo -e '\ndyndns_system default@no-ip.com'
+					;;
+				tunnelbroker.net)
+					echo -e '\ndyndns_system default@tunnelbroker.net'
+					;;
+				dns.he.net)
+					echo -e '\ndyndns_system default@he.net'
+					;;
+				changeip.com)
+					echo -e '\ndyndns_system default@changeip.com'
+					;;
+				spdyn.de)
+					echo -e '\ndyndns_system default@spdyn.de'
+					;;
+				userdefined)
+					[ -z "$url" ] && continue
+					echo -e '\ndyndns_system custom@http_svr_basic_auth'
+					;;
+			esac
+
+			if [ -n "$url" ]; then
+				echo dyndns_server_name $(echo $url | cut -d\  -f1)
+				echo dyndns_server_url $(echo $url | cut -d\  -f2)
+			fi
+
+			local alias="$(ivalueof INADYN_MT_ALIAS $ii)"
+			for value in $alias; do
+				echo "alias ${value/:/ }"
+			done
+			local url_hostname="${url#*[?&]hostname=}"
+			if [ -z "$alias" -a "$url_hostname" != "$url" ]; then
+				#use hostname= as alias, see Ticket #1960
+				echo "alias ${url_hostname%%&*}"
+			fi
+
+			value=$(ivalueof INADYN_MT_USER $ii)
+			[ -n "$value" ] && echo "username $value"
+			value=$(ivalueof INADYN_MT_PASS $ii)
+			[ -n "$value" ] && echo "password $(escvalue $value)"
+			value=$(ivalueof INADYN_MT_OPTIONS $ii)
+			[ -n "$value" ] && echo "$value"
+		fi
+		let ii++
+	done
+}
+
+config() {
+	configure > $DAEMON_CONFIG
+	if [ 5 -gt $(cat $DAEMON_CONFIG | wc -l) ]; then
+		echo -n 'not configured, failed.'
+		exit 1
+	fi
+}
+
+start() {
+	modlib_startdaemon $DAEMON --input_file $DAEMON_CONFIG 2>/dev/null
+}
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON 'Inadyn-mt'
+		modreg daemon $DAEMON
+
+		modlib_start $INADYN_MT_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

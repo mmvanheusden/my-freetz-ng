@@ -1,0 +1,103 @@
+#!/bin/sh
+
+DAEMON=tinyproxy
+DAEMON_LONG_NAME=Tinyproxy
+PID_FILE=/var/run/$DAEMON/$DAEMON.pid
+. /etc/init.d/modlibrc
+
+
+config() {
+	modlib_config
+	chown nobody:nobody $DAEMON_CONFIG
+	[ -e /var/tmp/tinyproxy.filter ] && chown nobody:nobody /var/tmp/tinyproxy.filter
+	if [ "$TINYPROXY_SYSLOG" != "yes" ]; then
+		touch "$TINYPROXY_LOGFILE"
+		chown nobody:nobody "$TINYPROXY_LOGFILE"
+	fi
+}
+
+start() {
+	modlib_startdaemon $DAEMON -c $DAEMON_CONFIG
+}
+
+start_addons() {
+	if [ "$TINYPROXY_CATCHALL" == "yes" ]; then
+		echo -n " -- Redirect HTTP (Port 80) to tinyproxy (iptables) ... "
+		/usr/sbin/iptables -t nat -A PREROUTING -i lan -p tcp --dport 80 -j REDIRECT --to-port $TINYPROXY_PORT
+		exitval=$?
+		if [ "$exitval" -eq 0 ]; then
+			echo 'done.'
+		else
+			echo 'failed.'
+		fi
+
+	fi
+
+	if [ "$TINYPROXY_CONFSERVER" == "yes" ]; then
+		echo -n " -- Starting the webserver for the proxy config file ... "
+		httpd -p $TINYPROXY_CONFSERVERPORT -h /usr/mww_tinyproxy
+		exitval=$?
+		if [ "$exitval" -eq 0 ]; then
+			echo 'done.'
+		else
+			echo 'failed.'
+		fi
+
+	fi
+}
+
+stop_addons() {
+	if [ "$TINYPROXY_CATCHALL" == "yes" ] &&  iptables -t nat -S PREROUTING | grep -q "to-ports $TINYPROXY_PORT" ; then
+		echo -n " -- Removing tinyproxy IPTABLES rules ... "
+		while iptables -t nat -S PREROUTING | grep -q "to-ports $TINYPROXY_PORT"; do
+			/usr/sbin/iptables -t nat -D PREROUTING -i lan -p tcp --dport 80 -j REDIRECT --to-ports $TINYPROXY_PORT
+		done
+		iptables -t nat -S PREROUTING | grep -q "to-ports $TINYPROXY_PORT" && echo  "failed." ||  echo  "done."
+	fi
+
+	confpid=$(ps | egrep "httpd\ -p.*tinyproxy" | sed 's/^[ ]*\([0-9]*\) .*/\1/')
+	if [ "$TINYPROXY_CONFSERVER" == "yes" ] && [ -n "$confpid" ]; then
+		echo -n " -- Stopping the webserver for the proxy config file ... "
+		kill -9 $confpid > /dev/null 2>&1
+		exitval=$?
+		if [ "$exitval" -eq 0 ]; then
+			echo 'done.'
+		else
+			echo 'failed.'
+		fi
+	fi
+}
+
+case $1 in
+	""|load)
+		modreg cgi $DAEMON "$DAEMON_LONG_NAME"
+		modreg daemon $DAEMON
+
+		modlib_add_user_and_group nobody
+		mkdir -p ${PID_FILE%/*}
+		chown nobody:nobody ${PID_FILE%/*}
+
+		modlib_start $TINYPROXY_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi $DAEMON
+		modlib_stop
+		;;
+	start)
+		modlib_start && start_addons
+		;;
+	stop)
+		stop_addons
+		modlib_stop
+		;;
+	restart)
+		stop_addons
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+esac
+
+exit 0

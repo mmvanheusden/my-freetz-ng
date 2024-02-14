@@ -1,0 +1,15 @@
+config FREETZ_PACKAGE_FTDI1
+	bool "ftdi1 1.5"
+	depends on ! (FREETZ_TARGET_UCLIBC_0_9_28 || FREETZ_TARGET_UCLIBC_0_9_29)
+	select FREETZ_LIB_libusb_1
+	select FREETZ_LIB_libftdi1
+	select FREETZ_LIB_libconfuse
+	default n
+	help
+		ftdi_eeprom of libftdi1
+		is a small tool for reading/erasing/flashing FTDI USB chip eeproms.
+		It uses libftdi1 to access the chip, so you will need to have the
+		required permissions on the device. The ftdi_sio module should not
+		be loaded. You have to unplug and replug your device to get the new
+		values to be read. Otherwise, you will still get the old values.
+

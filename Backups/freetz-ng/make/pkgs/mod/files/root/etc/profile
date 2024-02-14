@@ -1,0 +1,58 @@
+# /etc/profile
+
+. /bin/env.mod.rcconf
+. /var/env.mod.daemon
+
+export CPU_NR=1
+
+tty="$(tty)"
+
+case "$tty" in
+	/dev/tts/* | /dev/ttyS[01] | /dev/ttyMSM0 | /dev/ttyLTQ0 | /dev/ttyAMA0 )
+		stty -F $tty rows 50 cols 132
+		echo -e "\033[50;132q\c"
+		;;
+esac
+
+# Set TERM and HOME
+case $tty in
+	/dev/pts/*)
+		[ -z "$TERM" ] && export TERM=xterm
+		unset serial_term
+		;;
+	/dev/tts/*|/dev/ttyS*|/dev/ttyMSM0|/dev/ttyLTQ0|/dev/ttyAMA0|/dev/console)
+		export TERM=vt102
+		export serial_term=y
+		if [ -z "$HOME" -o "$HOME" == "/" ]; then
+			UID="$(awk '/^Uid:/ { print $2}' /proc/$$/status)"
+			export HOME="$(awk -F: '/^[-a-zA-Z0-9]+:x:'"$UID"':/ {print $6}' /etc/passwd)"
+		fi
+		cd "$HOME"
+		;;
+	*)
+		;;
+esac
+
+if [ $USER == "root" ] && grep -q '^root:$1$$zO6d3zi9DefdWLMB.OHaO.' /etc/shadow; then
+	echo "Default password detected. Please enter a new password for 'root'."
+	passwd
+	modusers save
+	modsave flash
+fi
+
+export PS1='\u@\h:\w\$ '
+
+# some aliases
+[ -x /usr/bin/less ] || alias less=more
+alias l='ls -la'
+alias c='cd ..'
+alias w='uptime'
+
+# more aliases, ignoring avms /etc/profile.d/profile.sh
+if [ -d /mod/etc/profile.d ]; then
+	for p in /mod/etc/profile.d/*; do
+		[ -r "$p" ] && . "$p"
+	done
+	unset p
+fi
+

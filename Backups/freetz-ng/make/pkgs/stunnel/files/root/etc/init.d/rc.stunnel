@@ -1,0 +1,51 @@
+#!/bin/sh
+
+DAEMON=stunnel
+. /etc/init.d/modlibrc
+
+config() {
+	modlib_config
+	[ -r "/tmp/flash/stunnel/svcs" ] && cat /tmp/flash/stunnel/svcs >> $DAEMON_CONFIG
+}
+
+start() {
+	modlib_startdaemon $DAEMON $DAEMON_CONFIG
+}
+
+case $1 in
+	""|load)
+		[ ! -d "/tmp/flash/stunnel" ] && mkdir /tmp/flash/stunnel
+
+		modreg cgi 'stunnel' 'Stunnel'
+		modreg daemon $DAEMON
+		modreg file stunnel svcs 'services' 0 "stunnel_svcs"
+		modreg file stunnel key 'Own Private Key' 0 "stunnel_key"
+		modreg file stunnel certchain 'Own Certificate Chain' 0 "stunnel_certchain"
+
+		modlib_start $STUNNEL_ENABLED
+		;;
+	unload)
+		modunreg file stunnel
+		modunreg daemon $DAEMON
+		modunreg cgi stunnel
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

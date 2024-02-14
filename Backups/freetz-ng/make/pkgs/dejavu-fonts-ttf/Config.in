@@ -1,0 +1,100 @@
+menuconfig FREETZ_PACKAGE_DEJAVU_FONTS_TTF
+	bool "DejaVu Fonts TTF 2.37 (binary only)"
+	default n
+	help
+		The DejaVu fonts are a font family based on the Vera Fonts. Its purpose
+		is to provide a wider range of characters while maintaining the original
+		look and feel through the process of collaborative development
+
+if FREETZ_PACKAGE_DEJAVU_FONTS_TTF
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuMathTeXGyre
+		bool "DejaVuMathTeXGyre"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSans_BoldOblique
+		bool "DejaVuSans-BoldOblique"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSans_Bold
+		bool "DejaVuSans-Bold"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansCondensed_BoldOblique
+		bool "DejaVuSansCondensed-BoldOblique"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansCondensed_Bold
+		bool "DejaVuSansCondensed-Bold"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansCondensed_Oblique
+		bool "DejaVuSansCondensed-Oblique"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansCondensed
+		bool "DejaVuSansCondensed"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSans_ExtraLight
+		bool "DejaVuSans-ExtraLight"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansMono_BoldOblique
+		bool "DejaVuSansMono-BoldOblique"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansMono_Bold
+		bool "DejaVuSansMono-Bold"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansMono_Oblique
+		bool "DejaVuSansMono-Oblique"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSansMono
+		bool "DejaVuSansMono"
+		default y
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSans_Oblique
+		bool "DejaVuSans-Oblique"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSans
+		bool "DejaVuSans"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSerif_BoldItalic
+		bool "DejaVuSerif-BoldItalic"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSerif_Bold
+		bool "DejaVuSerif-Bold"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSerifCondensed_BoldItalic
+		bool "DejaVuSerifCondensed-BoldItalic"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSerifCondensed_Bold
+		bool "DejaVuSerifCondensed-Bold"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSerifCondensed_Italic
+		bool "DejaVuSerifCondensed-Italic"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSerifCondensed
+		bool "DejaVuSerifCondensed"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSerif_Italic
+		bool "DejaVuSerif-Italic"
+		default n
+
+	config FREETZ_PACKAGE_DEJAVU_FONTS_TTF_DejaVuSerif
+		bool "DejaVuSerif"
+		default n
+
+endif # FREETZ_PACKAGE_DEJAVU_FONTS_TTF
+

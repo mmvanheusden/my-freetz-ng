@@ -1,0 +1,85 @@
+#!/bin/sh
+
+DAEMON=radvd
+. /etc/init.d/modlibrc
+
+[ -r /etc/options.cfg ] && . /etc/options.cfg
+
+
+config() {
+	modlib_config
+}
+
+start_ipv6_interface() {
+	local disable_ipv6="/proc/sys/net/ipv6/conf/${RADVD_INTERFACE}/disable_ipv6"
+	if [ -e $disable_ipv6 -a "$(cat $disable_ipv6 2>/dev/null)" != "0" ]; then
+		ifconfig ${RADVD_INTERFACE} down
+		echo 0 > $disable_ipv6
+		ifconfig ${RADVD_INTERFACE} up
+	fi
+	if [ "$RADVD_SETIPV6" == "yes" -a "$FREETZ_PACKAGE_RADVD_VERSION_ABANDON" = "y" ]; then
+		ip -6 addr show dev $RADVD_INTERFACE | grep $RADVD_ADDRESS > /dev/null 2>&1
+		if [ $? -eq 0 ]; then
+			echo 'Set IPv6 address: $RADVD_ADDRESS ... already set.'
+		else
+			ip -6 addr add $RADVD_ADDRESS dev $RADVD_INTERFACE
+		fi
+	fi
+	[ "$RADVD_FORWARD" == "yes" ] && echo 2>/dev/null 1 > /proc/sys/net/ipv6/conf/all/forwarding
+}
+
+stop_ipv6_interface() {
+	if [ "$RADVD_SETIPV6" == "yes" -a "$FREETZ_PACKAGE_RADVD_VERSION_ABANDON" = "y" ]; then
+		ip -6 addr show dev $RADVD_INTERFACE | grep $RADVD_ADDRESS > /dev/null 2>&1
+		if [ $? -eq 0 ]; then
+			ip -6 addr del $RADVD_ADDRESS dev $RADVD_INTERFACE
+		else
+			echo -n 'IPv6 address already unset ... '
+		fi
+	fi
+	[ "$RADVD_FORWARD" == "yes" ] && echo 2>/dev/null 0 > /proc/sys/net/ipv6/conf/all/forwarding
+}
+
+start() {
+	start_ipv6_interface
+	modlib_startdaemon $DAEMON -C $DAEMON_CONFIG
+}
+
+stop_post() {
+	stop_ipv6_interface
+}
+
+case $1 in
+	""|load)
+		modreg cgi 'radvd' 'radvd'
+		modreg daemon $DAEMON
+
+		modlib_start $RADVD_ENABLED
+		;;
+	unload)
+		modunreg daemon $DAEMON
+		modunreg cgi 'radvd'
+		modlib_stop
+		;;
+	start)
+		modlib_start
+		;;
+	stop)
+		modlib_stop
+		;;
+	restart)
+		modlib_restart
+		;;
+	status)
+		modlib_status
+		;;
+	remove)
+		stop_ipv6_interface
+		;;
+	*)
+		echo "Usage: $0 [load|unload|start|stop|remove|restart|status]" 1>&2
+		exit 1
+		;;
+esac
+
+exit 0

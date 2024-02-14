@@ -1,0 +1,1 @@
+[ "$EXTERNAL_FREETZ_LIB_libfribidi" == "y" ] && EXTERNAL_FILES+=" ${FREETZ_LIBRARY_DIR}/libfribidi.so.0.4.0"

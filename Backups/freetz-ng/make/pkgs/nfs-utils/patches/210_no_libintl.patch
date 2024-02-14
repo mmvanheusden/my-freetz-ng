@@ -1,0 +1,11 @@
+--- configure_	2016-10-09 03:18:48.784538117 +0200
++++ configure	2016-10-09 03:19:21.210784858 +0200
+@@ -20620,7 +20620,7 @@
+ 
+ 
+ 
+-for ac_header in arpa/inet.h fcntl.h libintl.h limits.h \
++for ac_header in arpa/inet.h fcntl.h           limits.h \
+                  malloc.h memory.h netdb.h netinet/in.h paths.h \
+                  stdlib.h string.h sys/file.h sys/ioctl.h sys/mount.h \
+                  sys/param.h sys/socket.h sys/time.h sys/vfs.h \

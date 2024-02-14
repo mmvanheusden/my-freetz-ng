@@ -1,0 +1,9 @@
+config EXTERNAL_FREETZ_PACKAGE_TCP_WRAPPERS
+	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_TCP_WRAPPERS
+	bool "tcp_wrappers"
+	default n
+	help
+		externals the following file(s):
+		 /sbin/tcpd
+		 ${FREETZ_LIBRARY_DIR}/libwrap.so.0.7.6
+
