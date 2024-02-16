@@ -9,20 +9,22 @@ Now this is where the pain started. The `tools/push-firmware` didn't detect my F
 This is were the deep deep, sink hole started were I had to find an alternative way of flashing it. This is how I did it:
 
 **Step 2**  
-After i was done building the image on Debian, I moved it to my Windows disk. From there I used [EVA tools](https://github.com/PeterPawn/YourFritz/tree/main/eva_tools) to convert the `~.image` file to an `~.image.in-memory` file.
+After i was done building the image on Debian, I moved it to my Windows disk. From there I used [EVA tools](https://github.com/PeterPawn/YourFritz/tree/main/eva_tools) to convert the `.image` file to an `.image.in-memory` file.
 I did this in WSL, in the root user with the command
-```bash
-./image2ram < path/to/images/latest.image > firmware.image.in-memory
+
+```console
+$ ./image2ram < path/to/images/latest.image > firmware.image.in-memory
 ```
 This converted the image in to an image-in-memory file, or something.
 
 After that, it was easy. I could easily flash the special image using the EVA tools as well:
 ![Flashing to the FRITZ!Box 7560](image.png)
-```bash
->  bash ./eva_to_memory firmware.image.in-memory
+
+```console
+$ bash ./eva_to_memory firmware.image.in-memory
 ```
 And it worked!  
 I have put a backup/snapshot of the Freetz-NG repo and the EVA tools in this repo, incase something bad happens in the future.
 
 
-I think everything could've been done in Linux but the only thing holding it back is that the network connection establishes too slow, so the moment the FRITZ!Box can be flashed ("ftp mode") is missed.
+I think everything could've been done in Linux but the only thing holding it back is that the network connection establishes too slow, so the moment the FRITZ!Box can be flashed ("ftp mode") is missed.	
