@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_DTACH" == "y" ] && EXTERNAL_FILES+=" /usr/bin/dtach"

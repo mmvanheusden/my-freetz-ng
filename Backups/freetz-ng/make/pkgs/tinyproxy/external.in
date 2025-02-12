@@ -1,8 +1,0 @@
-config EXTERNAL_FREETZ_PACKAGE_TINYPROXY
-	depends on EXTERNAL_ENABLED && FREETZ_PACKAGE_TINYPROXY
-	bool "tinyproxy"
-	default n
-	help
-		externals the following file(s):
-		 /usr/sbin/tinyproxy
-

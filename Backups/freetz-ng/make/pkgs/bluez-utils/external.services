@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_BLUEZ_UTILS" == "y" ] && EXTERNAL_SERVICES+=" bluez-utils"

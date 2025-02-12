@@ -1,4 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libncursesw)),y)
-LIBS+=ncursesw
-endif
-

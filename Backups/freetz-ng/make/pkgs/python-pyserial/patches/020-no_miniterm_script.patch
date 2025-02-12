@@ -1,9 +1,0 @@
---- setup.py
-+++ setup.py
-@@ -82,5 +82,5 @@
-     platforms = 'any',
-     cmdclass = {'build_py': build_py, 'build_scripts': build_scripts},
- 
--    scripts = ['serial/tools/miniterm.py'],
-+#    scripts = ['serial/tools/miniterm.py'],
- )

@@ -1,4 +1,0 @@
---- linux-4.4/drivers/char/avm_new/include/uapi/avm/event/Kbuild
-+++ linux-4.4/drivers/char/avm_new/include/uapi/avm/event/Kbuild
-@@ -0,0 +1 @@
-+

@@ -1,9 +1,0 @@
-languages
-{ de en }
-default
-{ en }
-files
-{
-	usr/lib/cgi-bin/httpry.cgi
-	usr/lib/cgi-bin/httpry/httpry_log.cgi
-}

@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_UTIL_LINUX" == "y" ] && EXTERNAL_FILES+=" /sbin/blkid-util-linux"

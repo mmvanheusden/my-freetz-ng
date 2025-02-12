@@ -1,5 +1,0 @@
-
-pkg_post() {
-	/mod/etc/init.d/rc.dnsmasq cgireg
-}
-

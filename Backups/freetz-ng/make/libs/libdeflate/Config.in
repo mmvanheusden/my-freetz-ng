@@ -1,6 +1,0 @@
-config FREETZ_LIB_libdeflate
-	bool "libdeflate (libdeflate.so)"
-	default n
-	help
-		Heavily optimized library for DEFLATE/zlib/gzip compression and decompression
-

@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libconfig)),y)
-LIBS+=libconfig
-endif

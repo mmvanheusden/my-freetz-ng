@@ -1,2 +1,0 @@
-$DebugPreference = "Continue"
-$VerbosePreference = "Continue"

@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libspandsp)),y)
-LIBS+=spandsp
-endif

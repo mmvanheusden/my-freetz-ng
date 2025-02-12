@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libssh2)),y)
-LIBS+=libssh2
-endif

@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libconfuse)),y)
-LIBS+=libconfuse
-endif

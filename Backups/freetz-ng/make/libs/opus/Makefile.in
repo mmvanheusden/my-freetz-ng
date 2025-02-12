@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libopus)),y)
-LIBS+=opus
-endif

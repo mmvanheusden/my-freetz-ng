@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libmaxminddb)),y)
-LIBS+=libmaxminddb
-endif

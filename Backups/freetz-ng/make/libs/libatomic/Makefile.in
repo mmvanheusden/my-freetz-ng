@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libatomic)),y)
-LIBS+=libatomic
-endif

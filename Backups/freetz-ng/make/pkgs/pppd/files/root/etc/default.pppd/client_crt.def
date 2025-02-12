@@ -1,5 +1,0 @@
-CAPTION='PPPD: Client Cert'
-DESCRIPTION='Zertifikat f&uuml;r den Client.'
-CONFIG_FILE='/tmp/flash/ppp/client.crt'
-CONFIG_SAVE='modsave flash'
-CONFIG_TYPE='text'

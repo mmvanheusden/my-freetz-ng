@@ -1,3 +1,0 @@
-ifeq ($(or $(strip $(FREETZ_MODULE_ndas_block)),$(strip $(FREETZ_MODULE_ndas_core)),$(strip $(FREETZ_MODULE_ndas_sal))),y)
-TARGETS+=ndas
-endif

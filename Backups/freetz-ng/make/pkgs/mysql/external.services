@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_MYSQL" == "y" ] && EXTERNAL_SERVICES+=" mysql"

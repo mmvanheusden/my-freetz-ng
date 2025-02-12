@@ -1,9 +1,0 @@
-languages
-{ de en }
-default
-{ en }
-files
-{
-	etc/default.unfs3/exports.def
-	usr/lib/cgi-bin/unfs3.cgi
-}

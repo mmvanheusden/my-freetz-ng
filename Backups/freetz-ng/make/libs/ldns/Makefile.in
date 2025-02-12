@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libldns)),y)
-LIBS+=ldns
-endif

@@ -1,3 +1,0 @@
-ifneq (,$(strip $(filter y,$(FREETZ_LIB_libosipparser2) $(FREETZ_LIB_libosip2))))
-LIBS+=libosip2
-endif

@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_TICHKSUM" == "y" ] && EXTERNAL_FILES+=" /usr/bin/tichksum"

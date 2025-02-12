@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libdvbcsa)),y)
-LIBS+=libdvbcsa
-endif

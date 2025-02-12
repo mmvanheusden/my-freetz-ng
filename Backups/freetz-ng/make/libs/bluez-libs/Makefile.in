@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libbluetooth)),y)
-LIBS+=bluez-libs
-endif

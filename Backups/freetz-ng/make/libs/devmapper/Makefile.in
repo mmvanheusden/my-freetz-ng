@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libdevmapper)),y)
-LIBS+=devmapper
-endif

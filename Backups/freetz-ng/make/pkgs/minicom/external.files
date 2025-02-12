@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_MINICOM" == "y" ] && EXTERNAL_FILES+=" /usr/bin/minicom"

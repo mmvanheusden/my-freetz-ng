@@ -1,3 +1,0 @@
-#!/bin/sh
-
-sed -e 's/^\([^#].*\)/\1 -setuplog "default '$NETATALK_LOG_LEVEL'"/' /tmp/flash/netatalk/afpd_conf

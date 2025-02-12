@@ -1,2 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_SANE_BACKENDS" == "y" ] && EXTERNAL_SERVICES+=" sane-backends"
-

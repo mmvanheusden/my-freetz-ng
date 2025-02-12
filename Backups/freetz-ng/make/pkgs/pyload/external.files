@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_PYLOAD" == "y" ] && EXTERNAL_FILES+=" /opt/pyLoad"

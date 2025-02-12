@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libutf8proc)),y)
-LIBS+=utf8proc
-endif

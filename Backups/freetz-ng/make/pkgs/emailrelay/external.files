@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_EMAILRELAY" == "y" ] && EXTERNAL_FILES+=" /usr/bin/emailrelay"

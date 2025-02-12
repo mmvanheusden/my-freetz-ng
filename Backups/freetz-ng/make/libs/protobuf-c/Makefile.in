@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libprotobuf_c)),y)
-LIBS+=protobuf-c
-endif

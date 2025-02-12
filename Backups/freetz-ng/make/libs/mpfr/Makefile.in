@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libmpfr)),y)
-LIBS+=mpfr
-endif

@@ -1,9 +1,0 @@
-languages
-{ de en }
-default
-{ de }
-files
-{
-	usr/lib/cgi-bin/checkmaild.cgi
-	etc/default.checkmaild/mailactions.def
-}

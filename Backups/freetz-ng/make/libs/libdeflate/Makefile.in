@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libdeflate)),y)
-LIBS+=libdeflate
-endif

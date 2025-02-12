@@ -1,3 +1,0 @@
-ifneq (,$(strip $(filter y,$(FREETZ_LIB_librrd) $(FREETZ_LIB_librrd_th))))
-LIBS+=rrdtool
-endif

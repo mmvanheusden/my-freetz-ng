@@ -1,3 +1,0 @@
-ifneq (,$(strip $(filter y,$(FREETZ_LIB_libavahi_common) $(FREETZ_LIB_libavahi_core) $(FREETZ_LIB_libavahi_client))))
-LIBS+=avahi
-endif

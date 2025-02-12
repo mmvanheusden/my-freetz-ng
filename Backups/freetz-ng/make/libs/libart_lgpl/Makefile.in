@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libart_lgpl_2)),y)
-LIBS+=libart_lgpl
-endif

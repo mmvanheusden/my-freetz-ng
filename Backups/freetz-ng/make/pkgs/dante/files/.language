@@ -1,9 +1,0 @@
-languages
-{ de en }
-default
-{ en }
-files
-{
-	etc/default.dante/sockd_conf.def
-	usr/lib/cgi-bin/dante.cgi
-}

@@ -1,9 +1,0 @@
-#!/bin/sh
-
-[ "$(/mod/etc/init.d/rc.siproxd status)" != "running" ] && exit 0
-
-case "$1" in
-	online*)
-		[ "$(/mod/etc/init.d/rc.siproxd status)" != "stopped" ] && /mod/etc/init.d/rc.siproxd restart
-		;;
-esac

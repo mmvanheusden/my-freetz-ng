@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libnfsidmap)),y)
-LIBS+=libnfsidmap
-endif

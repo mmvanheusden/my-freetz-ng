@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_LIB_libdevmapper" == "y" ] && EXTERNAL_FILES+=" ${FREETZ_LIBRARY_DIR}/libdevmapper.so.1.02"

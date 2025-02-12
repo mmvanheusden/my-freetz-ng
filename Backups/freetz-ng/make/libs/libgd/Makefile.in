@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libgd)),y)
-LIBS+=libgd
-endif

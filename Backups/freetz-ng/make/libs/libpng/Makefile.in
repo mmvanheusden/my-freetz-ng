@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libpng16)),y)
-LIBS+=libpng
-endif

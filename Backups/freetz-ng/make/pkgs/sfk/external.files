@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_SFK" == "y" ] && EXTERNAL_FILES+=" /usr/bin/sfk"

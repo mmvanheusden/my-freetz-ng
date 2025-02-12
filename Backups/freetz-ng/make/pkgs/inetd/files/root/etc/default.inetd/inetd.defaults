@@ -1,2 +1,0 @@
-#time   stream  tcp    nowait  root    internal
-#time   dgram   udp    wait    root    internal

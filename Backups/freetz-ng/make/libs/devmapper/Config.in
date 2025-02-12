@@ -1,6 +1,0 @@
-config FREETZ_LIB_libdevmapper
-	bool "libdevmapper (libdevmapper.so)"
-	default n
-	help
-		Device-mapper library.
-

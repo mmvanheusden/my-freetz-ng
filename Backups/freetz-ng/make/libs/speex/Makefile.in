@@ -1,3 +1,0 @@
-ifeq ($(or $(strip $(FREETZ_LIB_libspeex)),$(strip $(FREETZ_LIB_libspeexdsp))),y)
-LIBS+=speex
-endif

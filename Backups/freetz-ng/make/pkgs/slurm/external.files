@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_SLURM" == "y" ] && EXTERNAL_FILES+=" /usr/bin/slurm"

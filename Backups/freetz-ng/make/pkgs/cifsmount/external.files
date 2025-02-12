@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_CIFSMOUNT" == "y" ] && EXTERNAL_FILES+=" /sbin/mount.cifs"

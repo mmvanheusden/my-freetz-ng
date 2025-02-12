@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libexpat)),y)
-LIBS+=expat
-endif

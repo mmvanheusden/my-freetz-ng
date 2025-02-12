@@ -1,3 +1,0 @@
-ifeq ($(or $(strip $(FREETZ_LIB_libmbedcrypto)),$(strip $(FREETZ_LIB_libmbedtls)),$(strip $(FREETZ_LIB_libmbedx509))),y)
-LIBS+=mbedtls
-endif

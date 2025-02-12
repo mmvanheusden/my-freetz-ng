@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libpolarssl13)),y)
-LIBS+=polarssl13
-endif

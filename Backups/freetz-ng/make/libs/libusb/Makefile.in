@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libusb_0)),y)
-LIBS+=libusb
-endif

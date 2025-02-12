@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libpcre)),y)
-LIBS+=pcre
-endif

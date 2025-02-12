@@ -1,1 +1,0 @@
-[ "$EXTERNAL_FREETZ_PACKAGE_SQUASHFS4_LE" == "y" ] && EXTERNAL_FILES+=" /usr/bin/mksquashfs4-avm-le /usr/bin/unsquashfs4-avm-le"

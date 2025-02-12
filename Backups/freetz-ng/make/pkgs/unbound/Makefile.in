@@ -1,3 +1,0 @@
-ifneq (,$(strip $(filter y,$(FREETZ_LIB_libunbound) )))
-LIBS+=libunbound
-endif

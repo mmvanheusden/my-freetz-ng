@@ -1,6 +1,0 @@
-config FREETZ_LIB_libattr
-	bool "libattr (libattr.so)"
-	default n
-	help
-		libattr allows to modify extended attributes of files.
-

@@ -1,5 +1,0 @@
-
-pkg_pre() {
-	/mod/etc/init.d/rc.unbound config
-}
-

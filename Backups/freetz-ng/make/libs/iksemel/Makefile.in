@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libiksemel)),y)
-LIBS+=iksemel
-endif

@@ -1,3 +1,0 @@
-ifeq ($(strip $(FREETZ_LIB_libid3tag)),y)
-LIBS+=libid3tag
-endif

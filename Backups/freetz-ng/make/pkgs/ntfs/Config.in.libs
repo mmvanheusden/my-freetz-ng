@@ -1,6 +1,0 @@
-config FREETZ_LIB_libntfs
-	bool "libntfs (libntfs-3g.so)"
-	default n
-	help
-		NTFS-3G library
-

@@ -1,9 +1,0 @@
-languages
-{ de en }
-default
-{ en }
-files
-{
-	usr/lib/cgi-bin/smstools3.cgi
-	usr/lib/cgi-bin/smstools3/status.cgi
-}
